@@ -1,4 +1,4 @@
-# Arduino RFID lock
+# Arduino RFID Lock
 
 Arduino program to control an electronic lock that is released when a set of [RFID readers](https://www.sparkfun.com/products/13198) detect some pre-determined tags.
 
