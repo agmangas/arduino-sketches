@@ -29,6 +29,12 @@ const byte LOCK_RELAY_PIN = 10;
 // after all tags have been correctly placed in their RFID sensors
 const unsigned long LOCK_OPEN_DELAY_MS = 120000;
 
+// Non-printable tag buffer characters
+const int TAG_CHAR_STX = 2;
+const int TAG_CHAR_CR = 13;
+const int TAG_CHAR_LF = 10;
+const int TAG_CHAR_ETX = 3;
+
 // SoftwareSerial instances (RX, TX) connected to RFID sensors
 SoftwareSerial rSerial01(SECONDARY_RFID_01_RX, SECONDARY_RFID_01_TX);
 SoftwareSerial rSerial02(SECONDARY_RFID_02_RX, SECONDARY_RFID_02_TX);
@@ -52,7 +58,10 @@ unsigned long currentTagsMillis[NUM_READERS];
    ASCII 3, ETX/end of text.
 */
 boolean isPrintableTagChar(int readByte) {
-  if (readByte != 2 && readByte != 13 && readByte != 10 && readByte != 3) {
+  if (readByte != TAG_CHAR_STX &&
+      readByte != TAG_CHAR_CR &&
+      readByte != TAG_CHAR_LF &&
+      readByte != TAG_CHAR_ETX) {
     return true;
   } else {
     return false;
@@ -62,22 +71,18 @@ boolean isPrintableTagChar(int readByte) {
 /**
    Clears the main HW serial input buffer.
 */
-void clearMainSerialInputBuffer() {
+void clearHardwareSerialInputBuffer() {
   while (Serial.available()) {
     Serial.read();
   }
 }
 
 /**
-   Clears the input buffers of all secondary SW serials.
+   Clears the input buffers of a secondary SW serial.
 */
-void clearSecondarySerialsInputBuffer() {
-  while (rSerial01.available()) {
-    rSerial01.read();
-  }
-
-  while (rSerial02.available()) {
-    rSerial02.read();
+void clearSoftwareSerialInputBuffer(SoftwareSerial &theSerialPort) {
+  while (theSerialPort.available()) {
+    theSerialPort.read();
   }
 }
 
@@ -89,34 +94,73 @@ void clearCurrentTagsAndBuffers() {
     memset(currentTags[i], 0, sizeof(currentTags[i]));
   }
 
-  clearMainSerialInputBuffer();
-  clearSecondarySerialsInputBuffer();
+  clearHardwareSerialInputBuffer();
+  clearSoftwareSerialInputBuffer(rSerial01);
+  clearSoftwareSerialInputBuffer(rSerial02);
+}
+
+/**
+   Takes a buffer of bytes and tries to retrieve the most recent tag.
+*/
+void findTagInBuffer(char buf[], int bufSize, char newTag[]) {
+  memset(newTag, 0, ID_LEN);
+
+  if (bufSize < TAG_LEN) {
+    return;
+  }
+
+  const int stxIdx = bufSize - TAG_LEN;
+
+  if (buf[stxIdx] != TAG_CHAR_STX) {
+    return;
+  }
+
+  int counter = 0;
+
+  for (int i = stxIdx; i < bufSize; i++) {
+    if (isPrintableTagChar(buf[i])) {
+      // Check if we are reading more bytes than expected
+      if (counter >= (ID_LEN - 1)) {
+        memset(newTag, 0, ID_LEN);
+        return;
+      }
+
+      newTag[counter] = buf[i];
+      counter++;
+    }
+  }
+
+  // Check if the output array does not have the string length
+  if (strlen(newTag) != ID_PRINTABLE_LEN) {
+    memset(newTag, 0, ID_LEN);
+  }
 }
 
 /**
    Reads the main RFID reader on the HW serial port.
 */
 void readMainTag() {
-  char newTag[ID_LEN];
-
-  if (Serial.available() == TAG_LEN) {
-    int i = 0;
-    int readByte;
-
-    while (Serial.available()) {
-      readByte = Serial.read();
-
-      if (isPrintableTagChar(readByte)) {
-        newTag[i] = readByte;
-        i++;
-      }
-    }
-  } else if (Serial.available() > TAG_LEN) {
-    Serial.println("Too many bytes in HW serial: clearing input buffer");
+  if (Serial.available() > 0 && Serial.peek() != TAG_CHAR_STX) {
+    Serial.println("Unexpected start byte in HW serial: clearing input buffer");
     Serial.flush();
 
-    clearMainSerialInputBuffer();
+    clearHardwareSerialInputBuffer();
   }
+
+  if (Serial.available() < TAG_LEN) {
+    return;
+  }
+
+  char newTag[ID_LEN];
+
+  int bufSize = Serial.available();
+  char buf[bufSize];
+
+  for (int i = 0; i < bufSize; i++) {
+    buf[i] = Serial.read();
+  }
+
+  findTagInBuffer(buf, bufSize, newTag);
 
   if (strlen(newTag) == ID_PRINTABLE_LEN) {
     Serial.print("Read main tag: ");
@@ -130,7 +174,8 @@ void readMainTag() {
     memset(currentTags[1], 0, sizeof(currentTags[1]));
     memset(currentTags[2], 0, sizeof(currentTags[2]));
 
-    clearSecondarySerialsInputBuffer();
+    clearSoftwareSerialInputBuffer(rSerial01);
+    clearSoftwareSerialInputBuffer(rSerial02);
   }
 }
 
@@ -138,31 +183,30 @@ void readMainTag() {
    Reads a secondary RFID reader on a SW serial port.
 */
 void readSecondaryTag(SoftwareSerial &theSerialPort, int portIndex) {
-  char newTag[ID_LEN];
-
-  if (theSerialPort.available() == TAG_LEN) {
-    int i = 0;
-    int readByte;
-
-    while (theSerialPort.available()) {
-      readByte = theSerialPort.read();
-
-      if (isPrintableTagChar(readByte)) {
-        newTag[i] = readByte;
-        i++;
-      }
-    }
-  } else if (theSerialPort.available() > TAG_LEN) {
-    Serial.print("Too many bytes in SW serial #");
+  if (theSerialPort.available() > 0 && theSerialPort.peek() != TAG_CHAR_STX) {
+    Serial.print("Unexpected start byte in SW serial #");
     Serial.print(portIndex);
     Serial.print(": clearing input buffer");
     Serial.println();
     Serial.flush();
 
-    while (theSerialPort.available()) {
-      theSerialPort.read();
-    }
+    clearSoftwareSerialInputBuffer(theSerialPort);
   }
+
+  if (theSerialPort.available() < TAG_LEN) {
+    return;
+  }
+
+  char newTag[ID_LEN];
+
+  int bufSize = theSerialPort.available();
+  char buf[bufSize];
+
+  for (int i = 0; i < bufSize; i++) {
+    buf[i] = theSerialPort.read();
+  }
+
+  findTagInBuffer(buf, bufSize, newTag);
 
   if (strlen(newTag) == ID_PRINTABLE_LEN) {
     Serial.print("Read tag: ");
@@ -264,10 +308,10 @@ void setup() {
 
   delay(1000);
 
-  updateListenerPort();
-
-  Serial.println("Hello! I'm an RFID electric lock program");
+  Serial.println("Starting RFID electronic lock program");
   Serial.flush();
+
+  updateListenerPort();
 }
 
 void loop() {
