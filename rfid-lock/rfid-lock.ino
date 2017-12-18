@@ -168,7 +168,10 @@ void readMainTag() {
     Serial.println();
     Serial.flush();
 
-    strncpy(newTag, currentTags[0], ID_LEN - 1);
+    for (int k = 0; k < ID_LEN - 1; k++) {
+      currentTags[0][k] = newTag[k];
+    }
+
     currentTagsMillis[0] = millis();
 
     memset(currentTags[1], 0, sizeof(currentTags[1]));
@@ -216,7 +219,10 @@ void readSecondaryTag(SoftwareSerial &theSerialPort, int portIndex) {
     Serial.println();
     Serial.flush();
 
-    strncpy(newTag, currentTags[portIndex], ID_LEN - 1);
+    for (int k = 0; k < ID_LEN - 1; k++) {
+      currentTags[portIndex][k] = newTag[k];
+    }
+
     currentTagsMillis[portIndex] = millis();
   }
 }
@@ -337,3 +343,4 @@ void loop() {
     digitalWrite(LOCK_RELAY_PIN, HIGH);
   }
 }
+
