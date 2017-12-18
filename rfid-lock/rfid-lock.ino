@@ -41,9 +41,9 @@ SoftwareSerial rSerial02(SECONDARY_RFID_02_RX, SECONDARY_RFID_02_TX);
 
 // List of accepted tags for each RFID sensor
 char acceptedTags[NUM_READERS][ID_LEN] = {
-  "111111111111",
-  "444444444444",
-  "555555555555"
+  "011005CDE138",
+  "011005CDDD04",
+  "011005CE77AD"
 };
 
 // Most recent tags and timestamps for each RFID sensor
