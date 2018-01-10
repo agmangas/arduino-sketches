@@ -41,9 +41,9 @@ SoftwareSerial rSerial02(SECONDARY_RFID_02_RX, SECONDARY_RFID_02_TX);
 
 // List of accepted tags for each RFID sensor
 char acceptedTags[NUM_READERS][ID_LEN] = {
-  "011005CDE138",
-  "011005CDDD04",
-  "011005CE77AD"
+  "111111111111",
+  "444444444444",
+  "555555555555"
 };
 
 // Most recent tags and timestamps for each RFID sensor
@@ -168,10 +168,7 @@ void readMainTag() {
     Serial.println();
     Serial.flush();
 
-    for (int k = 0; k < ID_LEN - 1; k++) {
-      currentTags[0][k] = newTag[k];
-    }
-
+    strncpy(newTag, currentTags[0], ID_LEN - 1);
     currentTagsMillis[0] = millis();
 
     memset(currentTags[1], 0, sizeof(currentTags[1]));
@@ -219,10 +216,7 @@ void readSecondaryTag(SoftwareSerial &theSerialPort, int portIndex) {
     Serial.println();
     Serial.flush();
 
-    for (int k = 0; k < ID_LEN - 1; k++) {
-      currentTags[portIndex][k] = newTag[k];
-    }
-
+    strncpy(newTag, currentTags[portIndex], ID_LEN - 1);
     currentTagsMillis[portIndex] = millis();
   }
 }
@@ -343,4 +337,3 @@ void loop() {
     digitalWrite(LOCK_RELAY_PIN, HIGH);
   }
 }
-
