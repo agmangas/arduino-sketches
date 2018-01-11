@@ -267,10 +267,6 @@ bool isTagDefined(int portIdx) {
    Checks the current status and updates the SW serial port that is listening.
 */
 void updateListenerPort() {
-  bool hasMain = strlen(currentTags[0]) == ID_PRINTABLE_LEN;
-  bool hasSwFirst = strlen(currentTags[1]) == ID_PRINTABLE_LEN;
-  bool hasSwSecond = strlen(currentTags[2]) == ID_PRINTABLE_LEN;
-
   if (isTagDefined(0) && isTagDefined(1) && isTagDefined(2)) {
     if (rSerial03.isListening() == false) {
       Serial.println("Listening on port #3");
