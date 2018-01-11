@@ -329,6 +329,59 @@ void turnOnPixel(int idx) {
 }
 
 /**
+   Start a sequence where all LEDs pulsate for a given amount of time.
+*/
+void pulsatePixels(unsigned long durationMs) {
+  unsigned long ini = millis();
+
+  Serial.print("Starting pulsating sequence at: ");
+  Serial.print(ini);
+  Serial.println();
+  Serial.flush();
+
+  uint8_t val = 0;
+  uint8_t valStep = 5;
+  bool isRising = true;
+
+  while (true) {
+    unsigned long now = millis();
+
+    if (isRising) {
+      val = val + valStep;
+    } else {
+      val = val - valStep;
+    }
+
+    if (val >= 255) {
+      val = 255;
+      isRising = false;
+    } else if (val <= 0) {
+      val = 0;
+      isRising = true;
+    }
+
+    for (int i = 0; i < NEOPIXEL_NUM; i++) {
+      pixelStrip.setPixelColor(i, val, val, val);
+    }
+
+    pixelStrip.show();
+
+    if (now < ini || ((now - ini) > durationMs)) {
+      break;
+    }
+
+    delay(30);
+  }
+
+  turnOffPixels();
+
+  Serial.print("Ending pulsating sequence at: ");
+  Serial.print(millis());
+  Serial.println();
+  Serial.flush();
+}
+
+/**
    This function steps through both newTag and one of the known tags.
    If there is a mismatch anywhere in the tag, it will return 0,
    but if every character in the tag is the same, it returns 1.
@@ -400,7 +453,7 @@ void setup() {
   updateListenerPort();
 
   pixelStrip.begin();
-  pixelStrip.setBrightness(255);
+  pixelStrip.setBrightness(200);
   pixelStrip.show();
 }
 
@@ -420,7 +473,7 @@ void loop() {
     Serial.flush();
 
     digitalWrite(LOCK_RELAY_PIN, LOW);
-    delay(LOCK_OPEN_DELAY_MS);
+    pulsatePixels(LOCK_OPEN_DELAY_MS);
 
     Serial.println("Opening time has finished: enabling lock");
     Serial.flush();
@@ -430,4 +483,3 @@ void loop() {
     digitalWrite(LOCK_RELAY_PIN, HIGH);
   }
 }
-
