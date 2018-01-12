@@ -55,10 +55,10 @@ uint32_t colorActive = pixelStrip.Color(255, 255, 255);
 
 // List of accepted tags for each RFID sensor
 char acceptedTags[NUM_READERS][ID_LEN] = {
+  "011005CD9B42",
   "011005CD9C45",
-  "011005CD9C45",
-  "011005CD9C45",
-  "011005CD9C45"
+  "011005CE79A3",
+  "011005CDA079"
 };
 
 // Most recent tags and timestamps for each RFID sensor
@@ -453,7 +453,7 @@ void setup() {
   updateListenerPort();
 
   pixelStrip.begin();
-  pixelStrip.setBrightness(200);
+  pixelStrip.setBrightness(255);
   pixelStrip.show();
 }
 
@@ -472,6 +472,7 @@ void loop() {
     Serial.println();
     Serial.flush();
 
+    pulsatePixels(2000);
     digitalWrite(LOCK_RELAY_PIN, LOW);
     pulsatePixels(LOCK_OPEN_DELAY_MS);
 
