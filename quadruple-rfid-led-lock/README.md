@@ -18,6 +18,6 @@ This program requires a fairly high amount of peripherals (four RFID readers, fo
 
 * Using a 12V / 2A wall power adapter to power the Arduino.
 * Powering the RFID readers with the **3.3V pin**.
-* Powering the NeoPixels with the **5V pin**.
+* Powering the NeoPixels with an external 5V wall power adapter.
 
 The electronic lock requires 12V / 1A and is therefore connected to the **Vin pin**.
