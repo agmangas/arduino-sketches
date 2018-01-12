@@ -11,3 +11,13 @@ A strip of **four** *NeoPixels* is used to visually represent the current status
 ## Configuring the Tag IDs
 
 You should update the `acceptedTags` array with the tag IDs that you wish to use to release the lock. The first item corresponds to the first RFID sensor (HW port), the second item to the second RFID sensor (SW port #1), and so on.
+
+## Peripherals Power Consumption
+
+This program requires a fairly high amount of peripherals (four RFID readers, four NeoPixels and an electronic lock). To avoid problems derived from drawing too much current from the same pin we recommend: 
+
+* Using a 12V / 2A wall power adapter to power the Arduino.
+* Powering the RFID readers with the **3.3V pin**.
+* Powering the NeoPixels with the **5V pin**.
+
+The electronic lock requires 12V / 1A and is therefore connected to the **Vin pin**.
