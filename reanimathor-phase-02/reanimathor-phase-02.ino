@@ -3,19 +3,22 @@
 #define STATE_STABLE 1
 #define STATE_VIBRATING 2
 
-// Define the struct to contain vibration sensor reading samples
+// Struct to contain vibration sensor reading samples
 struct sensorSample {
   unsigned long tstamp;
   int level;
 };
 
+// typedef for the sensor samples struct
 typedef struct sensorSample SensorSample;
 
 // Pin connected to the vibration sensor
 const byte SENSOR_PIN = 2;
 
-// Buffer that will contain the vibration sensor readings
+// Size of the sensor samples buffer
 const int BUFFER_SIZE = 60;
+
+// Buffer that will contain the vibration sensor readings
 CircularBuffer<SensorSample, BUFFER_SIZE> sensorBuffer;
 
 // Vibration ratio threshold
@@ -37,7 +40,7 @@ void readSensor() {
 }
 
 /**
-   Returns the current state (HIGH, LOW, VIBRATING).
+   Returns the current vibration sensor status.
 */
 byte getCurrentState() {
   int counterHi = 0;
