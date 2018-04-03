@@ -27,7 +27,7 @@ const int SENSOR_BUFFER_SIZE = 100;
 CircularBuffer<SensorSample, SENSOR_BUFFER_SIZE> sensorBuffer;
 
 // Size of the vibration states buffer
-const int STATE_BUFFER_SIZE = 10;
+const int STATE_BUFFER_SIZE = 5;
 
 // Buffer that will contain the history of vibration states
 CircularBuffer<StateSample, STATE_BUFFER_SIZE> stateBuffer;
@@ -36,8 +36,15 @@ CircularBuffer<StateSample, STATE_BUFFER_SIZE> stateBuffer;
 // stream to consider that the sensor is vibrating
 const float VIBRATION_LEVEL_CHANGE_RATIO = 0.1;
 
+// Time period (ms) between state samples extracted
+// from the sensor samples buffer
+const unsigned long STATE_SAMPLING_PERIOD_MS = 100;
+
 // Iteration delay (ms)
-const int LOOP_WAIT_MS = 10;
+const int LOOP_WAIT_MS = 5;
+
+// Timestamp (millis) of the last state sample
+unsigned long lastStateMillis;
 
 // Last observed state
 byte lastState = STATE_UNKNOWN;
@@ -66,7 +73,7 @@ byte getSensorBufferState() {
   }
 
   int levelChanges = 0;
-  int currentLevel = sensorBuffer[0].level;
+  int currentLevel = sensorBuffer.first().level;
 
   for (int i = 0; i < sensorBuffer.size(); i++) {
     if (currentLevel != sensorBuffer[i].level) {
@@ -89,32 +96,72 @@ byte getSensorBufferState() {
    Reads the current sensor state and updates the state buffer.
 */
 void updateStateBuffer() {
-  byte currentState = getSensorBufferState();
+  unsigned long now = millis();
 
-  if (currentState == STATE_UNKNOWN) {
+  bool isOverflow = lastStateMillis > now;
+  bool canProceed = (now - lastStateMillis) > STATE_SAMPLING_PERIOD_MS;
+
+  if (isOverflow || canProceed) {
+    lastStateMillis = now;
+  } else {
+    return;
+  }
+
+  byte sensorBufferState = getSensorBufferState();
+
+  if (sensorBufferState == STATE_UNKNOWN) {
     return;
   }
 
   StateSample sample;
   sample.tstamp = millis();
-  sample.state = currentState;
+  sample.state = sensorBufferState;
 
   Serial.print("updateStateBuffer: ");
-  Serial.println(currentState == STATE_STABLE ? "STABLE" : "VIBRATING");
+  Serial.println(sensorBufferState == STATE_STABLE ? "STABLE" : "VIBRATING");
   Serial.flush();
 
   stateBuffer.push(sample);
+}
+
+/**
+   Returns the current state extracted from the state buffer.
+*/
+byte getCurrentState() {
+  if (stateBuffer.isFull() == false) {
+    return STATE_UNKNOWN;
+  }
+
+  byte firstState = stateBuffer.first().state;
+
+  for (int i = 0; i < stateBuffer.size(); i++) {
+    if (firstState != stateBuffer[i].state) {
+      return STATE_UNKNOWN;
+    }
+  }
+
+  return firstState;
 }
 
 void setup() {
   Serial.begin(9600);
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(13, OUTPUT);
+  lastStateMillis = millis();
 }
 
 void loop() {
   updateSensorBuffer();
   updateStateBuffer();
+
+  byte currentState = getCurrentState();
+
+  if (currentState != STATE_UNKNOWN && currentState != lastState) {
+    lastState = currentState;
+    Serial.print("!! State change: ");
+    Serial.println(currentState == STATE_STABLE ? "STABLE" : "VIBRATING");
+    Serial.flush();
+  }
 
   delay(LOOP_WAIT_MS);
 }
