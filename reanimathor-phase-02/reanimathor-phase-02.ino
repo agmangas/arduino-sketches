@@ -50,6 +50,19 @@ unsigned long lastStateMillis;
 byte lastState = STATE_UNKNOWN;
 
 /**
+   Prints the string representation of the given state to the serial console.
+*/
+void printState(byte theState) {
+  if (theState == STATE_STABLE) {
+    Serial.print("STABLE");
+  } else if (theState == STATE_VIBRATING) {
+    Serial.print("VIBRATING");
+  } else if (theState == STATE_UNKNOWN) {
+    Serial.print("UNKNOWN");
+  }
+}
+
+/**
    Read the sensor and push the value to the buffer.
 */
 void updateSensorBuffer() {
@@ -109,16 +122,13 @@ void updateStateBuffer() {
 
   byte sensorBufferState = getSensorBufferState();
 
-  if (sensorBufferState == STATE_UNKNOWN) {
-    return;
-  }
-
   StateSample sample;
   sample.tstamp = millis();
   sample.state = sensorBufferState;
 
   Serial.print("updateStateBuffer: ");
-  Serial.println(sensorBufferState == STATE_STABLE ? "STABLE" : "VIBRATING");
+  printState(sensorBufferState);
+  Serial.println();
   Serial.flush();
 
   stateBuffer.push(sample);
@@ -145,8 +155,10 @@ byte getCurrentState() {
 
 void setup() {
   Serial.begin(9600);
+
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(13, OUTPUT);
+
   lastStateMillis = millis();
 }
 
@@ -158,8 +170,10 @@ void loop() {
 
   if (currentState != STATE_UNKNOWN && currentState != lastState) {
     lastState = currentState;
-    Serial.print("!! State change: ");
-    Serial.println(currentState == STATE_STABLE ? "STABLE" : "VIBRATING");
+
+    Serial.print("##### Update: ");
+    printState(currentState);
+    Serial.println();
     Serial.flush();
   }
 
