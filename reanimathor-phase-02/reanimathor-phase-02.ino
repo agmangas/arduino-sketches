@@ -27,14 +27,14 @@ const int SENSOR_BUFFER_SIZE = 100;
 CircularBuffer<SensorSample, SENSOR_BUFFER_SIZE> sensorBuffer;
 
 // Size of the vibration states buffer
-const int STATE_BUFFER_SIZE = 5;
+const int STATE_BUFFER_SIZE = 2;
 
 // Buffer that will contain the history of vibration states
 CircularBuffer<StateSample, STATE_BUFFER_SIZE> stateBuffer;
 
 // Minimum ratio of level changes in a sensor samples
 // stream to consider that the sensor is vibrating
-const float VIBRATION_LEVEL_CHANGE_RATIO = 0.1;
+const float VIBRATION_LEVEL_CHANGE_RATIO = 0.05;
 
 // Time period (ms) between state samples extracted
 // from the sensor samples buffer
@@ -47,7 +47,7 @@ const int LOOP_WAIT_MS = 5;
 unsigned long lastStateMillis;
 
 // Last observed state
-byte lastState = STATE_UNKNOWN;
+byte lastState;
 
 /**
    Prints the string representation of the given state to the serial console.
@@ -126,11 +126,6 @@ void updateStateBuffer() {
   sample.tstamp = millis();
   sample.state = sensorBufferState;
 
-  Serial.print("updateStateBuffer: ");
-  printState(sensorBufferState);
-  Serial.println();
-  Serial.flush();
-
   stateBuffer.push(sample);
 }
 
@@ -155,6 +150,8 @@ byte getCurrentState() {
 
 void setup() {
   Serial.begin(9600);
+
+  Serial.println("Starting Reanimathor Phase 02 Program");
 
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(13, OUTPUT);
