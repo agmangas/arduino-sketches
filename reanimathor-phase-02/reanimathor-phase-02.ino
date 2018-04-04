@@ -44,7 +44,11 @@ const unsigned long STATE_SAMPLING_PERIOD_MS = 100;
 // Iteration delay (ms)
 const int LOOP_WAIT_MS = 5;
 
+// Total number of LED strip partitions (levels)
 const int LED_LEVELS = 10;
+
+// Time (ms) after which, if the sensor is not vibrating,
+// the LED strip light level should be decreased
 const int LED_BOUNCE_MS = 5000;
 
 // NeoPixels PIN and total number
@@ -63,7 +67,10 @@ unsigned long lastStateMillis;
 // Last observed state
 byte lastState;
 
+// Current LED strip light level
 int currentStripLevel = 0;
+
+// Timestamp (millis) of the last LED strip light level update
 unsigned long lastStripUpdateMillis;
 
 /**
@@ -242,8 +249,6 @@ void checkCurrentState() {
 void setup() {
   Serial.begin(9600);
 
-  Serial.println("Starting Reanimathor Phase 02 Program");
-
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(13, OUTPUT);
 
@@ -255,6 +260,8 @@ void setup() {
 
   lastStateMillis = millis();
   lastStripUpdateMillis = millis();
+
+  Serial.println(">> Starting Reanimathor Phase 02 program");
 }
 
 void loop() {
