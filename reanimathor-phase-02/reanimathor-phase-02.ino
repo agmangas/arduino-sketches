@@ -28,7 +28,7 @@ const int SENSOR_BUFFER_SIZE = 100;
 CircularBuffer<SensorSample, SENSOR_BUFFER_SIZE> sensorBuffer;
 
 // Size of the vibration states buffer
-const int STATE_BUFFER_SIZE = 2;
+const int STATE_BUFFER_SIZE = 1;
 
 // Buffer that will contain the history of vibration states
 CircularBuffer<StateSample, STATE_BUFFER_SIZE> stateBuffer;
@@ -39,21 +39,21 @@ const float VIBRATION_LEVEL_CHANGE_RATIO = 0.05;
 
 // Time period (ms) between state samples extracted
 // from the sensor samples buffer
-const unsigned long STATE_SAMPLING_PERIOD_MS = 100;
+const unsigned long STATE_SAMPLING_PERIOD_MS = 5;
 
 // Iteration delay (ms)
-const int LOOP_WAIT_MS = 5;
+const int LOOP_WAIT_MS = 1;
 
 // Total number of LED strip partitions (levels)
-const int LED_LEVELS = 10;
+const int LED_LEVELS = 20;
 
 // Time (ms) after which, if the sensor is not vibrating,
 // the LED strip light level should be decreased
-const int LED_BOUNCE_MS = 5000;
+const int LED_BOUNCE_MS = 500;
 
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 60;
-const uint8_t NEOPIXEL_PIN = 3;
+const uint8_t NEOPIXEL_PIN = 6;
 
 // Initialize the NeoPixel instance
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
