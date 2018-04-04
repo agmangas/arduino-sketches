@@ -1,4 +1,5 @@
 #include <CircularBuffer.h>
+#include <Adafruit_NeoPixel.h>
 
 #define STATE_STABLE 1
 #define STATE_VIBRATING 2
@@ -43,11 +44,27 @@ const unsigned long STATE_SAMPLING_PERIOD_MS = 100;
 // Iteration delay (ms)
 const int LOOP_WAIT_MS = 5;
 
+const int LED_LEVELS = 10;
+const int LED_BOUNCE_MS = 5000;
+
+// NeoPixels PIN and total number
+const uint16_t NEOPIXEL_NUM = 60;
+const uint8_t NEOPIXEL_PIN = 3;
+
+// Initialize the NeoPixel instance
+Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+// NeoPixel active color
+uint32_t colorActive = pixelStrip.Color(0, 255, 0);
+
 // Timestamp (millis) of the last state sample
 unsigned long lastStateMillis;
 
 // Last observed state
 byte lastState;
+
+int currentStripLevel = 0;
+unsigned long lastStripUpdateMillis;
 
 /**
    Prints the string representation of the given state to the serial console.
@@ -108,17 +125,17 @@ byte getSensorBufferState() {
 /**
    Reads the current sensor state and updates the state buffer.
 */
-void updateStateBuffer() {
+void updateStateBufferIfTimePassed() {
   unsigned long now = millis();
 
   bool isOverflow = lastStateMillis > now;
   bool canProceed = (now - lastStateMillis) > STATE_SAMPLING_PERIOD_MS;
 
-  if (isOverflow || canProceed) {
-    lastStateMillis = now;
-  } else {
+  if (!isOverflow && !canProceed) {
     return;
   }
+
+  lastStateMillis = now;
 
   byte sensorBufferState = getSensorBufferState();
 
@@ -148,6 +165,80 @@ byte getCurrentState() {
   return firstState;
 }
 
+/**
+   Turn on the LEDs on the strip up to the given level.
+*/
+void setPixelsToLevel(int theLevel) {
+  Serial.print("setPixelsToLevel: ");
+  Serial.println(theLevel);
+  Serial.flush();
+
+  float totalPixels = (float) NEOPIXEL_NUM;
+  int pixelsPerLevel = ceil(totalPixels / LED_LEVELS);
+  int totalPixelsOn = pixelsPerLevel * theLevel;
+
+  if (totalPixelsOn > NEOPIXEL_NUM) totalPixelsOn = NEOPIXEL_NUM;
+
+  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+    if (i < totalPixelsOn) {
+      pixelStrip.setPixelColor(i, colorActive);
+    } else {
+      pixelStrip.setPixelColor(i, 0, 0, 0);
+    }
+  }
+
+  pixelStrip.show();
+}
+
+/**
+   Turn off some LEDs after an inactivity period.
+*/
+void bouncePixelsIfTimePassed() {
+  unsigned long now = millis();
+
+  bool isOverflow = lastStripUpdateMillis > now;
+  bool canProceed = (now - lastStripUpdateMillis) > LED_BOUNCE_MS;
+
+  if (!isOverflow && !canProceed) {
+    return;
+  }
+
+  lastStripUpdateMillis = now;
+
+  if (currentStripLevel > 0) {
+    currentStripLevel -= 1;
+    setPixelsToLevel(currentStripLevel);
+  }
+}
+
+/**
+   Check the current state, update the last state variable if the state
+   has changed and increase the LED strip level if vibrating.
+*/
+void checkCurrentState() {
+  byte currentState = getCurrentState();
+
+  if (currentState == STATE_UNKNOWN || currentState == lastState) {
+    return;
+  }
+
+  lastState = currentState;
+
+  if (currentState == STATE_VIBRATING) {
+    lastStripUpdateMillis = millis();
+
+    if (currentStripLevel < LED_LEVELS) {
+      currentStripLevel += 1;
+      setPixelsToLevel(currentStripLevel);
+    }
+  }
+
+  Serial.print("##### State: ");
+  printState(currentState);
+  Serial.println();
+  Serial.flush();
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -156,23 +247,21 @@ void setup() {
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(13, OUTPUT);
 
+  pixelStrip.begin();
+  pixelStrip.setBrightness(250);
+  pixelStrip.show();
+
+  setPixelsToLevel(0);
+
   lastStateMillis = millis();
+  lastStripUpdateMillis = millis();
 }
 
 void loop() {
   updateSensorBuffer();
-  updateStateBuffer();
-
-  byte currentState = getCurrentState();
-
-  if (currentState != STATE_UNKNOWN && currentState != lastState) {
-    lastState = currentState;
-
-    Serial.print("##### Update: ");
-    printState(currentState);
-    Serial.println();
-    Serial.flush();
-  }
+  updateStateBufferIfTimePassed();
+  checkCurrentState();
+  bouncePixelsIfTimePassed();
 
   delay(LOOP_WAIT_MS);
 }
