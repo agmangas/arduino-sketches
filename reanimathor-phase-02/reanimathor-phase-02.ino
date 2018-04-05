@@ -19,7 +19,7 @@ typedef struct sensorSample SensorSample;
 typedef struct stateSample StateSample;
 
 // Pin connected to the vibration sensor
-const byte SENSOR_PIN = 2;
+const byte SENSOR_PIN = A0;
 
 // Size of the sensor samples buffer
 const int SENSOR_BUFFER_SIZE = 100;
@@ -33,19 +33,18 @@ const int STATE_BUFFER_SIZE = 1;
 // Buffer that will contain the history of vibration states
 CircularBuffer<StateSample, STATE_BUFFER_SIZE> stateBuffer;
 
-// Minimum ratio of level changes in a sensor samples
-// stream to consider that the sensor is vibrating
-const float VIBRATION_LEVEL_CHANGE_RATIO = 0.05;
-
 // Time period (ms) between state samples extracted
 // from the sensor samples buffer
 const unsigned long STATE_SAMPLING_PERIOD_MS = 5;
+
+// Sensor analog level threshold
+const int SENSOR_ANALOG_LEVEL_THRESHOLD = 500;
 
 // Iteration delay (ms)
 const int LOOP_WAIT_MS = 1;
 
 // Total number of LED strip partitions (levels)
-const int LED_LEVELS = 20;
+const int LED_LEVELS = 30;
 
 // Time (ms) after which, if the sensor is not vibrating,
 // the LED strip light level should be decreased
@@ -55,11 +54,17 @@ const int LED_BOUNCE_MS = 500;
 const uint16_t NEOPIXEL_NUM = 60;
 const uint8_t NEOPIXEL_PIN = 6;
 
+// LED heartbeat variables
+const int BEAT_SEGMENT_LEN = 10;
+const int BEAT_PATTERN = 3;
+const int BEAT_LONG_MS = 10;
+const int BEAT_SHORT_MS = 3;
+
 // Initialize the NeoPixel instance
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 // NeoPixel active color
-uint32_t colorActive = pixelStrip.Color(0, 255, 0);
+uint32_t colorActive = pixelStrip.Color(255, 0, 0);
 
 // Timestamp (millis) of the last state sample
 unsigned long lastStateMillis;
@@ -90,7 +95,7 @@ void printState(byte theState) {
    Read the sensor and push the value to the buffer.
 */
 void updateSensorBuffer() {
-  int sensorVal = digitalRead(SENSOR_PIN);
+  int sensorVal = analogRead(SENSOR_PIN);
 
   SensorSample sample;
   sample.tstamp = millis();
@@ -109,24 +114,13 @@ byte getSensorBufferState() {
     return STATE_UNKNOWN;
   }
 
-  int levelChanges = 0;
-  int currentLevel = sensorBuffer.first().level;
-
   for (int i = 0; i < sensorBuffer.size(); i++) {
-    if (currentLevel != sensorBuffer[i].level) {
-      levelChanges += 1;
-      currentLevel = sensorBuffer[i].level;
+    if (sensorBuffer[i].level > SENSOR_ANALOG_LEVEL_THRESHOLD) {
+      return STATE_VIBRATING;
     }
   }
 
-  float bufferSize = sensorBuffer.size();
-  float levelChangesRatio = levelChanges / bufferSize;
-
-  if (levelChangesRatio >= VIBRATION_LEVEL_CHANGE_RATIO) {
-    return STATE_VIBRATING;
-  } else {
-    return STATE_STABLE;
-  }
+  return STATE_STABLE;
 }
 
 /**
@@ -237,6 +231,10 @@ void checkCurrentState() {
     if (currentStripLevel < LED_LEVELS) {
       currentStripLevel += 1;
       setPixelsToLevel(currentStripLevel);
+
+      if (currentStripLevel == LED_LEVELS) {
+        onMaxLevelReached();
+      }
     }
   }
 
@@ -246,6 +244,43 @@ void checkCurrentState() {
   Serial.flush();
 }
 
+void onMaxLevelReached() {
+  int offset = 0;
+  int beatCounter = 0;
+
+  while (true) {
+    for (int i = 0; i < NEOPIXEL_NUM; i++) {
+      pixelStrip.setPixelColor(i, 0, 0, 0);
+    }
+
+    pixelStrip.show();
+
+    if (offset + BEAT_SEGMENT_LEN > NEOPIXEL_NUM) {
+      offset = 0;
+      beatCounter += 1;
+    }
+
+    for (int i = 0; i < BEAT_SEGMENT_LEN; i++) {
+      pixelStrip.setPixelColor(i + offset, random(150, 250), 0, 0);
+    }
+
+    pixelStrip.show();
+
+    offset += 1;
+
+    int beatRemainder = beatCounter % BEAT_PATTERN;
+
+    if (beatRemainder < (BEAT_PATTERN - 1)) {
+      delay(BEAT_SHORT_MS);
+    } else if (beatRemainder == (BEAT_PATTERN - 1)) {
+      delay(BEAT_LONG_MS);
+    }
+  }
+
+  currentStripLevel = 0;
+  setPixelsToLevel(currentStripLevel);
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -253,7 +288,7 @@ void setup() {
   pinMode(13, OUTPUT);
 
   pixelStrip.begin();
-  pixelStrip.setBrightness(250);
+  pixelStrip.setBrightness(200);
   pixelStrip.show();
 
   setPixelsToLevel(0);
