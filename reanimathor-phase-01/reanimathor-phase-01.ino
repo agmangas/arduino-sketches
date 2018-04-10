@@ -4,63 +4,40 @@
 const int MAX_ANALOG_READ = 1023;
 
 // Total number of inputs
-const int NUM_INPUTS = 1;
+const int NUM_INPUTS = 4;
 
 // Potentiometer pins
-byte potPins[NUM_INPUTS] = {1};
+byte potPins[NUM_INPUTS] = {1, 2, 3, 4};
 
 // Potentiometer discrete levels
 const int POT_LEVELS = 30;
 
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 30;
-const uint8_t NEOPIXEL_PIN = 3;
+const uint8_t NEOPIXEL_PIN_1 = 4;
+const uint8_t NEOPIXEL_PIN_2 = 5;
+const uint8_t NEOPIXEL_PIN_3 = 6;
+const uint8_t NEOPIXEL_PIN_4 = 7;
 
 // Initialize the NeoPixel instance
-Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
-
-// Some NeoPixel colors
-uint32_t colorActive = pixelStrip.Color(255, 0, 0);
-
-/**
-   Turns all the LEDs off.
-*/
-void turnOffPixels() {
-  Serial.println("Turning all the LEDs off");
-  Serial.flush();
-
-  for (int i = 0; i < NEOPIXEL_NUM; i++) {
-    pixelStrip.setPixelColor(i, 0, 0, 0);
-  }
-
-  pixelStrip.show();
-}
-
-/**
-   Turns all the LEDs on.
-*/
-void turnOnPixels() {
-  Serial.println("Turning all the LEDs on");
-  Serial.flush();
-
-  for (int i = 0; i < NEOPIXEL_NUM; i++) {
-    pixelStrip.setPixelColor(i, colorActive);
-  }
-
-  pixelStrip.show();
-}
+Adafruit_NeoPixel pixelStrip1 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_1, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixelStrip2 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_2, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixelStrip3 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_3, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixelStrip4 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_4, NEO_GRB + NEO_KHZ800);
 
 /**
    Applies potentiometer inputs to the LED strips.
 */
-void applyPotValuesToLeds(int inputIdx) {
+void applyPotValuesToLeds(int inputIdx, Adafruit_NeoPixel *thePixelStrip) {
   int potVal = analogRead(potPins[inputIdx]);
   float relativePotVal = potVal / (float) MAX_ANALOG_READ;
   int inputLevel = ceil(relativePotVal * POT_LEVELS);
 
   if (inputLevel == 0) inputLevel = 1;
 
-  Serial.print("inputLevel: ");
+  Serial.print("inputLevel :: ");
+  Serial.print(inputIdx);
+  Serial.print(" :: ");
   Serial.println(inputLevel);
   Serial.flush();
 
@@ -71,13 +48,13 @@ void applyPotValuesToLeds(int inputIdx) {
 
   for (int i = 0; i < NEOPIXEL_NUM; i++) {
     if (i < totalPixelsOn) {
-      pixelStrip.setPixelColor(i, random(50, 250), 0, 0);
+      thePixelStrip->setPixelColor(i, random(50, 250), 0, 0);
     } else {
-      pixelStrip.setPixelColor(i, 0, 0, 0);
+      thePixelStrip->setPixelColor(i, 0, 0, 0);
     }
   }
 
-  pixelStrip.show();
+  thePixelStrip->show();
 }
 
 void setup() {
@@ -86,12 +63,28 @@ void setup() {
   Serial.println("Starting RFID electronic lock program");
   Serial.flush();
 
-  pixelStrip.begin();
-  pixelStrip.setBrightness(50);
-  pixelStrip.show();
+  pixelStrip1.begin();
+  pixelStrip1.setBrightness(220);
+  pixelStrip1.show();
+
+  pixelStrip2.begin();
+  pixelStrip2.setBrightness(220);
+  pixelStrip2.show();
+
+  pixelStrip3.begin();
+  pixelStrip3.setBrightness(220);
+  pixelStrip3.show();
+
+  pixelStrip4.begin();
+  pixelStrip4.setBrightness(220);
+  pixelStrip4.show();
 }
 
 void loop() {
-  applyPotValuesToLeds(0);
+  applyPotValuesToLeds(0, &pixelStrip1);
+  applyPotValuesToLeds(1, &pixelStrip2);
+  applyPotValuesToLeds(2, &pixelStrip3);
+  applyPotValuesToLeds(3, &pixelStrip4);
+
   delay(100);
 }
