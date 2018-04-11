@@ -18,9 +18,6 @@ const byte RELAY_PIN = 10;
 // Wait interval (ms) between each LED activation just before the relay is activated
 const int OPEN_LED_STEP_WAIT_MS = 150;
 
-// Time (ms) the program will wait on a correct solution state
-const unsigned long SOLUTION_WAIT_MS = 1800000;
-
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 30;
 const uint8_t NEOPIXEL_PIN_1 = 4;
@@ -123,18 +120,9 @@ void openLockAndWait() {
 
   digitalWrite(RELAY_PIN, LOW);
 
-  delay(SOLUTION_WAIT_MS);
-
-  Serial.println("## Finished waiting: restarting");
-  Serial.flush();
-
-  digitalWrite(RELAY_PIN, HIGH);
-
-  for (int i = 0; i < NEOPIXEL_NUM; i++) {
-    pixelStripSolution.setPixelColor(i, 0, 0, 0);
+  while (true) {
+    delay(1000);
   }
-
-  pixelStripSolution.show();
 }
 
 void setup() {
