@@ -53,6 +53,7 @@ const int LED_BOUNCE_MS = 500;
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 60;
 const uint8_t NEOPIXEL_PIN = 6;
+const uint8_t NEOPIXEL_START_PIN = 7;
 
 // LED heartbeat variables
 const int BEAT_SEGMENT_LEN = 10;
@@ -60,8 +61,12 @@ const int BEAT_PATTERN = 3;
 const int BEAT_LONG_MS = 10;
 const int BEAT_SHORT_MS = 3;
 
+// Initial LED strip configuration
+const int LED_START_DELAY_MS = 150;
+
 // Initialize the NeoPixel instance
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixelStripStart = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_START_PIN, NEO_GRB + NEO_KHZ800);
 
 // NeoPixel active color
 uint32_t colorActive = pixelStrip.Color(255, 0, 0);
@@ -219,7 +224,8 @@ void bouncePixelsIfTimePassed() {
 void checkCurrentState() {
   byte currentState = getCurrentState();
 
-  if (currentState == STATE_UNKNOWN || currentState == lastState) {
+  if (currentState == STATE_UNKNOWN ||
+      currentState == lastState) {
     return;
   }
 
@@ -232,9 +238,7 @@ void checkCurrentState() {
       currentStripLevel += 1;
       setPixelsToLevel(currentStripLevel);
 
-      if (currentStripLevel == LED_LEVELS) {
-        onMaxLevelReached();
-      }
+      if (currentStripLevel == LED_LEVELS) onMaxLevelReached();
     }
   }
 
@@ -244,6 +248,9 @@ void checkCurrentState() {
   Serial.flush();
 }
 
+/**
+   Start applying the LED strip final pattern.
+*/
 void onMaxLevelReached() {
   int offset = 0;
   int beatCounter = 0;
@@ -291,12 +298,21 @@ void setup() {
   pixelStrip.setBrightness(200);
   pixelStrip.show();
 
-  setPixelsToLevel(0);
+  pixelStripStart.begin();
+  pixelStripStart.setBrightness(200);
+  pixelStripStart.show();
 
   lastStateMillis = millis();
   lastStripUpdateMillis = millis();
 
   Serial.println(">> Starting Reanimathor Phase 02 program");
+
+  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+    pixelStripStart.setPixelColor(i, colorActive);
+    pixelStripStart.show();
+
+    delay(LED_START_DELAY_MS);
+  }
 }
 
 void loop() {
