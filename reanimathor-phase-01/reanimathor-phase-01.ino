@@ -30,10 +30,10 @@ const uint8_t NEOPIXEL_PIN_4 = 7;
 const uint8_t NEOPIXEL_PIN_SOLUTION = 8;
 
 // Solution key
-const byte SOLUTION_INPUT_1 = 10;
-const byte SOLUTION_INPUT_2 = 10;
-const byte SOLUTION_INPUT_3 = 10;
-const byte SOLUTION_INPUT_4 = 10;
+const int SOLUTION_INPUT_1 = 10;
+const int SOLUTION_INPUT_2 = 10;
+const int SOLUTION_INPUT_3 = 10;
+const int SOLUTION_INPUT_4 = 10;
 
 // Initialize the NeoPixel instances
 Adafruit_NeoPixel pixelStrip1 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_1, NEO_GRB + NEO_KHZ800);
@@ -43,15 +43,15 @@ Adafruit_NeoPixel pixelStrip4 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_4, 
 Adafruit_NeoPixel pixelStripSolution = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_SOLUTION, NEO_GRB + NEO_KHZ800);
 
 // Current input levels
-byte inputLevel1 = 0;
-byte inputLevel2 = 0;
-byte inputLevel3 = 0;
-byte inputLevel4 = 0;
+int inputLevel1 = 0;
+int inputLevel2 = 0;
+int inputLevel3 = 0;
+int inputLevel4 = 0;
 
 /**
    Applies potentiometer inputs to the LED strips.
 */
-void readInputAndUpdate(int inputIdx, Adafruit_NeoPixel &pixelStrip, byte &currentInputLevel) {
+void readInputAndUpdate(int inputIdx, Adafruit_NeoPixel &pixelStrip, int &currentInputLevel) {
   int potVal = analogRead(potPins[inputIdx]);
   float relativePotVal = potVal / (float) MAX_ANALOG_READ;
   int inputLevel = ceil(relativePotVal * POT_LEVELS);
