@@ -15,8 +15,11 @@ const int POT_LEVELS = 30;
 // Relay pin
 const byte RELAY_PIN = 10;
 
+// Startup wait
+const int STARTUP_WAIT_MS = 3000;
+
 // Wait interval (ms) between each LED activation just before the relay is activated
-const int OPEN_LED_STEP_WAIT_MS = 150;
+const int OPEN_LED_STEP_WAIT_MS = 300;
 
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 30;
@@ -27,10 +30,10 @@ const uint8_t NEOPIXEL_PIN_4 = 7;
 const uint8_t NEOPIXEL_PIN_SOLUTION = 8;
 
 // Solution key
-const int SOLUTION_INPUT_1 = 10;
+const int SOLUTION_INPUT_1 = 25;
 const int SOLUTION_INPUT_2 = 10;
 const int SOLUTION_INPUT_3 = 10;
-const int SOLUTION_INPUT_4 = 10;
+const int SOLUTION_INPUT_4 = 25;
 
 // Initialize the NeoPixel instances
 Adafruit_NeoPixel pixelStrip1 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_1, NEO_GRB + NEO_KHZ800);
@@ -85,6 +88,7 @@ bool isValidSolution() {
   Serial.print(inputLevel3);
   Serial.print(" / ");
   Serial.print(inputLevel4);
+  Serial.println();
   Serial.flush();
 
   bool ok1 = inputLevel1 == SOLUTION_INPUT_1;
@@ -118,40 +122,59 @@ void openLockAndWait() {
   Serial.println("## Opening relay");
   Serial.flush();
 
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, HIGH);
 
   while (true) {
-    delay(1000);
+    randomizeAllPixels();
+    delay(OPEN_LED_STEP_WAIT_MS);
   }
+}
+
+void randomizeAllPixels() {
+  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+    pixelStrip1.setPixelColor(i, random(100, 220), 0, 0);
+    pixelStrip2.setPixelColor(i, random(100, 220), 0, 0);
+    pixelStrip3.setPixelColor(i, random(100, 220), 0, 0);
+    pixelStrip4.setPixelColor(i, random(100, 220), 0, 0);
+    pixelStripSolution.setPixelColor(i, random(100, 220), 0, 0);
+  }
+
+  pixelStrip1.show();
+  pixelStrip2.show();
+  pixelStrip3.show();
+  pixelStrip4.show();
+  pixelStripSolution.show();
 }
 
 void setup() {
   Serial.begin(9600);
 
   pixelStrip1.begin();
-  pixelStrip1.setBrightness(220);
+  pixelStrip1.setBrightness(100);
   pixelStrip1.show();
 
   pixelStrip2.begin();
-  pixelStrip2.setBrightness(220);
+  pixelStrip2.setBrightness(100);
   pixelStrip2.show();
 
   pixelStrip3.begin();
-  pixelStrip3.setBrightness(220);
+  pixelStrip3.setBrightness(100);
   pixelStrip3.show();
 
   pixelStrip4.begin();
-  pixelStrip4.setBrightness(220);
+  pixelStrip4.setBrightness(100);
   pixelStrip4.show();
 
   pixelStripSolution.begin();
-  pixelStripSolution.setBrightness(220);
+  pixelStripSolution.setBrightness(200);
   pixelStripSolution.show();
 
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN, LOW);
 
   Serial.println(">> Starting Reanimathor Phase 01 program");
+
+  delay(STARTUP_WAIT_MS);
 }
 
 void loop() {

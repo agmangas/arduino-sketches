@@ -21,6 +21,12 @@ typedef struct stateSample StateSample;
 // Pin connected to the vibration sensor
 const byte SENSOR_PIN = A0;
 
+// Pin connected to the physical activation switch
+const byte ACTIVATION_PIN = 10;
+
+// Pin connected to the activation signal LED
+const byte ACTIVATION_LED_PIN = 9;
+
 // Size of the sensor samples buffer
 const int SENSOR_BUFFER_SIZE = 100;
 
@@ -82,6 +88,9 @@ int currentStripLevel = 0;
 
 // Timestamp (millis) of the last LED strip light level update
 unsigned long lastStripUpdateMillis;
+
+// Activation flag
+bool isActivated;
 
 /**
    Prints the string representation of the given state to the serial console.
@@ -288,11 +297,35 @@ void onMaxLevelReached() {
   setPixelsToLevel(currentStripLevel);
 }
 
+void deactivateAllLeds() {
+  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+    pixelStripStart.setPixelColor(i, 0, 0, 0);
+    pixelStrip.setPixelColor(i, 0, 0, 0);
+  }
+
+  pixelStripStart.show();
+  pixelStrip.show();
+}
+
+void activateInitialLeds() {
+  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+    pixelStripStart.setPixelColor(i, colorActive);
+    pixelStripStart.show();
+
+    delay(LED_START_DELAY_MS);
+  }
+}
+
 void setup() {
   Serial.begin(9600);
 
-  pinMode(SENSOR_PIN, INPUT_PULLUP);
+  isActivated = false;
+
+  pinMode(ACTIVATION_PIN, INPUT_PULLUP);
+  pinMode(ACTIVATION_LED_PIN, OUTPUT);
   pinMode(13, OUTPUT);
+
+  digitalWrite(ACTIVATION_LED_PIN, LOW);
 
   pixelStrip.begin();
   pixelStrip.setBrightness(200);
@@ -305,21 +338,28 @@ void setup() {
   lastStateMillis = millis();
   lastStripUpdateMillis = millis();
 
+  deactivateAllLeds();
+
   Serial.println(">> Starting Reanimathor Phase 02 program");
-
-  for (int i = 0; i < NEOPIXEL_NUM; i++) {
-    pixelStripStart.setPixelColor(i, colorActive);
-    pixelStripStart.show();
-
-    delay(LED_START_DELAY_MS);
-  }
+  Serial.println("Program will be deactivated until the physical switch is turned on");
 }
 
 void loop() {
-  updateSensorBuffer();
-  updateStateBufferIfTimePassed();
-  checkCurrentState();
-  bouncePixelsIfTimePassed();
+  if (!isActivated && digitalRead(ACTIVATION_PIN) == LOW) {
+    Serial.println("## Activating program");
+    digitalWrite(ACTIVATION_LED_PIN, HIGH);
+    activateInitialLeds();
+    isActivated = true;
+  }
+
+  if (isActivated) {
+    updateSensorBuffer();
+    updateStateBufferIfTimePassed();
+    checkCurrentState();
+    bouncePixelsIfTimePassed();
+  } else {
+    deactivateAllLeds();
+  }
 
   delay(LOOP_WAIT_MS);
 }
