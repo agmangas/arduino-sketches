@@ -90,7 +90,7 @@ int currentStripLevel = 0;
 unsigned long lastStripUpdateMillis;
 
 // Activation flag
-bool isActivated;
+bool isActivated = false;
 
 /**
    Prints the string representation of the given state to the serial console.
@@ -230,7 +230,7 @@ void bouncePixelsIfTimePassed() {
    Check the current state, update the last state variable if the state
    has changed and increase the LED strip level if vibrating.
 */
-void checkCurrentState() {
+void checkCurrentStateAndUpdateLeds() {
   byte currentState = getCurrentState();
 
   if (currentState == STATE_UNKNOWN ||
@@ -297,6 +297,9 @@ void onMaxLevelReached() {
   setPixelsToLevel(currentStripLevel);
 }
 
+/**
+   Turn all the LED strips off.
+*/
 void deactivateAllLeds() {
   for (int i = 0; i < NEOPIXEL_NUM; i++) {
     pixelStripStart.setPixelColor(i, 0, 0, 0);
@@ -307,6 +310,9 @@ void deactivateAllLeds() {
   pixelStrip.show();
 }
 
+/**
+   Turn on the LED strip that signals that the program has started.
+*/
 void activateInitialLeds() {
   for (int i = 0; i < NEOPIXEL_NUM; i++) {
     pixelStripStart.setPixelColor(i, colorActive);
@@ -355,7 +361,7 @@ void loop() {
   if (isActivated) {
     updateSensorBuffer();
     updateStateBufferIfTimePassed();
-    checkCurrentState();
+    checkCurrentStateAndUpdateLeds();
     bouncePixelsIfTimePassed();
   } else {
     deactivateAllLeds();
