@@ -1,8 +1,14 @@
 // Constants that enumerate the possible results when polling the RFID reader
+// Track 0: "Cinco de la tarde"
+// Track 1: "Rioturbio"
+// Track 2: "Reina"
+// Track 3: "Cristine"
 #define NO_TAG 1
 #define UNKNOWN_TAG 2
-#define VALID_TAG_FIRST 3
-#define VALID_TAG_SECOND 4
+#define VALID_TAG_TRACK_0 3
+#define VALID_TAG_TRACK_1 4
+#define VALID_TAG_TRACK_2 5
+#define VALID_TAG_TRACK_3 6
 
 // Each tag is 16 bytes but the last four are to be discarded.
 const int TAG_LEN = 16;
@@ -10,12 +16,16 @@ const int ID_LEN = 13;
 const int ID_PRINTABLE_LEN = 12;
 
 // IDs of valid tags
-char acceptedTagFirst[ID_LEN] = "5C00CADBC28F";
-char acceptedTagSecond[ID_LEN] = "5C00CADBA1EC";
+char tagTrack0[ID_LEN] = "5C00CADBC28F";
+char tagTrack1[ID_LEN] = "5C00CADBA1EC";
+char tagTrack2[ID_LEN] = "5C00CB0D20BA";
+char tagTrack3[ID_LEN] = "570046666116";
 
 // Digital pins that are connected to the Audio FX board
-const byte PIN_AUDIO_TAG_FIRST = 8;
-const byte PIN_AUDIO_TAG_SECOND = 9;
+const byte PIN_AUDIO_TRACK_0 = 8;
+const byte PIN_AUDIO_TRACK_1 = 9;
+const byte PIN_AUDIO_TRACK_2 = 10;
+const byte PIN_AUDIO_TRACK_3 = 11;
 
 // Non-printable tag buffer characters
 const int TAG_CHAR_STX = 2;
@@ -138,10 +148,14 @@ byte readMainTag() {
     Serial.println();
     Serial.flush();
 
-    if (isTagEqual(newTag, acceptedTagFirst)) {
-      return VALID_TAG_FIRST;
-    } else if (isTagEqual(newTag, acceptedTagSecond)) {
-      return VALID_TAG_SECOND;
+    if (isTagEqual(newTag, tagTrack0)) {
+      return VALID_TAG_TRACK_0;
+    } else if (isTagEqual(newTag, tagTrack1)) {
+      return VALID_TAG_TRACK_1;
+    } else if (isTagEqual(newTag, tagTrack2)) {
+      return VALID_TAG_TRACK_2;
+    } else if (isTagEqual(newTag, tagTrack3)) {
+      return VALID_TAG_TRACK_3;
     } else {
       return UNKNOWN_TAG;
     }
@@ -151,37 +165,49 @@ byte readMainTag() {
 }
 
 /**
+   Plays the audio track connected to the given pin.
+*/
+void playTrack(byte trackPin) {
+  digitalWrite(trackPin, LOW);
+  delay(500);
+  digitalWrite(trackPin, HIGH);
+}
+
+/**
    Handle the given tag (i.e. play the appropriate audio track).
 */
 void handleTag(char theTag[]) {
   if (theTag == UNKNOWN_TAG) {
     Serial.println("## Unknown tag");
-    Serial.flush();
-  } else if (theTag == VALID_TAG_FIRST) {
-    Serial.println("## First tag: Playing audio");
-    Serial.flush();
-
-    digitalWrite(PIN_AUDIO_TAG_FIRST, LOW);
-    delay(500);
-    digitalWrite(PIN_AUDIO_TAG_FIRST, HIGH);
-  } else if (theTag == VALID_TAG_SECOND) {
-    Serial.println("## Second tag: Playing audio");
-    Serial.flush();
-
-    digitalWrite(PIN_AUDIO_TAG_SECOND, LOW);
-    delay(500);
-    digitalWrite(PIN_AUDIO_TAG_SECOND, HIGH);
+  } else if (theTag == VALID_TAG_TRACK_0) {
+    Serial.println("## Playing Track 0");
+    playTrack(PIN_AUDIO_TRACK_0);
+  } else if (theTag == VALID_TAG_TRACK_1) {
+    Serial.println("## Playing Track 1");
+    playTrack(PIN_AUDIO_TRACK_1);
+  } else if (theTag == VALID_TAG_TRACK_2) {
+    Serial.println("## Playing Track 2");
+    playTrack(PIN_AUDIO_TRACK_2);
+  } else if (theTag == VALID_TAG_TRACK_3) {
+    Serial.println("## Playing Track 3");
+    playTrack(PIN_AUDIO_TRACK_3);
   }
 }
 
 void setup() {
   Serial.begin(9600);
 
-  pinMode(PIN_AUDIO_TAG_FIRST, OUTPUT);
-  digitalWrite(PIN_AUDIO_TAG_FIRST, HIGH);
+  pinMode(PIN_AUDIO_TRACK_0, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_0, HIGH);
 
-  pinMode(PIN_AUDIO_TAG_SECOND, OUTPUT);
-  digitalWrite(PIN_AUDIO_TAG_SECOND, HIGH);
+  pinMode(PIN_AUDIO_TRACK_1, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_1, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_2, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_2, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_3, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_3, HIGH);
 
   Serial.println(">> Starting Cerebrofono program");
   Serial.flush();
