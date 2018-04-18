@@ -35,15 +35,16 @@ const int TAG_CHAR_CR = 13;
 const int TAG_CHAR_LF = 10;
 const int TAG_CHAR_ETX = 3;
 
+// Time (ms) that the equalizer-like LED effect should last
+const int LED_EQUALIZER_STEP_MS = 100;
+const int TOTAL_EQUALIZER_STEPS = 25;
+
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 60;
 const uint8_t NEOPIXEL_PIN = 4;
 
 // Initialize the NeoPixel instances
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
-
-// Active LED color
-uint32_t colorActive = pixelStrip.Color(253, 253, 150);
 
 /**
    Returns true if both tags are equal.
@@ -183,6 +184,8 @@ void playTrack(byte trackPin) {
   digitalWrite(trackPin, LOW);
   delay(500);
   digitalWrite(trackPin, HIGH);
+
+  displayAudioLedEffect();
 }
 
 /**
@@ -207,11 +210,38 @@ void handleTag(byte theTag) {
 }
 
 /**
-   Turns the LED strip on.
+   Display an audio equalizer-like LED effect.
 */
-void turnPixelsOn() {
+void displayAudioLedEffect() {
+  int ledsBlockLen = floor(((float) NEOPIXEL_NUM) / 3);
+
+  for (int currStep = 0; currStep < TOTAL_EQUALIZER_STEPS; currStep++) {
+    for (int ledIdx = 0; ledIdx < ledsBlockLen; ledIdx++) {
+      pixelStrip.setPixelColor(ledIdx, random(50, 250), 0, 0);
+    }
+
+    for (int ledIdx = ledsBlockLen; ledIdx < ledsBlockLen * 2; ledIdx++) {
+      pixelStrip.setPixelColor(ledIdx, 0, random(50, 250), 0);
+    }
+
+    for (int ledIdx = ledsBlockLen * 2; ledIdx < ledsBlockLen * 3; ledIdx++) {
+      pixelStrip.setPixelColor(ledIdx, 0, 0, random(50, 250));
+    }
+
+    pixelStrip.show();
+
+    delay(LED_EQUALIZER_STEP_MS);
+  }
+
+  turnPixelsOff();
+}
+
+/**
+   Turns the LED strip off.
+*/
+void turnPixelsOff() {
   for (int i = 0; i < NEOPIXEL_NUM; i++) {
-    pixelStrip.setPixelColor(i, colorActive);
+    pixelStrip.setPixelColor(i, 0);
   }
 
   pixelStrip.show();
@@ -239,7 +269,7 @@ void setup() {
   Serial.println(">> Starting Cerebrofono program");
   Serial.flush();
 
-  turnPixelsOn();
+  turnPixelsOff();
 }
 
 void loop() {
