@@ -1,3 +1,5 @@
+#include <Adafruit_NeoPixel.h>
+
 // Constants that enumerate the possible results when polling the RFID reader
 // Track 0: "Cinco de la tarde"
 // Track 1: "Rioturbio"
@@ -32,6 +34,16 @@ const int TAG_CHAR_STX = 2;
 const int TAG_CHAR_CR = 13;
 const int TAG_CHAR_LF = 10;
 const int TAG_CHAR_ETX = 3;
+
+// NeoPixels PIN and total number
+const uint16_t NEOPIXEL_NUM = 60;
+const uint8_t NEOPIXEL_PIN = 4;
+
+// Initialize the NeoPixel instances
+Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+// Active LED color
+uint32_t colorActive = pixelStrip.Color(253, 253, 150);
 
 /**
    Returns true if both tags are equal.
@@ -176,7 +188,7 @@ void playTrack(byte trackPin) {
 /**
    Handle the given tag (i.e. play the appropriate audio track).
 */
-void handleTag(char theTag[]) {
+void handleTag(byte theTag) {
   if (theTag == UNKNOWN_TAG) {
     Serial.println("## Unknown tag");
   } else if (theTag == VALID_TAG_TRACK_0) {
@@ -194,6 +206,17 @@ void handleTag(char theTag[]) {
   }
 }
 
+/**
+   Turns the LED strip on.
+*/
+void turnPixelsOn() {
+  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+    pixelStrip.setPixelColor(i, colorActive);
+  }
+
+  pixelStrip.show();
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -209,8 +232,14 @@ void setup() {
   pinMode(PIN_AUDIO_TRACK_3, OUTPUT);
   digitalWrite(PIN_AUDIO_TRACK_3, HIGH);
 
+  pixelStrip.begin();
+  pixelStrip.setBrightness(100);
+  pixelStrip.show();
+
   Serial.println(">> Starting Cerebrofono program");
   Serial.flush();
+
+  turnPixelsOn();
 }
 
 void loop() {
