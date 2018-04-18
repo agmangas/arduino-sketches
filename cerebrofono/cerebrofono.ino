@@ -36,8 +36,8 @@ const int TAG_CHAR_LF = 10;
 const int TAG_CHAR_ETX = 3;
 
 // Time (ms) that the equalizer-like LED effect should last
-const int LED_EQUALIZER_STEP_MS = 100;
-const int TOTAL_EQUALIZER_STEPS = 25;
+const int LED_EFFECT_MS = 6500;
+const int LED_EFFECT_STEP_MS = 7;
 
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 60;
@@ -213,24 +213,34 @@ void handleTag(byte theTag) {
    Display an audio equalizer-like LED effect.
 */
 void displayAudioLedEffect() {
-  int ledsBlockLen = floor(((float) NEOPIXEL_NUM) / 3);
+  int limitLo = floor(NEOPIXEL_NUM * 0.35);
+  int limitHi = floor(NEOPIXEL_NUM * 0.95);
 
-  for (int currStep = 0; currStep < TOTAL_EQUALIZER_STEPS; currStep++) {
-    for (int ledIdx = 0; ledIdx < ledsBlockLen; ledIdx++) {
-      pixelStrip.setPixelColor(ledIdx, random(50, 250), 0, 0);
+  unsigned long now;
+  unsigned long diff;
+  unsigned long ini = millis();
+  bool keepGoing = true;
+
+  while (keepGoing) {
+    int currTarget = random(limitLo, limitHi);
+    int currLevel = 0;
+
+    for (int i = 0; i < currTarget; i++) {
+      pixelStrip.setPixelColor(i, 255, 0, 0);
+      pixelStrip.show();
+      delay(LED_EFFECT_STEP_MS);
     }
 
-    for (int ledIdx = ledsBlockLen; ledIdx < ledsBlockLen * 2; ledIdx++) {
-      pixelStrip.setPixelColor(ledIdx, 0, random(50, 250), 0);
+    turnPixelsOff();
+
+    now = millis();
+
+    if (now < ini) {
+      keepGoing = false;
+    } else {
+      diff = now - ini;
+      if (diff > LED_EFFECT_MS) keepGoing = false;
     }
-
-    for (int ledIdx = ledsBlockLen * 2; ledIdx < ledsBlockLen * 3; ledIdx++) {
-      pixelStrip.setPixelColor(ledIdx, 0, 0, random(50, 250));
-    }
-
-    pixelStrip.show();
-
-    delay(LED_EQUALIZER_STEP_MS);
   }
 
   turnPixelsOff();
@@ -241,7 +251,7 @@ void displayAudioLedEffect() {
 */
 void turnPixelsOff() {
   for (int i = 0; i < NEOPIXEL_NUM; i++) {
-    pixelStrip.setPixelColor(i, 0);
+    pixelStrip.setPixelColor(i, 0, 0, 0);
   }
 
   pixelStrip.show();
