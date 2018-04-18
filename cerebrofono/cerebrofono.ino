@@ -1,16 +1,20 @@
 #include <Adafruit_NeoPixel.h>
 
 // Constants that enumerate the possible results when polling the RFID reader
-// Track 0: "Cinco de la tarde"
-// Track 1: "Rioturbio"
+// Track 0: "Rioturbio"
+// Track 1: "Cinco de la tarde"
 // Track 2: "Reina"
 // Track 3: "Cristine"
+// Track 4: "Profesor"
+// Track 5: "Mono"
 #define NO_TAG 1
 #define UNKNOWN_TAG 2
 #define VALID_TAG_TRACK_0 3
 #define VALID_TAG_TRACK_1 4
 #define VALID_TAG_TRACK_2 5
 #define VALID_TAG_TRACK_3 6
+#define VALID_TAG_TRACK_4 7
+#define VALID_TAG_TRACK_5 8
 
 // Each tag is 16 bytes but the last four are to be discarded.
 const int TAG_LEN = 16;
@@ -22,12 +26,16 @@ char tagTrack0[ID_LEN] = "5C00CADBC28F";
 char tagTrack1[ID_LEN] = "5C00CADBA1EC";
 char tagTrack2[ID_LEN] = "5C00CB0D20BA";
 char tagTrack3[ID_LEN] = "570046666116";
+char tagTrack4[ID_LEN] = "570046345418";
+char tagTrack5[ID_LEN] = "570046327413";
 
 // Digital pins that are connected to the Audio FX board
 const byte PIN_AUDIO_TRACK_0 = 8;
 const byte PIN_AUDIO_TRACK_1 = 9;
 const byte PIN_AUDIO_TRACK_2 = 10;
 const byte PIN_AUDIO_TRACK_3 = 11;
+const byte PIN_AUDIO_TRACK_4 = 12;
+const byte PIN_AUDIO_TRACK_5 = 13;
 
 // Non-printable tag buffer characters
 const int TAG_CHAR_STX = 2;
@@ -36,7 +44,13 @@ const int TAG_CHAR_LF = 10;
 const int TAG_CHAR_ETX = 3;
 
 // Time (ms) that the equalizer-like LED effect should last
-const int LED_EFFECT_MS = 6500;
+const int LED_MS_DEFAULT = 6000;
+const int LED_MS_TRACK_0 = 7300;
+const int LED_MS_TRACK_1 = 6000;
+const int LED_MS_TRACK_2 = 8500;
+const int LED_MS_TRACK_3 = 9000;
+const int LED_MS_TRACK_4 = 30000;
+const int LED_MS_TRACK_5 = 27000;
 const int LED_EFFECT_STEP_MS = 7;
 
 // NeoPixels PIN and total number
@@ -45,6 +59,59 @@ const uint8_t NEOPIXEL_PIN = 4;
 
 // Initialize the NeoPixel instances
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+// Audio track colors
+const uint32_t COLOR_DEFAULT = pixelStrip.Color(126, 32, 198);
+const uint32_t COLOR_TRACK_0 = pixelStrip.Color(255, 0, 0);
+const uint32_t COLOR_TRACK_1 = pixelStrip.Color(0, 255, 0);
+const uint32_t COLOR_TRACK_2 = pixelStrip.Color(231, 190, 0);
+const uint32_t COLOR_TRACK_3 = pixelStrip.Color(60, 72, 231);
+const uint32_t COLOR_TRACK_4 = pixelStrip.Color(255, 255, 255);
+const uint32_t COLOR_TRACK_5 = pixelStrip.Color(247, 3, 238);
+
+/**
+   Returns the color for the given tag / track.
+*/
+uint32_t getTrackColor(byte theTag) {
+  switch (theTag) {
+    case VALID_TAG_TRACK_0:
+      return COLOR_TRACK_0;
+    case VALID_TAG_TRACK_1:
+      return COLOR_TRACK_1;
+    case VALID_TAG_TRACK_2:
+      return COLOR_TRACK_2;
+    case VALID_TAG_TRACK_3:
+      return COLOR_TRACK_3;
+    case VALID_TAG_TRACK_4:
+      return COLOR_TRACK_4;
+    case VALID_TAG_TRACK_5:
+      return COLOR_TRACK_5;
+    default:
+      return COLOR_DEFAULT;
+  }
+}
+
+/**
+   Returns the duration (ms) for the given tag / track.
+*/
+unsigned long getTrackTimeMs(byte theTag) {
+  switch (theTag) {
+    case VALID_TAG_TRACK_0:
+      return LED_MS_TRACK_0;
+    case VALID_TAG_TRACK_1:
+      return LED_MS_TRACK_1;
+    case VALID_TAG_TRACK_2:
+      return LED_MS_TRACK_2;
+    case VALID_TAG_TRACK_3:
+      return LED_MS_TRACK_3;
+    case VALID_TAG_TRACK_4:
+      return LED_MS_TRACK_4;
+    case VALID_TAG_TRACK_5:
+      return LED_MS_TRACK_5;
+    default:
+      return LED_MS_DEFAULT;
+  }
+}
 
 /**
    Returns true if both tags are equal.
@@ -184,37 +251,48 @@ void playTrack(byte trackPin) {
   digitalWrite(trackPin, LOW);
   delay(500);
   digitalWrite(trackPin, HIGH);
-
-  displayAudioLedEffect();
 }
 
 /**
    Handle the given tag (i.e. play the appropriate audio track).
 */
 void handleTag(byte theTag) {
-  if (theTag == UNKNOWN_TAG) {
-    Serial.println("## Unknown tag");
-  } else if (theTag == VALID_TAG_TRACK_0) {
-    Serial.println("## Playing Track 0");
-    playTrack(PIN_AUDIO_TRACK_0);
-  } else if (theTag == VALID_TAG_TRACK_1) {
-    Serial.println("## Playing Track 1");
-    playTrack(PIN_AUDIO_TRACK_1);
-  } else if (theTag == VALID_TAG_TRACK_2) {
-    Serial.println("## Playing Track 2");
-    playTrack(PIN_AUDIO_TRACK_2);
-  } else if (theTag == VALID_TAG_TRACK_3) {
-    Serial.println("## Playing Track 3");
-    playTrack(PIN_AUDIO_TRACK_3);
+  switch (theTag) {
+    case VALID_TAG_TRACK_0:
+      Serial.println("## Playing Track 0");
+      playTrack(PIN_AUDIO_TRACK_0);
+      displayAudioLedEffect(theTag);
+      break;
+    case VALID_TAG_TRACK_1:
+      Serial.println("## Playing Track 1");
+      playTrack(PIN_AUDIO_TRACK_1);
+      displayAudioLedEffect(theTag);
+      break;
+    case VALID_TAG_TRACK_2:
+      Serial.println("## Playing Track 2");
+      playTrack(PIN_AUDIO_TRACK_2);
+      displayAudioLedEffect(theTag);
+      break;
+    case VALID_TAG_TRACK_3:
+      Serial.println("## Playing Track 3");
+      playTrack(PIN_AUDIO_TRACK_3);
+      displayAudioLedEffect(theTag);
+      break;
+    case UNKNOWN_TAG:
+      Serial.println("## Unknown tag");
+      break;
   }
 }
 
 /**
    Display an audio equalizer-like LED effect.
 */
-void displayAudioLedEffect() {
-  int limitLo = floor(NEOPIXEL_NUM * 0.35);
+void displayAudioLedEffect(byte theTag) {
+  int limitLo = floor(NEOPIXEL_NUM * 0.45);
   int limitHi = floor(NEOPIXEL_NUM * 0.95);
+
+  uint32_t trackColor = getTrackColor(theTag);
+  unsigned long trackMs = getTrackTimeMs(theTag);
 
   unsigned long now;
   unsigned long diff;
@@ -225,13 +303,13 @@ void displayAudioLedEffect() {
     int currTarget = random(limitLo, limitHi);
     int currLevel = 0;
 
+    turnPixelsOff();
+
     for (int i = 0; i < currTarget; i++) {
-      pixelStrip.setPixelColor(i, 255, 0, 0);
+      pixelStrip.setPixelColor(i, trackColor);
       pixelStrip.show();
       delay(LED_EFFECT_STEP_MS);
     }
-
-    turnPixelsOff();
 
     now = millis();
 
@@ -239,7 +317,7 @@ void displayAudioLedEffect() {
       keepGoing = false;
     } else {
       diff = now - ini;
-      if (diff > LED_EFFECT_MS) keepGoing = false;
+      if (diff > trackMs) keepGoing = false;
     }
   }
 
@@ -273,7 +351,7 @@ void setup() {
   digitalWrite(PIN_AUDIO_TRACK_3, HIGH);
 
   pixelStrip.begin();
-  pixelStrip.setBrightness(100);
+  pixelStrip.setBrightness(160);
   pixelStrip.show();
 
   Serial.println(">> Starting Cerebrofono program");
