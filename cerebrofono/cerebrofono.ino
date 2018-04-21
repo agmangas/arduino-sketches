@@ -1,8 +1,8 @@
 #include <Adafruit_NeoPixel.h>
 
 // Constants that enumerate the possible results when polling the RFID reader
-// Track 0: "Rioturbio"
-// Track 1: "Cinco de la tarde"
+// Track 0: "Cinco de la tarde"
+// Track 1: "Rioturbio"
 // Track 2: "Reina"
 // Track 3: "Cristine"
 // Track 4: "Profesor"
@@ -22,8 +22,8 @@ const int ID_LEN = 13;
 const int ID_PRINTABLE_LEN = 12;
 
 // IDs of valid tags
-char tagTrack0[ID_LEN] = "5C00CADBC28F";
-char tagTrack1[ID_LEN] = "5C00CADBA1EC";
+char tagTrack0[ID_LEN] = "5C00CADBA1EC";
+char tagTrack1[ID_LEN] = "5C00CADBC28F";
 char tagTrack2[ID_LEN] = "5C00CB0D20BA";
 char tagTrack3[ID_LEN] = "570046666116";
 char tagTrack4[ID_LEN] = "5C00CADB5A17";
@@ -45,12 +45,12 @@ const int TAG_CHAR_ETX = 3;
 
 // Time (ms) that the equalizer-like LED effect should last
 const int LED_MS_DEFAULT = 6000;
-const int LED_MS_TRACK_0 = 7300;
-const int LED_MS_TRACK_1 = 6000;
-const int LED_MS_TRACK_2 = 8000;
-const int LED_MS_TRACK_3 = 9000;
-const int LED_MS_TRACK_4 = 25000;
-const int LED_MS_TRACK_5 = 5800;
+const int LED_MS_TRACK_0 = 7500;
+const int LED_MS_TRACK_1 = 10500;
+const int LED_MS_TRACK_2 = 10500;
+const int LED_MS_TRACK_3 = 11500;
+const int LED_MS_TRACK_4 = 29500;
+const int LED_MS_TRACK_5 = 6500;
 const int LED_EFFECT_STEP_MS = 3;
 
 // NeoPixels PIN and total number
@@ -62,8 +62,8 @@ Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO
 
 // Audio track colors
 const uint32_t COLOR_DEFAULT = pixelStrip.Color(126, 32, 198);
-const uint32_t COLOR_TRACK_0 = pixelStrip.Color(255, 0, 0);
-const uint32_t COLOR_TRACK_1 = pixelStrip.Color(0, 255, 0);
+const uint32_t COLOR_TRACK_0 = pixelStrip.Color(0, 255, 0);
+const uint32_t COLOR_TRACK_1 = pixelStrip.Color(255, 0, 0);
 const uint32_t COLOR_TRACK_2 = pixelStrip.Color(231, 190, 0);
 const uint32_t COLOR_TRACK_3 = pixelStrip.Color(60, 72, 231);
 const uint32_t COLOR_TRACK_4 = pixelStrip.Color(255, 255, 255);
@@ -299,11 +299,26 @@ void handleTag(byte theTag) {
 }
 
 /**
+   Returns a random color.
+*/
+uint32_t getRandomColor() {
+  int randVal = random(0, 3);
+
+  if (randVal == 0) {
+    return pixelStrip.Color(random(150, 250), 0, 0);
+  } else if (randVal == 1) {
+    return pixelStrip.Color(0, random(150, 250), 0);
+  } else {
+    return pixelStrip.Color(0, 0, random(150, 250));
+  }
+}
+
+/**
    Display an audio equalizer-like LED effect.
 */
 void displayAudioLedEffect(byte theTag) {
   int limitLo = floor(NEOPIXEL_NUM * 0.45);
-  int limitHi = floor(NEOPIXEL_NUM * 0.95);
+  int limitHi = floor(NEOPIXEL_NUM * 1.00);
 
   uint32_t trackColor = getTrackColor(theTag);
   unsigned long trackMs = getTrackTimeMs(theTag);
@@ -320,7 +335,11 @@ void displayAudioLedEffect(byte theTag) {
     turnPixelsOff();
 
     for (int i = 0; i < currTarget; i++) {
-      pixelStrip.setPixelColor(i, trackColor);
+      if (theTag == VALID_TAG_TRACK_5) {
+        pixelStrip.setPixelColor(i, getRandomColor());
+      } else {
+        pixelStrip.setPixelColor(i, trackColor);
+      }
       pixelStrip.show();
       delay(LED_EFFECT_STEP_MS);
     }
@@ -377,7 +396,7 @@ void setup() {
   digitalWrite(PIN_AUDIO_TRACK_5, HIGH);
 
   pixelStrip.begin();
-  pixelStrip.setBrightness(160);
+  pixelStrip.setBrightness(220);
   pixelStrip.show();
 
   Serial.println(">> Starting Cerebrofono program");
