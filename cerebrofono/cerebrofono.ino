@@ -26,8 +26,8 @@ char tagTrack0[ID_LEN] = "5C00CADBC28F";
 char tagTrack1[ID_LEN] = "5C00CADBA1EC";
 char tagTrack2[ID_LEN] = "5C00CB0D20BA";
 char tagTrack3[ID_LEN] = "570046666116";
-char tagTrack4[ID_LEN] = "570046345418";
-char tagTrack5[ID_LEN] = "570046327413";
+char tagTrack4[ID_LEN] = "5C00CADB5A17";
+char tagTrack5[ID_LEN] = "5C00CB0D23B9";
 
 // Digital pins that are connected to the Audio FX board
 const byte PIN_AUDIO_TRACK_0 = 8;
@@ -47,11 +47,11 @@ const int TAG_CHAR_ETX = 3;
 const int LED_MS_DEFAULT = 6000;
 const int LED_MS_TRACK_0 = 7300;
 const int LED_MS_TRACK_1 = 6000;
-const int LED_MS_TRACK_2 = 8500;
+const int LED_MS_TRACK_2 = 8000;
 const int LED_MS_TRACK_3 = 9000;
-const int LED_MS_TRACK_4 = 30000;
-const int LED_MS_TRACK_5 = 27000;
-const int LED_EFFECT_STEP_MS = 7;
+const int LED_MS_TRACK_4 = 25000;
+const int LED_MS_TRACK_5 = 5800;
+const int LED_EFFECT_STEP_MS = 3;
 
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 60;
@@ -236,6 +236,10 @@ byte readMainTag() {
       return VALID_TAG_TRACK_2;
     } else if (isTagEqual(newTag, tagTrack3)) {
       return VALID_TAG_TRACK_3;
+    } else if (isTagEqual(newTag, tagTrack4)) {
+      return VALID_TAG_TRACK_4;
+    } else if (isTagEqual(newTag, tagTrack5)) {
+      return VALID_TAG_TRACK_5;
     } else {
       return UNKNOWN_TAG;
     }
@@ -278,6 +282,16 @@ void handleTag(byte theTag) {
       playTrack(PIN_AUDIO_TRACK_3);
       displayAudioLedEffect(theTag);
       break;
+    case VALID_TAG_TRACK_4:
+      Serial.println("## Playing Track 4");
+      playTrack(PIN_AUDIO_TRACK_4);
+      displayAudioLedEffect(theTag);
+      break;
+    case VALID_TAG_TRACK_5:
+      Serial.println("## Playing Track 5");
+      playTrack(PIN_AUDIO_TRACK_5);
+      displayAudioLedEffect(theTag);
+      break;
     case UNKNOWN_TAG:
       Serial.println("## Unknown tag");
       break;
@@ -307,6 +321,12 @@ void displayAudioLedEffect(byte theTag) {
 
     for (int i = 0; i < currTarget; i++) {
       pixelStrip.setPixelColor(i, trackColor);
+      pixelStrip.show();
+      delay(LED_EFFECT_STEP_MS);
+    }
+
+    for (int i = (currTarget - 1); i >= 0; i--) {
+      pixelStrip.setPixelColor(i, 0, 0, 0);
       pixelStrip.show();
       delay(LED_EFFECT_STEP_MS);
     }
@@ -349,6 +369,12 @@ void setup() {
 
   pinMode(PIN_AUDIO_TRACK_3, OUTPUT);
   digitalWrite(PIN_AUDIO_TRACK_3, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_4, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_4, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_5, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_5, HIGH);
 
   pixelStrip.begin();
   pixelStrip.setBrightness(160);
