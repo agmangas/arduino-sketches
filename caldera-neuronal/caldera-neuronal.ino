@@ -65,13 +65,17 @@ SolutionKeyItem solutionKeys[NUM_PHASES][TOTAL_BUTTONS] = {
 
 unsigned long currPhase = 0;
 
-boolean getBtnState(byte btnIndex) {
+boolean getBtnLedState(byte btnIndex) {
   return atmLeds[btnIndex].state() != atmLeds[btnIndex].IDLE;
+}
+
+boolean isBtnValid(byte btnIndex) {
+  return solutionKeys[currPhase][btnIndex].btnState == getBtnLedState(btnIndex);
 }
 
 boolean isButtonPatternValid() {
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
-    if (solutionKeys[currPhase][i].btnState != getBtnState(i)) {
+    if (!isBtnValid(i)) {
       return false;
     }
   }
@@ -79,8 +83,36 @@ boolean isButtonPatternValid() {
   return true;
 }
 
+int getNextBtnIndexToPress() {
+  for (int i = 0; i < TOTAL_BUTTONS; i++) {
+    if (solutionKeys[currPhase][i].btnState == true &&
+        getBtnLedState(i) == false) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+void resetBtnLeds() {
+  for (int i = 0; i < TOTAL_BUTTONS; i++) {
+    atmLeds[i].trigger(atmLeds[i].EVT_OFF);
+  }
+}
+
 void onButtonChange(int idx, int v, int up) {
-  atmLeds[idx].trigger(atmLeds[idx].EVT_TOGGLE);
+  int nextIdx = getNextBtnIndexToPress();
+
+  if (idx != nextIdx) {
+    resetBtnLeds();
+  } else {
+    atmLeds[idx].trigger(atmLeds[idx].EVT_TOGGLE);
+  }
+
+  if (isButtonPatternValid()) {
+    currPhase++;
+    resetBtnLeds();
+  }
 }
 
 void initButtons() {
