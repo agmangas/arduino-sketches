@@ -14,14 +14,13 @@ typedef struct programState {
   boolean isFinished;
 } ProgramState;
 
-const int TOTAL_BUTTONS = 9;
+const int TOTAL_BUTTONS = 8;
 const int NUM_PHASES = 3;
 
 Atm_button atmButtons[TOTAL_BUTTONS];
 Atm_led atmLeds[TOTAL_BUTTONS];
 
 ButtonConfig btnConfs[TOTAL_BUTTONS] = {
-  { .btnPin = 2, .ledPin = 3 },
   { .btnPin = 4, .ledPin = 5 },
   { .btnPin = 6, .ledPin = 7 },
   { .btnPin = 8, .ledPin = 9 },
@@ -41,7 +40,6 @@ SolutionKeyItem solutionKeys[NUM_PHASES][TOTAL_BUTTONS] = {
     { .btnState = true },
     { .btnState = true },
     { .btnState = true },
-    { .btnState = true },
     { .btnState = true }
   },
   {
@@ -52,11 +50,9 @@ SolutionKeyItem solutionKeys[NUM_PHASES][TOTAL_BUTTONS] = {
     { .btnState = true },
     { .btnState = true },
     { .btnState = true },
-    { .btnState = true },
     { .btnState = true }
   },
   {
-    { .btnState = true },
     { .btnState = true },
     { .btnState = true },
     { .btnState = true },
