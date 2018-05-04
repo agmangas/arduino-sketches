@@ -7,15 +7,19 @@ typedef struct buttonConfig {
 
 typedef struct solutionKeyItem {
   bool btnState;
+  int btnIndex;
 } SolutionKeyItem;
 
 typedef struct programState {
   int currPhase;
+  boolean isStarted;
   boolean isFinished;
 } ProgramState;
 
 const int TOTAL_BUTTONS = 8;
 const int NUM_PHASES = 3;
+const unsigned long PATTERN_LONG_MS = 400;
+const unsigned long PATTERN_SHORT_MS = 150;
 
 Atm_button atmButtons[TOTAL_BUTTONS];
 Atm_led atmLeds[TOTAL_BUTTONS];
@@ -31,54 +35,75 @@ ButtonConfig btnConfs[TOTAL_BUTTONS] = {
   { .btnPin = A4, .ledPin = A5 }
 };
 
+/**
+   This array contains the solution keys for each phase.
+   Each phase subarray should contain the solution states for each
+   button in the sequence (i.e. its size should be TOTAL_BUTTONS).
+   The order of the items in the phase subarray and the value of the
+   btnIndex member determines the order in which the buttons should be
+   pressed (if btnState is true, otherwise the button will be ignored).
+*/
 SolutionKeyItem solutionKeys[NUM_PHASES][TOTAL_BUTTONS] = {
   {
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true }
+    { .btnState = true, .btnIndex = 0 },
+    { .btnState = true, .btnIndex = 1 },
+    { .btnState = true, .btnIndex = 2 },
+    { .btnState = true, .btnIndex = 3 },
+    { .btnState = true, .btnIndex = 4 },
+    { .btnState = true, .btnIndex = 5 },
+    { .btnState = true, .btnIndex = 6 },
+    { .btnState = true, .btnIndex = 7 }
   },
   {
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true }
+    { .btnState = true, .btnIndex = 0 },
+    { .btnState = true, .btnIndex = 1 },
+    { .btnState = true, .btnIndex = 2 },
+    { .btnState = true, .btnIndex = 3 },
+    { .btnState = true, .btnIndex = 4 },
+    { .btnState = true, .btnIndex = 5 },
+    { .btnState = true, .btnIndex = 6 },
+    { .btnState = true, .btnIndex = 7 }
   },
   {
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true },
-    { .btnState = true }
+    { .btnState = true, .btnIndex = 0 },
+    { .btnState = true, .btnIndex = 1 },
+    { .btnState = true, .btnIndex = 2 },
+    { .btnState = true, .btnIndex = 3 },
+    { .btnState = true, .btnIndex = 4 },
+    { .btnState = true, .btnIndex = 5 },
+    { .btnState = true, .btnIndex = 6 },
+    { .btnState = true, .btnIndex = 7 }
   }
 };
 
-ProgramState programState = { .currPhase = 0, .isFinished = false };
+ProgramState programState = {
+  .currPhase = 0,
+  .isStarted = false,
+  .isFinished = false
+};
 
 boolean getBtnLedState(int btnIndex) {
-  return atmLeds[btnIndex].state() !=
-         atmLeds[btnIndex].IDLE;
+  return atmLeds[btnIndex].state() != atmLeds[btnIndex].IDLE;
 }
 
-boolean isBtnValid(int btnIndex) {
-  return solutionKeys[programState.currPhase][btnIndex].btnState ==
-         getBtnLedState(btnIndex);
+SolutionKeyItem* findSolutionKeyItem(int btnIndex) {
+  SolutionKeyItem* currPhaseSolution = solutionKeys[programState.currPhase];
+
+  for (int i = 0; i < TOTAL_BUTTONS; i++) {
+    if (currPhaseSolution[i].btnIndex == btnIndex) {
+      return currPhaseSolution + i;
+    }
+  }
+
+  return NULL;
 }
 
 boolean isButtonPatternValid() {
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
-    if (!isBtnValid(i)) {
+    SolutionKeyItem* btnSolution = findSolutionKeyItem(i);
+
+    // Value should never be NULL
+    if (btnSolution == NULL || btnSolution->btnState != getBtnLedState(i)) {
       return false;
     }
   }
@@ -87,17 +112,37 @@ boolean isButtonPatternValid() {
 }
 
 boolean isNextBtnToPress(int btnIndex) {
-  int nextIdx = -1;
+  SolutionKeyItem* currPhaseSolution = solutionKeys[programState.currPhase];
+
+  int nextIndex = -1;
 
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
-    if (solutionKeys[programState.currPhase][i].btnState == true &&
-        getBtnLedState(i) == false) {
-      nextIdx = i;
+    boolean btnLedState = getBtnLedState(currPhaseSolution[i].btnIndex);
+    boolean btnSolutionState = currPhaseSolution[i].btnState;
+
+    if (btnSolutionState == true && btnLedState == false) {
+      nextIndex = i;
       break;
     }
   }
 
-  return btnIndex == nextIdx;
+  return nextIndex == btnIndex;
+}
+
+void playSolutionPattern(int phase, unsigned long delayMs) {
+  if (phase >= NUM_PHASES || phase < 0) {
+    return;
+  }
+
+  turnAllLedsOff();
+
+  for (int i = 0; i < TOTAL_BUTTONS; i++) {
+    int btnIndex = solutionKeys[phase][i].btnIndex;
+    atmLeds[btnIndex].trigger(atmLeds[i].EVT_ON);
+    delay(delayMs);
+  }
+
+  turnAllLedsOff();
 }
 
 void turnAllLedsOff() {
@@ -112,7 +157,7 @@ void turnLedOn(int btnIndex) {
 
 void blinkLeds() {
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
-    atmLeds[i].blink(50, 200).trigger(atmLeds[i].EVT_BLINK);
+    atmLeds[i].blink(50, 350).trigger(atmLeds[i].EVT_BLINK);
   }
 }
 
@@ -121,6 +166,11 @@ boolean isLastPhase() {
 }
 
 void onButtonChange(int idx, int v, int up) {
+  if (!programState.isStarted) {
+    programState.isStarted = true;
+    playSolutionPattern(0, PATTERN_LONG_MS);
+  }
+
   if (programState.isFinished) {
     return;
   }
@@ -142,6 +192,7 @@ void onButtonChange(int idx, int v, int up) {
   } else {
     programState.currPhase++;
     turnAllLedsOff();
+    playSolutionPattern(programState.currPhase, PATTERN_SHORT_MS);
   }
 }
 
@@ -160,3 +211,4 @@ void setup() {
 void loop() {
   automaton.run();
 }
+
