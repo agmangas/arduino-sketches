@@ -1,4 +1,5 @@
 #include <Automaton.h>
+#include <Adafruit_NeoPixel.h>
 
 typedef struct buttonConfig {
   byte btnPin;
@@ -16,8 +17,20 @@ typedef struct programState {
   boolean isFinished;
 } ProgramState;
 
+typedef struct nextButton {
+  int sequenceIndex;
+  boolean btnIndex;
+} NextButton;
+
 const int TOTAL_BUTTONS = 8;
 const int NUM_PHASES = 3;
+
+const uint16_t NEOPIXEL_NUM = 33;
+const uint8_t NEOPIXEL_PIN = 3;
+
+const int NUM_LEDS_PROGRESS = 8;
+const int NUM_LEDS_SOLUTION = 3;
+
 const unsigned long PATTERN_LONG_MS = 400;
 const unsigned long PATTERN_SHORT_MS = 150;
 
@@ -76,6 +89,14 @@ SolutionKeyItem solutionKeys[NUM_PHASES][TOTAL_BUTTONS] = {
   }
 };
 
+Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+uint32_t phaseColors[NUM_PHASES] = {
+  pixelStrip.Color(255, 0, 0),
+  pixelStrip.Color(0, 255, 0),
+  pixelStrip.Color(0, 0, 255)
+};
+
 ProgramState programState = {
   .currPhase = 0,
   .isStarted = false,
@@ -111,22 +132,23 @@ boolean isButtonPatternValid() {
   return true;
 }
 
-boolean isNextBtnToPress(int btnIndex) {
-  SolutionKeyItem* currPhaseSolution = solutionKeys[programState.currPhase];
+NextButton getNextButton() {
+  NextButton nxtBtn = { .sequenceIndex = -1, .btnIndex = -1 };
 
-  int nextIndex = -1;
+  SolutionKeyItem* currPhaseSolution = solutionKeys[programState.currPhase];
 
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
     boolean btnLedState = getBtnLedState(currPhaseSolution[i].btnIndex);
     boolean btnSolutionState = currPhaseSolution[i].btnState;
 
     if (btnSolutionState == true && btnLedState == false) {
-      nextIndex = i;
+      nxtBtn.sequenceIndex = i;
+      nxtBtn.btnIndex = currPhaseSolution[i].btnIndex;
       break;
     }
   }
 
-  return nextIndex == btnIndex;
+  return nxtBtn;
 }
 
 void playSolutionPattern(int phase, unsigned long delayMs) {
@@ -134,7 +156,7 @@ void playSolutionPattern(int phase, unsigned long delayMs) {
     return;
   }
 
-  turnAllLedsOff();
+  turnAllButtonLedsOff();
 
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
     int btnIndex = solutionKeys[phase][i].btnIndex;
@@ -142,23 +164,80 @@ void playSolutionPattern(int phase, unsigned long delayMs) {
     delay(delayMs);
   }
 
-  turnAllLedsOff();
+  turnAllButtonLedsOff();
 }
 
-void turnAllLedsOff() {
+void turnAllButtonLedsOff() {
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
     atmLeds[i].trigger(atmLeds[i].EVT_OFF);
   }
 }
 
-void turnLedOn(int btnIndex) {
+void turnButtonLedOn(int btnIndex) {
   atmLeds[btnIndex].trigger(atmLeds[btnIndex].EVT_ON);
 }
 
-void blinkLeds() {
+void blinkButtonLeds() {
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
     atmLeds[i].blink(50, 350).trigger(atmLeds[i].EVT_BLINK);
   }
+}
+
+void turnAllStripLedsOff() {
+  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+    pixelStrip.setPixelColor(i, 0, 0, 0);
+  }
+
+  pixelStrip.show();
+}
+
+void activateSolutionStripLeds(int phaseIdx) {
+  if (phaseIdx < 0 || phaseIdx >= NUM_PHASES) {
+    return;
+  }
+
+  int loIdx = NUM_LEDS_PROGRESS * 3  + NUM_LEDS_SOLUTION * phaseIdx;
+  int hiIdx = loIdx + NUM_LEDS_SOLUTION;
+
+  for (int i = loIdx; i < hiIdx; i++) {
+    pixelStrip.setPixelColor(i, phaseColors[phaseIdx]);
+  }
+
+  pixelStrip.show();
+}
+
+void activateProgressStripLeds(int phaseIdx, int level) {
+  if (phaseIdx < 0 || phaseIdx >= NUM_PHASES) {
+    return;
+  }
+
+  if (level < 0 || level >= TOTAL_BUTTONS) {
+    return;
+  }
+
+  int loIdx = NUM_LEDS_PROGRESS * phaseIdx;
+  int hiIdx = loIdx + (level + 1);
+
+  for (int i = loIdx; i < hiIdx; i++) {
+    pixelStrip.setPixelColor(i, phaseColors[phaseIdx]);
+  }
+
+  pixelStrip.show();
+}
+
+void turnProgressStripLedsOff(int phaseIdx) {
+  if (phaseIdx < 0 || phaseIdx >= NUM_PHASES) {
+    return;
+  }
+
+  int loIdx = NUM_LEDS_PROGRESS * phaseIdx;
+  int hiIdx = loIdx + TOTAL_BUTTONS;
+
+  for (int i = loIdx; i < hiIdx; i++) {
+    pixelStrip.setPixelColor(i, 0, 0, 0);
+  }
+
+  pixelStrip.show();
 }
 
 boolean isLastPhase() {
@@ -167,31 +246,50 @@ boolean isLastPhase() {
 
 void onButtonChange(int idx, int v, int up) {
   if (!programState.isStarted) {
+    Serial.println("Setting isStarted = true and playing first pattern");
     programState.isStarted = true;
     playSolutionPattern(0, PATTERN_LONG_MS);
   }
 
   if (programState.isFinished) {
+    Serial.println("Program has finished: ignoring button event");
     return;
   }
 
-  if (isNextBtnToPress(idx)) {
-    turnLedOn(idx);
+  NextButton nxtBtn = getNextButton();
+
+  boolean isNextBtnToPress = nxtBtn.btnIndex != -1 &&
+                             nxtBtn.btnIndex == idx;
+
+  Serial.print("Next button to press: btnIndex=");
+  Serial.print(nxtBtn.btnIndex);
+  Serial.print(" sequenceIndex=");
+  Serial.print(nxtBtn.sequenceIndex);
+  Serial.println();
+
+  if (isNextBtnToPress) {
+    Serial.println("Is next button: Activating strip and LED");
+    activateProgressStripLeds(programState.currPhase, nxtBtn.sequenceIndex);
+    turnButtonLedOn(idx);
   } else {
-    turnAllLedsOff();
+    Serial.println("Not the next button: Turning off strip and LED");
+    turnProgressStripLedsOff(programState.currPhase);
+    turnAllButtonLedsOff();
   }
 
   if (!isButtonPatternValid()) {
     return;
   }
 
+  activateSolutionStripLeds(programState.currPhase);
+
   if (isLastPhase()) {
     programState.isFinished = true;
-    turnAllLedsOff();
-    blinkLeds();
+    turnAllButtonLedsOff();
+    blinkButtonLeds();
   } else {
     programState.currPhase++;
-    turnAllLedsOff();
+    turnAllButtonLedsOff();
     playSolutionPattern(programState.currPhase, PATTERN_SHORT_MS);
   }
 }
@@ -205,10 +303,19 @@ void initButtons() {
 }
 
 void setup() {
+  Serial.begin(9600);
+
+  pixelStrip.begin();
+  pixelStrip.setBrightness(250);
+  pixelStrip.show();
+
   initButtons();
+
+  turnAllStripLedsOff();
+
+  Serial.println(">> Starting Caldera Neuronal program");
 }
 
 void loop() {
   automaton.run();
 }
-
