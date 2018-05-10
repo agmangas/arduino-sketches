@@ -13,7 +13,7 @@ typedef struct solutionKeyItem {
 
 typedef struct programState {
   int currPhase;
-  boolean isStarted;
+  boolean isActive;
   boolean isFinished;
 } ProgramState;
 
@@ -31,11 +31,14 @@ const uint8_t NEOPIXEL_PIN = 3;
 const int NUM_LEDS_PROGRESS = 8;
 const int NUM_LEDS_SOLUTION = 3;
 
-const unsigned long PATTERN_LONG_MS = 400;
-const unsigned long PATTERN_SHORT_MS = 150;
+const unsigned long PATTERN_MS = 500;
+
+const unsigned long BLINK_DELAY_MS = 8000;
 
 Atm_button atmButtons[TOTAL_BUTTONS];
 Atm_led atmLeds[TOTAL_BUTTONS];
+Atm_controller startupController;
+Atm_timer timer;
 
 ButtonConfig btnConfs[TOTAL_BUTTONS] = {
   { .btnPin = 4, .ledPin = 5 },
@@ -58,48 +61,50 @@ ButtonConfig btnConfs[TOTAL_BUTTONS] = {
 */
 SolutionKeyItem solutionKeys[NUM_PHASES][TOTAL_BUTTONS] = {
   {
-    { .btnState = true, .btnIndex = 0 },
     { .btnState = true, .btnIndex = 1 },
-    { .btnState = true, .btnIndex = 2 },
-    { .btnState = true, .btnIndex = 3 },
     { .btnState = true, .btnIndex = 4 },
+    { .btnState = true, .btnIndex = 3 },
+    { .btnState = true, .btnIndex = 7 },
     { .btnState = true, .btnIndex = 5 },
+    { .btnState = true, .btnIndex = 2 },
     { .btnState = true, .btnIndex = 6 },
-    { .btnState = true, .btnIndex = 7 }
+    { .btnState = true, .btnIndex = 0 }
   },
   {
-    { .btnState = true, .btnIndex = 0 },
     { .btnState = true, .btnIndex = 1 },
-    { .btnState = true, .btnIndex = 2 },
     { .btnState = true, .btnIndex = 3 },
-    { .btnState = true, .btnIndex = 4 },
     { .btnState = true, .btnIndex = 5 },
-    { .btnState = true, .btnIndex = 6 },
-    { .btnState = true, .btnIndex = 7 }
+    { .btnState = true, .btnIndex = 7 },
+    { .btnState = true, .btnIndex = 0 },
+    { .btnState = true, .btnIndex = 2 },
+    { .btnState = true, .btnIndex = 4 },
+    { .btnState = true, .btnIndex = 6 }
   },
   {
-    { .btnState = true, .btnIndex = 0 },
-    { .btnState = true, .btnIndex = 1 },
-    { .btnState = true, .btnIndex = 2 },
-    { .btnState = true, .btnIndex = 3 },
-    { .btnState = true, .btnIndex = 4 },
-    { .btnState = true, .btnIndex = 5 },
+    { .btnState = true, .btnIndex = 7 },
     { .btnState = true, .btnIndex = 6 },
-    { .btnState = true, .btnIndex = 7 }
+    { .btnState = true, .btnIndex = 5 },
+    { .btnState = true, .btnIndex = 4 },
+    { .btnState = true, .btnIndex = 3 },
+    { .btnState = true, .btnIndex = 2 },
+    { .btnState = true, .btnIndex = 1 },
+    { .btnState = true, .btnIndex = 0 }
   }
 };
 
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-uint32_t phaseColors[NUM_PHASES] = {
+uint32_t solutionColors[NUM_PHASES] = {
   pixelStrip.Color(255, 0, 0),
   pixelStrip.Color(0, 255, 0),
   pixelStrip.Color(0, 0, 255)
 };
 
+const uint32_t PROGRESS_COLOR = pixelStrip.Color(5, 0, 5);
+
 ProgramState programState = {
   .currPhase = 0,
-  .isStarted = false,
+  .isActive = false,
   .isFinished = false
 };
 
@@ -183,6 +188,12 @@ void blinkButtonLeds() {
   }
 }
 
+void stopBlinkButtonLeds() {
+  for (int i = 0; i < TOTAL_BUTTONS; i++) {
+    atmLeds[i].trigger(atmLeds[i].EVT_OFF);
+  }
+}
+
 void turnAllStripLedsOff() {
   for (int i = 0; i < NEOPIXEL_NUM; i++) {
     pixelStrip.setPixelColor(i, 0, 0, 0);
@@ -200,7 +211,7 @@ void activateSolutionStripLeds(int phaseIdx) {
   int hiIdx = loIdx + NUM_LEDS_SOLUTION;
 
   for (int i = loIdx; i < hiIdx; i++) {
-    pixelStrip.setPixelColor(i, phaseColors[phaseIdx]);
+    pixelStrip.setPixelColor(i, solutionColors[phaseIdx]);
   }
 
   pixelStrip.show();
@@ -219,7 +230,7 @@ void activateProgressStripLeds(int phaseIdx, int level) {
   int hiIdx = loIdx + (level + 1);
 
   for (int i = loIdx; i < hiIdx; i++) {
-    pixelStrip.setPixelColor(i, phaseColors[phaseIdx]);
+    pixelStrip.setPixelColor(i, PROGRESS_COLOR);
   }
 
   pixelStrip.show();
@@ -245,10 +256,9 @@ boolean isLastPhase() {
 }
 
 void onButtonChange(int idx, int v, int up) {
-  if (!programState.isStarted) {
-    Serial.println("Setting isStarted = true and playing first pattern");
-    programState.isStarted = true;
-    playSolutionPattern(0, PATTERN_LONG_MS);
+  if (!programState.isActive) {
+    Serial.println("isActive = False: Ignoring button press");
+    return;
   }
 
   if (programState.isFinished) {
@@ -281,25 +291,50 @@ void onButtonChange(int idx, int v, int up) {
     return;
   }
 
-  activateSolutionStripLeds(programState.currPhase);
-
   if (isLastPhase()) {
     programState.isFinished = true;
     turnAllButtonLedsOff();
     blinkButtonLeds();
+
+    for (int i = 0; i < NUM_PHASES; i++) {
+      activateSolutionStripLeds(i);
+    }
   } else {
     programState.currPhase++;
     turnAllButtonLedsOff();
-    playSolutionPattern(programState.currPhase, PATTERN_SHORT_MS);
+    playSolutionPattern(programState.currPhase, PATTERN_MS);
   }
 }
 
-void initButtons() {
+void startProgram() {
+  if (programState.isActive) {
+    return;
+  }
+
+  Serial.println("Setting isActive = true and playing first pattern");
+
+  blinkButtonLeds();
+
+  timer.begin(BLINK_DELAY_MS)
+  .onTimer([] (int idx, int v, int up) {
+    stopBlinkButtonLeds();
+    playSolutionPattern(0, PATTERN_MS);
+    programState.isActive = true;
+  })
+  .start();
+}
+
+void initMachines() {
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
     atmButtons[i].begin(btnConfs[i].btnPin).onPress(onButtonChange, i);
     atmLeds[i].begin(btnConfs[i].ledPin);
     atmLeds[i].trigger(atmLeds[i].EVT_OFF);
   }
+
+  startupController.begin()
+  .IF(atmButtons[1], '=', atmButtons[1].PRESSED)
+  .IF(atmButtons[7], '=', atmButtons[7].PRESSED)
+  .onChange(true, startProgram);
 }
 
 void setup() {
@@ -309,7 +344,7 @@ void setup() {
   pixelStrip.setBrightness(250);
   pixelStrip.show();
 
-  initButtons();
+  initMachines();
 
   turnAllStripLedsOff();
 
