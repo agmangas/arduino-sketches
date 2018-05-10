@@ -19,7 +19,7 @@ typedef struct programState {
 
 typedef struct nextButton {
   int sequenceIndex;
-  boolean btnIndex;
+  int btnIndex;
 } NextButton;
 
 const int TOTAL_BUTTONS = 8;
