@@ -34,6 +34,7 @@ const int NUM_LEDS_SOLUTION = 3;
 
 const unsigned long PATTERN_MS = 500;
 const unsigned long BLINK_DELAY_MS = 8000;
+const unsigned long AFTER_BLINK_DELAY_MS = 2000;
 
 const int START_BTN_0 = 1;
 const int START_BTN_1 = 7;
@@ -103,7 +104,7 @@ uint32_t solutionColors[NUM_PHASES] = {
   pixelStrip.Color(0, 0, 255)
 };
 
-const uint32_t PROGRESS_COLOR = pixelStrip.Color(5, 0, 5);
+const uint32_t PROGRESS_COLOR = pixelStrip.Color(15, 0, 15);
 
 ProgramState programState = {
   .currPhase = 0,
@@ -200,6 +201,7 @@ void blinkAndPlaySolutionPattern() {
   timer.begin(BLINK_DELAY_MS)
   .onFinish([] (int idx, int v, int up) {
     setButtonLedsOff();
+    delay(AFTER_BLINK_DELAY_MS);
     playSolutionPattern();
     programState.isBlinking = false;
   })
