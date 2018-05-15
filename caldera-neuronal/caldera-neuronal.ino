@@ -1,5 +1,11 @@
 #include <Automaton.h>
 #include <Adafruit_NeoPixel.h>
+#include <SoftwareSerial.h>
+#include "Adafruit_Soundboard.h"
+
+#define SFX_TX 3
+#define SFX_RX 2
+#define SFX_RST 1
 
 typedef struct buttonConfig {
   byte btnPin;
@@ -33,7 +39,7 @@ const int NUM_LEDS_PROGRESS = 8;
 const int NUM_LEDS_SOLUTION = 3;
 
 const unsigned long PATTERN_MS = 500;
-const unsigned long BLINK_DELAY_MS = 8000;
+const unsigned long BLINK_DELAY_MS = 10000;
 const unsigned long AFTER_BLINK_DELAY_MS = 2000;
 
 const int START_BTN_0 = 1;
@@ -105,6 +111,20 @@ uint32_t solutionColors[NUM_PHASES] = {
 };
 
 const uint32_t PROGRESS_COLOR = pixelStrip.Color(15, 0, 15);
+
+const int TRACK_NAME_LEN = 12;
+
+char startTrack[TRACK_NAME_LEN] = "START000OGG";
+char failTrack[TRACK_NAME_LEN] = "FAIL0000OGG";
+
+char postPhaseTracks[NUM_PHASES][TRACK_NAME_LEN] = {
+  "PHASE001OGG",
+  "PHASE002OGG",
+  "PHASE003OGG"
+};
+
+SoftwareSerial ss = SoftwareSerial(SFX_TX, SFX_RX);
+Adafruit_Soundboard sfx = Adafruit_Soundboard(&ss, NULL, SFX_RST);
 
 ProgramState programState = {
   .currPhase = 0,
@@ -271,27 +291,19 @@ boolean isLastPhase() {
 
 void onButtonChange(int idx, int v, int up) {
   if (programState.isBlinking || !programState.isStarted || programState.isFinished) {
-    Serial.println("isBlinking or isFinished or not isStarted: Ignoring button");
     return;
   }
 
   NextButton nxtBtn = getNextButton();
 
-  Serial.print("Next button to press: btnIndex=");
-  Serial.print(nxtBtn.btnIndex);
-  Serial.print(" sequenceIndex=");
-  Serial.print(nxtBtn.sequenceIndex);
-  Serial.println();
-
   boolean isNextBtnToPress = nxtBtn.btnIndex != -1 &&
                              nxtBtn.btnIndex == idx;
 
   if (isNextBtnToPress) {
-    Serial.println("Is next button: Activating strip and LED");
     setProgressStripOn(programState.currPhase, nxtBtn.sequenceIndex);
     setButtonLedOn(idx);
   } else {
-    Serial.println("Not the next button: Turning off strip and LED");
+    sfx.playTrack(failTrack);
     setProgressStripOff(programState.currPhase);
     setButtonLedsOff();
   }
@@ -299,6 +311,8 @@ void onButtonChange(int idx, int v, int up) {
   if (!isButtonPatternValid()) {
     return;
   }
+
+  sfx.playTrack(postPhaseTracks[programState.currPhase]);
 
   if (isLastPhase()) {
     programState.isFinished = true;
@@ -320,7 +334,7 @@ void startProgram(int idx, int v, int up) {
     return;
   }
 
-  Serial.println("Setting isStarted = True");
+  sfx.playTrack(startTrack);
 
   programState.isStarted = true;
   blinkAndPlaySolutionPattern();
@@ -339,18 +353,27 @@ void initMachines() {
   .onChange(true, startProgram);
 }
 
+void initSfx() {
+  if (!sfx.reset()) {
+    while (true) {
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(100);
+    }
+  }
+}
+
 void setup() {
-  Serial.begin(9600);
+  ss.begin(9600);
 
   pixelStrip.begin();
   pixelStrip.setBrightness(250);
   pixelStrip.show();
 
   initMachines();
-
   setStripOff();
-
-  Serial.println(">> Starting Caldera Neuronal program");
+  initSfx();
 }
 
 void loop() {
