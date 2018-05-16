@@ -354,19 +354,11 @@ void initMachines() {
 }
 
 void initSfx() {
-  if (!sfx.reset()) {
-    while (true) {
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(100);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(100);
-    }
-  }
+  ss.begin(9600);
+  sfx.reset();
 }
 
 void setup() {
-  ss.begin(9600);
-
   pixelStrip.begin();
   pixelStrip.setBrightness(250);
   pixelStrip.show();
