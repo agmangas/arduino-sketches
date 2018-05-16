@@ -35,6 +35,9 @@ const int SOLUTION_INPUT_2 = 10;
 const int SOLUTION_INPUT_3 = 10;
 const int SOLUTION_INPUT_4 = 25;
 
+// Audio tracks pins
+const int PIN_AUDIO_TRACK_END = 10;
+
 // Initialize the NeoPixel instances
 Adafruit_NeoPixel pixelStrip1 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_1, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel pixelStrip2 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_2, NEO_GRB + NEO_KHZ800);
@@ -106,6 +109,8 @@ void openLockAndWait() {
   Serial.println("## Turning final LED strip on");
   Serial.flush();
 
+  playTrack(PIN_AUDIO_TRACK_END);
+
   for (int i = 0; i < NEOPIXEL_NUM; i++) {
     pixelStripSolution.setPixelColor(i, 0, 0, 0);
   }
@@ -130,6 +135,9 @@ void openLockAndWait() {
   }
 }
 
+/**
+   Randomizes all strips pixels.
+*/
 void randomizeAllPixels() {
   for (int i = 0; i < NEOPIXEL_NUM; i++) {
     pixelStrip1.setPixelColor(i, random(100, 220), 0, 0);
@@ -146,8 +154,20 @@ void randomizeAllPixels() {
   pixelStripSolution.show();
 }
 
+/**
+   Plays the audio track connected to the given pin.
+*/
+void playTrack(byte trackPin) {
+  digitalWrite(trackPin, LOW);
+  delay(500);
+  digitalWrite(trackPin, HIGH);
+}
+
 void setup() {
   Serial.begin(9600);
+
+  pinMode(PIN_AUDIO_TRACK_END, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_END, HIGH);
 
   pixelStrip1.begin();
   pixelStrip1.setBrightness(100);
