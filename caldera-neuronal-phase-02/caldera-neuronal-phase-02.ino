@@ -67,15 +67,7 @@ void initStrip() {
 
 void initSfx() {
   ss.begin(9600);
-
-  if (!sfx.reset()) {
-    while (true) {
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(100);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(100);
-    }
-  }
+  sfx.reset();
 }
 
 void setup() {
