@@ -27,6 +27,10 @@ const byte ACTIVATION_PIN = 10;
 // Pin connected to the activation signal LED
 const byte ACTIVATION_LED_PIN = 9;
 
+// Audio tracks pins
+const int PIN_AUDIO_TRACK_ACTIVATION = 4;
+const int PIN_AUDIO_TRACK_COMPLETION = 5;
+
 // Size of the sensor samples buffer
 const int SENSOR_BUFFER_SIZE = 100;
 
@@ -116,8 +120,6 @@ void updateSensorBuffer() {
   sample.level = sensorVal;
 
   sensorBuffer.push(sample);
-
-  digitalWrite(13, sensorVal);
 }
 
 /**
@@ -264,6 +266,8 @@ void onMaxLevelReached() {
   int offset = 0;
   int beatCounter = 0;
 
+  playHoldTrack(PIN_AUDIO_TRACK_COMPLETION);
+
   while (true) {
     for (int i = 0; i < NEOPIXEL_NUM; i++) {
       pixelStrip.setPixelColor(i, 0, 0, 0);
@@ -322,6 +326,29 @@ void activateInitialLeds() {
   }
 }
 
+/**
+   Plays the audio track connected to the given pin.
+*/
+void playTrack(byte trackPin) {
+  digitalWrite(trackPin, LOW);
+  delay(500);
+  digitalWrite(trackPin, HIGH);
+}
+
+/**
+   Start playing a HOLDL audio track.
+*/
+void playHoldTrack(byte trackPin) {
+  digitalWrite(trackPin, LOW);
+}
+
+/**
+   Stop playing a HOLDL audio track.
+*/
+void stopHoldTrack(byte trackPin) {
+  digitalWrite(trackPin, HIGH);
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -329,9 +356,14 @@ void setup() {
 
   pinMode(ACTIVATION_PIN, INPUT_PULLUP);
   pinMode(ACTIVATION_LED_PIN, OUTPUT);
-  pinMode(13, OUTPUT);
 
   digitalWrite(ACTIVATION_LED_PIN, LOW);
+
+  pinMode(PIN_AUDIO_TRACK_ACTIVATION, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_ACTIVATION, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_COMPLETION, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_COMPLETION, HIGH);
 
   pixelStrip.begin();
   pixelStrip.setBrightness(200);
@@ -354,6 +386,7 @@ void loop() {
   if (!isActivated && digitalRead(ACTIVATION_PIN) == LOW) {
     Serial.println("## Activating program");
     digitalWrite(ACTIVATION_LED_PIN, HIGH);
+    playTrack(PIN_AUDIO_TRACK_ACTIVATION);
     activateInitialLeds();
     isActivated = true;
   }
