@@ -7,12 +7,6 @@
 #define SFX_RX 3
 #define SFX_RST 2
 
-#define NEOPIXEL_NUM 150
-#define NEOPIXEL_PIN 5
-
-#define NEOPIXEL_NUM_ENC 150
-#define NEOPIXEL_PIN_ENC 6
-
 /**
    Rotary encoder pins:
    A and B are the white and green wires
@@ -31,6 +25,12 @@ typedef struct programState {
   bool isEncoderDebounce;
   int encoderLevel;
 } ProgramState;
+
+const uint16_t NEOPIXEL_NUM = 30;
+const uint8_t NEOPIXEL_PIN = 5;
+
+const uint16_t NEOPIXEL_NUM_ENC = 30;
+const uint8_t NEOPIXEL_PIN_ENC = 6;
 
 const int ENCODER_TIMER_MS = 5000;
 const int MAX_ENCODER_LEVEL = NEOPIXEL_NUM_ENC;
