@@ -7,10 +7,10 @@
 #define SFX_RX 3
 #define SFX_RST 2
 
-#define NEOPIXEL_NUM 60
+#define NEOPIXEL_NUM 150
 #define NEOPIXEL_PIN 5
 
-#define NEOPIXEL_NUM_ENC 60
+#define NEOPIXEL_NUM_ENC 150
 #define NEOPIXEL_PIN_ENC 6
 
 /**
@@ -119,11 +119,16 @@ void onPotsSolutionValid(int idx, int v, int up) {
   }
 
   Serial.println("Potentiometers: Valid combination");
+
   activateValidPotsStrip();
   programState.isEncoderActive = true;
 }
 
 void onRotEncoderChange(int idx, int v, int up) {
+  if (!programState.isEncoderActive) {
+    return;
+  }
+
   Serial.print("onRotEncoderChange:: idx=");
   Serial.print(idx);
   Serial.print(" v=");
@@ -202,11 +207,11 @@ void initMachines() {
 
 void initStrip() {
   pixelStrip.begin();
-  pixelStrip.setBrightness(250);
+  pixelStrip.setBrightness(200);
   pixelStrip.show();
 
   pixelStripEnc.begin();
-  pixelStripEnc.setBrightness(250);
+  pixelStripEnc.setBrightness(200);
   pixelStripEnc.show();
 
   setStripsOff();
