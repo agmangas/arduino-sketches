@@ -1,11 +1,12 @@
+
 #include <Automaton.h>
 #include <Adafruit_NeoPixel.h>
 #include <SoftwareSerial.h>
 #include "Adafruit_Soundboard.h"
 
-#define SFX_TX 3
-#define SFX_RX 2
-#define SFX_RST 1
+#define SFX_TX 2
+#define SFX_RX 1
+#define SFX_RST 0
 
 typedef struct buttonConfig {
   byte btnPin;
