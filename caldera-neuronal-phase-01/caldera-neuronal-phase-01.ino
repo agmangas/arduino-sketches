@@ -1,12 +1,5 @@
-
 #include <Automaton.h>
 #include <Adafruit_NeoPixel.h>
-#include <SoftwareSerial.h>
-#include "Adafruit_Soundboard.h"
-
-#define SFX_TX 2
-#define SFX_RX 1
-#define SFX_RST 0
 
 typedef struct buttonConfig {
   byte btnPin;
@@ -32,6 +25,10 @@ typedef struct nextButton {
 
 const int TOTAL_BUTTONS = 8;
 const int NUM_PHASES = 3;
+
+const byte PIN_AUDIO_TRACK_PHASE = 2;
+const byte PIN_AUDIO_TRACK_COMPLETION = 1;
+const byte PIN_AUDIO_TRACK_FAIL = 0;
 
 const uint16_t NEOPIXEL_NUM = 33;
 const uint8_t NEOPIXEL_PIN = 3;
@@ -123,9 +120,6 @@ char postPhaseTracks[NUM_PHASES][TRACK_NAME_LEN] = {
   "PHASE002OGG",
   "PHASE003OGG"
 };
-
-SoftwareSerial ss = SoftwareSerial(SFX_TX, SFX_RX);
-Adafruit_Soundboard sfx = Adafruit_Soundboard(&ss, NULL, SFX_RST);
 
 ProgramState programState = {
   .currPhase = 0,
@@ -304,7 +298,7 @@ void onButtonChange(int idx, int v, int up) {
     setProgressStripOn(programState.currPhase, nxtBtn.sequenceIndex);
     setButtonLedOn(idx);
   } else {
-    sfx.playTrack(failTrack);
+    playTrack(PIN_AUDIO_TRACK_FAIL);
     setProgressStripOff(programState.currPhase);
     setButtonLedsOff();
   }
@@ -313,10 +307,9 @@ void onButtonChange(int idx, int v, int up) {
     return;
   }
 
-  sfx.playTrack(postPhaseTracks[programState.currPhase]);
-
   if (isLastPhase()) {
     programState.isFinished = true;
+    playTrack(PIN_AUDIO_TRACK_COMPLETION);
     setButtonLedsOff();
     startBlink();
 
@@ -326,6 +319,7 @@ void onButtonChange(int idx, int v, int up) {
   } else {
     programState.currPhase++;
     setButtonLedsOff();
+    playTrack(PIN_AUDIO_TRACK_PHASE);
     blinkAndPlaySolutionPattern();
   }
 }
@@ -335,10 +329,16 @@ void startProgram(int idx, int v, int up) {
     return;
   }
 
-  sfx.playTrack(startTrack);
+  playTrack(PIN_AUDIO_TRACK_PHASE);
 
   programState.isStarted = true;
   blinkAndPlaySolutionPattern();
+}
+
+void playTrack(byte trackPin) {
+  digitalWrite(trackPin, LOW);
+  delay(500);
+  digitalWrite(trackPin, HIGH);
 }
 
 void initMachines() {
@@ -354,9 +354,15 @@ void initMachines() {
   .onChange(true, startProgram);
 }
 
-void initSfx() {
-  ss.begin(9600);
-  sfx.reset();
+void initAudioPins() {
+  pinMode(PIN_AUDIO_TRACK_PHASE, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_PHASE, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_COMPLETION, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_COMPLETION, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_FAIL, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_FAIL, HIGH);
 }
 
 void setup() {
@@ -366,7 +372,7 @@ void setup() {
 
   initMachines();
   setStripOff();
-  initSfx();
+  initAudioPins();
 }
 
 void loop() {
