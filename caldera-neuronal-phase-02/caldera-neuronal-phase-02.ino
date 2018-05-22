@@ -16,8 +16,9 @@ typedef struct potInfo {
 
 typedef struct programState {
   bool isEncoderActive;
-  bool isEncoderDebounce;
+  bool isEncoderInDebounce;
   int encoderLevel;
+  bool maxEncoderLevelReached;
 } ProgramState;
 
 const uint16_t NEOPIXEL_NUM = 300;
@@ -45,6 +46,7 @@ int potSolutionKey[TOTAL_POTS] = { 3, 4, 5 };
 
 Atm_analog pots[TOTAL_POTS];
 Atm_controller potsController;
+Atm_controller encoderController;
 Atm_encoder rotEncoder;
 Atm_timer encoderLevelTimer;
 
@@ -57,8 +59,9 @@ const uint32_t ENCODER_COLOR = pixelStrip.Color(200, 0, 0);
 
 ProgramState programState = {
   .isEncoderActive = false,
-  .isEncoderDebounce = false,
-  .encoderLevel = 0
+  .isEncoderInDebounce = false,
+  .encoderLevel = 0,
+  .maxEncoderLevelReached = false
 };
 
 void setStripsOff() {
@@ -107,6 +110,16 @@ void onPotsSolutionValid(int idx, int v, int up) {
   programState.isEncoderActive = true;
 }
 
+void onMaxEncoderLevel(int idx, int v, int up) {
+  if (programState.maxEncoderLevelReached) {
+    return;
+  }
+
+  Serial.println("Max encoder level reached");
+
+  programState.maxEncoderLevelReached = true;
+}
+
 void onRotEncoderChange(int idx, int v, int up) {
   if (!programState.isEncoderActive) {
     return;
@@ -122,12 +135,12 @@ void onRotEncoderChange(int idx, int v, int up) {
   int mean = (ENC_RANGE_LO + ENC_RANGE_HI) / 2;
   int tolerance = ENC_RANGE_HI * 0.1;
 
-  if (v == ENC_RANGE_LO && !programState.isEncoderDebounce) {
+  if (v == ENC_RANGE_LO && !programState.isEncoderInDebounce) {
     Serial.println("Encoder event");
-    programState.isEncoderDebounce = true;
+    programState.isEncoderInDebounce = true;
     increaseEncoderLevel();
   } else if (v >= (mean - tolerance) && v <= (mean + tolerance)) {
-    programState.isEncoderDebounce = false;
+    programState.isEncoderInDebounce = false;
   }
 }
 
@@ -145,8 +158,16 @@ void updateEncoderStrip() {
   pixelStrip.show();
 }
 
+bool isMaxEncoderLevel() {
+  return programState.encoderLevel >= MAX_ENCODER_LEVEL;
+}
+
+bool isMaxEncoderLevel(int idx) {
+  return isMaxEncoderLevel();
+}
+
 void increaseEncoderLevel() {
-  if (programState.encoderLevel < MAX_ENCODER_LEVEL) {
+  if (!isMaxEncoderLevel()) {
     programState.encoderLevel++;
     updateEncoderStrip();
     Serial.print("Encoder level: ");
@@ -155,7 +176,7 @@ void increaseEncoderLevel() {
 }
 
 void decreaseEncoderLevel(int idx, int v, int up) {
-  if (programState.encoderLevel >= MAX_ENCODER_LEVEL) {
+  if (isMaxEncoderLevel()) {
     return;
   }
 
@@ -189,6 +210,11 @@ void initMachines() {
   .repeat(-1)
   .onTimer(decreaseEncoderLevel)
   .start();
+
+  encoderController
+  .begin()
+  .IF(isMaxEncoderLevel)
+  .onChange(true, onMaxEncoderLevel);
 }
 
 void initStrip() {
