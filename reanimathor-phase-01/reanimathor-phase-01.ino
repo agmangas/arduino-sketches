@@ -36,7 +36,7 @@ const int SOLUTION_INPUT_3 = 10;
 const int SOLUTION_INPUT_4 = 25;
 
 // Audio tracks pins
-const int PIN_AUDIO_TRACK_END = 10;
+const int PIN_AUDIO_TRACK_END = 12;
 
 // Initialize the NeoPixel instances
 Adafruit_NeoPixel pixelStrip1 = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN_1, NEO_GRB + NEO_KHZ800);
