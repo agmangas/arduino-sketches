@@ -1,15 +1,6 @@
 #include <Automaton.h>
 #include <Adafruit_NeoPixel.h>
 
-/**
-   Rotary encoder pins:
-   A and B are the white and green wires
-   Red wire: 5V
-   Black wire: GND
-*/
-#define ENC_PIN_A 8
-#define ENC_PIN_B 9
-
 typedef struct potInfo {
   int potPin;
 } PotInfo;
@@ -21,11 +12,22 @@ typedef struct programState {
   bool maxEncoderLevelReached;
 } ProgramState;
 
+/**
+   Rotary encoder pins:
+   A and B: white and green wires
+   Red wire: 5V
+   Black wire: GND
+*/
+const int ENC_PIN_A = 8;
+const int ENC_PIN_B = 9;
+
+const byte FINAL_RELAY_PIN = 7;
+
 const uint16_t NEOPIXEL_NUM = 300;
 const uint8_t NEOPIXEL_PIN = 5;
 const int STRIP_BLOCK_LEN = 150;
 
-const int ENCODER_TIMER_MS = 5000;
+const int ENCODER_BOUNCE_MS = 5000;
 const int MAX_ENCODER_LEVEL = NEOPIXEL_NUM - STRIP_BLOCK_LEN;
 
 const int ENC_RANGE_LO = 0;
@@ -115,9 +117,10 @@ void onMaxEncoderLevel(int idx, int v, int up) {
     return;
   }
 
-  Serial.println("Max encoder level reached");
+  Serial.println("Max encoder level reached: Opening relay");
 
   programState.maxEncoderLevelReached = true;
+  openRelay();
 }
 
 void onRotEncoderChange(int idx, int v, int up) {
@@ -206,7 +209,7 @@ void initMachines() {
   .onChange(onRotEncoderChange);
 
   encoderLevelTimer
-  .begin(ENCODER_TIMER_MS)
+  .begin(ENCODER_BOUNCE_MS)
   .repeat(-1)
   .onTimer(decreaseEncoderLevel)
   .start();
@@ -225,11 +228,25 @@ void initStrip() {
   setStripsOff();
 }
 
+void lockRelay() {
+  digitalWrite(FINAL_RELAY_PIN, HIGH);
+}
+
+void openRelay() {
+  digitalWrite(FINAL_RELAY_PIN, LOW);
+}
+
+void initRelay() {
+  pinMode(FINAL_RELAY_PIN, OUTPUT);
+  lockRelay();
+}
+
 void setup() {
   Serial.begin(9600);
 
   initMachines();
   initStrip();
+  initRelay();
 
   Serial.println(">> Starting Caldera Neuronal Phase 2 program");
 }
