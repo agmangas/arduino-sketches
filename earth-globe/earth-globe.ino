@@ -12,8 +12,8 @@ SoftwareSerial sSerial(RX_PIN, TX_PIN);
 SerialRFID rfid(sSerial);
 
 char matchTag1[SIZE_TAG_ID] = "5C00CAC9633C";
-char matchTag2[SIZE_TAG_ID] = "5C00CAC9633D";
-char matchTag3[SIZE_TAG_ID] = "5C00CAC9633F";
+char matchTag2[SIZE_TAG_ID] = "5C00CB17C444";
+char matchTag3[SIZE_TAG_ID] = "5C00CB17DC5C";
 
 void openFirstRelay(char *tag) {
   Serial.println("Opening relay 01");
