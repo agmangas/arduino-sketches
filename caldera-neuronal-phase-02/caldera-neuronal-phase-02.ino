@@ -7,7 +7,6 @@ typedef struct potInfo {
 
 typedef struct programState {
   bool isEncoderActive;
-  bool isEncoderInDebounce;
   int encoderLevel;
   bool maxEncoderLevelReached;
 } ProgramState;
@@ -33,8 +32,8 @@ const int MAX_ENCODER_LEVEL = NEOPIXEL_NUM - STRIP_BLOCK_LEN;
 const int ENC_RANGE_LO = 0;
 const int ENC_RANGE_HI = 10;
 
-const int POT_RANGE_LO = 0;
-const int POT_RANGE_HI = 10;
+const int POT_RANGE_LO = 1;
+const int POT_RANGE_HI = 9;
 
 const int TOTAL_POTS = 3;
 
@@ -52,6 +51,9 @@ Atm_controller encoderController;
 Atm_encoder rotEncoder;
 Atm_timer encoderLevelTimer;
 
+unsigned long rotCounter = 1;
+const unsigned long COUNTER_MODULO = 10;
+
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 const unsigned long POTS_STRIP_DELAY_STEP_MS = 100;
@@ -61,7 +63,6 @@ const uint32_t ENCODER_COLOR = pixelStrip.Color(200, 0, 0);
 
 ProgramState programState = {
   .isEncoderActive = false,
-  .isEncoderInDebounce = false,
   .encoderLevel = 0,
   .maxEncoderLevelReached = false
 };
@@ -135,15 +136,11 @@ void onRotEncoderChange(int idx, int v, int up) {
   Serial.println();
   Serial.flush();
 
-  int mean = (ENC_RANGE_LO + ENC_RANGE_HI) / 2;
-  int tolerance = ENC_RANGE_HI * 0.1;
+  rotCounter++;
 
-  if (v == ENC_RANGE_LO && !programState.isEncoderInDebounce) {
+  if (rotCounter % COUNTER_MODULO == 0) {
     Serial.println("Encoder event");
-    programState.isEncoderInDebounce = true;
     increaseEncoderLevel();
-  } else if (v >= (mean - tolerance) && v <= (mean + tolerance)) {
-    programState.isEncoderInDebounce = false;
   }
 }
 
@@ -229,11 +226,11 @@ void initStrip() {
 }
 
 void lockRelay() {
-  digitalWrite(FINAL_RELAY_PIN, HIGH);
+  digitalWrite(FINAL_RELAY_PIN, LOW);
 }
 
 void openRelay() {
-  digitalWrite(FINAL_RELAY_PIN, LOW);
+  digitalWrite(FINAL_RELAY_PIN, HIGH);
 }
 
 void initRelay() {
@@ -254,3 +251,4 @@ void setup() {
 void loop() {
   automaton.run();
 }
+
