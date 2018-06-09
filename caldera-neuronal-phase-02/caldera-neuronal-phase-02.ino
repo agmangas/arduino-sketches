@@ -26,7 +26,7 @@ const uint16_t NEOPIXEL_NUM = 300;
 const uint8_t NEOPIXEL_PIN = 5;
 const int STRIP_BLOCK_LEN = 150;
 
-const int ENCODER_BOUNCE_MS = 5000;
+const int ENCODER_BOUNCE_MS = 1000;
 const int MAX_ENCODER_LEVEL = NEOPIXEL_NUM - STRIP_BLOCK_LEN;
 
 const int ENC_RANGE_LO = 0;
@@ -52,7 +52,7 @@ Atm_encoder rotEncoder;
 Atm_timer encoderLevelTimer;
 
 unsigned long rotCounter = 1;
-const unsigned long COUNTER_MODULO = 10;
+const unsigned long ROT_COUNTER_DIVISOR = 7;
 
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -138,7 +138,7 @@ void onRotEncoderChange(int idx, int v, int up) {
 
   rotCounter++;
 
-  if (rotCounter % COUNTER_MODULO == 0) {
+  if (rotCounter % ROT_COUNTER_DIVISOR == 0) {
     Serial.println("Encoder event");
     increaseEncoderLevel();
   }
@@ -201,7 +201,8 @@ void initMachines() {
   .IF(isPotsSolutionValid)
   .onChange(true, onPotsSolutionValid);
 
-  rotEncoder.begin(ENC_PIN_A, ENC_PIN_B)
+  rotEncoder
+  .begin(ENC_PIN_A, ENC_PIN_B)
   .range(ENC_RANGE_LO, ENC_RANGE_HI, true)
   .onChange(onRotEncoderChange);
 
