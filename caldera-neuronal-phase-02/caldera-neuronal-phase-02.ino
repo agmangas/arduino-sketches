@@ -24,7 +24,7 @@ const byte FINAL_RELAY_PIN = 7;
 
 const uint16_t NEOPIXEL_NUM = 300;
 const uint8_t NEOPIXEL_PIN = 5;
-const int STRIP_BLOCK_LEN = 150;
+const int STRIP_BLOCK_LEN = 210;
 
 const int ENCODER_BOUNCE_MS = 1000;
 const int MAX_ENCODER_LEVEL = NEOPIXEL_NUM - STRIP_BLOCK_LEN;
@@ -37,13 +37,21 @@ const int POT_RANGE_HI = 9;
 
 const int TOTAL_POTS = 3;
 
+const unsigned long POTS_SOLUTION_DELAY_MS = 3000;
+const int POTS_SOLUTION_CHECKS = 10;
+
 PotInfo potInfos[TOTAL_POTS] = {
   { .potPin = A0 },
   { .potPin = A1 },
   { .potPin = A2 }
 };
 
-int potSolutionKey[TOTAL_POTS] = { 3, 4, 5 };
+/**
+   5 Azul: Gatos
+   2 Rojo: Arte
+   7 Amarillo: Dormir
+*/
+int potSolutionKey[TOTAL_POTS] = { 5, 2, 5 };
 
 Atm_analog pots[TOTAL_POTS];
 Atm_controller potsController;
@@ -52,13 +60,13 @@ Atm_encoder rotEncoder;
 Atm_timer encoderLevelTimer;
 
 unsigned long rotCounter = 1;
-const unsigned long ROT_COUNTER_DIVISOR = 7;
+const unsigned long ROT_COUNTER_DIVISOR = 8;
 
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 const unsigned long POTS_STRIP_DELAY_STEP_MS = 100;
 
-const uint32_t POTS_VALID_COLOR = pixelStrip.Color(200, 0, 0);
+const uint32_t POTS_VALID_COLOR = pixelStrip.Color(80, 0, 255);
 const uint32_t ENCODER_COLOR = pixelStrip.Color(200, 0, 0);
 
 ProgramState programState = {
@@ -85,6 +93,10 @@ void onPotChange(int idx, int v, int up) {
 }
 
 bool isPotsSolutionValid(int idx) {
+  return isPotsSolutionValid();
+}
+
+bool isPotsSolutionValid() {
   for (int i = 0; i < TOTAL_POTS; i++) {
     if (pots[i].state() != potSolutionKey[i]) {
       return false;
@@ -107,7 +119,20 @@ void onPotsSolutionValid(int idx, int v, int up) {
     return;
   }
 
-  Serial.println("Potentiometers: Valid combination");
+  Serial.println("Valid pots: Verifying");
+
+  unsigned long delayByCheck = POTS_SOLUTION_DELAY_MS / POTS_SOLUTION_CHECKS;
+
+  for (int i = 0; i < POTS_SOLUTION_CHECKS; i++) {
+    if (!isPotsSolutionValid()) {
+      Serial.println("Pots changed: Verification failed");
+      return;
+    }
+
+    delay(delayByCheck);
+  }
+
+  Serial.println("Pots stable: Verification OK");
 
   activateValidPotsStrip();
   programState.isEncoderActive = true;
@@ -220,7 +245,7 @@ void initMachines() {
 
 void initStrip() {
   pixelStrip.begin();
-  pixelStrip.setBrightness(150);
+  pixelStrip.setBrightness(180);
   pixelStrip.show();
 
   setStripsOff();
