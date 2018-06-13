@@ -104,7 +104,7 @@ Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO
 
 uint32_t solutionColors[NUM_PHASES] = {
   pixelStrip.Color(255, 0, 0),
-  pixelStrip.Color(0, 255, 0),
+  pixelStrip.Color(255, 255, 0),
   pixelStrip.Color(0, 0, 255)
 };
 

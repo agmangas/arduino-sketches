@@ -22,9 +22,9 @@ const int ENC_PIN_B = 9;
 
 const byte FINAL_RELAY_PIN = 7;
 
-const uint16_t NEOPIXEL_NUM = 300;
+const uint16_t NEOPIXEL_NUM = 244;
 const uint8_t NEOPIXEL_PIN = 5;
-const int STRIP_BLOCK_LEN = 210;
+const int STRIP_BLOCK_LEN = 209;
 
 const int ENCODER_BOUNCE_MS = 1000;
 const int MAX_ENCODER_LEVEL = NEOPIXEL_NUM - STRIP_BLOCK_LEN;
@@ -277,4 +277,5 @@ void setup() {
 void loop() {
   automaton.run();
 }
+
 
