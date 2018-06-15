@@ -1,5 +1,17 @@
+#include <NeoEffects.h>
+#include <NeoStrip.h>
+#include <NeoWindow.h>
 #include <Automaton.h>
-#include <Adafruit_NeoPixel.h>
+
+const byte ID_EFFECT_NONE = 0;
+const byte ID_EFFECT_STORM = 1;
+const byte ID_EFFECT_CALM = 2;
+
+typedef struct windowState {
+  int counter;
+  bool nextStepAllowed;
+  byte effect;
+} WindowState;
 
 typedef struct joystickInfo {
   byte pinUp;
@@ -41,8 +53,23 @@ const uint8_t NEOPIX_PIN_01 = 12;
 const uint16_t NEOPIX_NUM_02 = 150;
 const uint8_t NEOPIX_PIN_02 = 13;
 
-Adafruit_NeoPixel pixelStrip01 = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel pixelStrip02 = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
+NeoStrip strip01 = NeoStrip(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
+NeoStrip strip02 = NeoStrip(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
+
+NeoWindow window01 = NeoWindow(&strip01, 40, NEOPIX_NUM_01);
+NeoWindow window02 = NeoWindow(&strip02, 0, NEOPIX_NUM_02);
+
+WindowState win01State = {
+  .counter = 0,
+  .nextStepAllowed = true,
+  .effect = ID_EFFECT_NONE
+};
+
+WindowState win02State = {
+  .counter = 0,
+  .nextStepAllowed = true,
+  .effect = ID_EFFECT_NONE
+};
 
 void onJoyUp(int idx, int v, int up) {
   Serial.print("U::");
@@ -90,40 +117,100 @@ void initJoysticks() {
   .onPress(onJoyRight, JOYSTICK_ID_02);
 }
 
-void setStrip01Off() {
-  for (int i = 0; i < NEOPIX_NUM_01; i++) {
-    pixelStrip01.setPixelColor(i, 0, 0, 0);
-  }
-
-  pixelStrip01.show();
-}
-
-void setStrip02Off() {
-  for (int i = 0; i < NEOPIX_NUM_02; i++) {
-    pixelStrip02.setPixelColor(i, 0, 0, 0);
-  }
-
-  pixelStrip02.show();
-}
-
-void setStripsOff() {
-  setStrip01Off();
-  setStrip02Off();
-}
-
 void initStrips() {
-  pixelStrip01.begin();
-  pixelStrip01.setBrightness(150);
-  pixelStrip01.show();
+  strip01.begin();
+  strip01.setBrightness(255);
+  strip01.clearStrip();
+  strip01.show();
 
-  pixelStrip02.begin();
-  pixelStrip02.setBrightness(150);
-  pixelStrip02.show();
+  strip02.begin();
+  strip02.setBrightness(255);
+  strip02.clearStrip();
+  strip02.show();
+}
 
-  setStripsOff();
+void resetWindow(WindowState &winState, NeoWindow &window) {
+  winState.counter = 0;
+  winState.nextStepAllowed = true;
+  winState.effect = ID_EFFECT_NONE;
+  window.setNoEfx();
+}
+
+void runStormEffect(WindowState &winState, NeoWindow &window, NeoStrip &strip) {
+  if (winState.effect != ID_EFFECT_STORM) {
+    return;
+  }
+
+  const int steps = 5;
+
+  if (winState.counter % steps == 0 &&
+      winState.nextStepAllowed) {
+    Serial.println("W01::Step 1");
+    winState.nextStepAllowed = false;
+
+    window.setFadeEfx(
+      strip.Color(0, 40, 171),
+      strip.Color(0, 71, 171),
+      0, window.fadeTypeJumpBack, random(2, 10));
+  }
+
+  if (winState.counter % steps == 1 &&
+      winState.nextStepAllowed) {
+    Serial.println("W01::Step 2");
+    winState.nextStepAllowed = false;
+
+    window.setBlinkEfx(
+      strip.Color(0, 71, 171), 20, random(10, 30));
+  }
+
+  if (winState.counter % steps == 2 &&
+      winState.nextStepAllowed) {
+    Serial.println("W01::Step 3");
+    winState.nextStepAllowed = false;
+
+    window.setFadeEfx(
+      strip.Color(125, 249, 255),
+      strip.Color(0, 71, 171),
+      0, window.fadeTypeJumpBack, random(1, 2));
+  }
+
+  if (winState.counter % steps == 3 &&
+      winState.nextStepAllowed) {
+    Serial.println("W01::Step 4");
+    winState.nextStepAllowed = false;
+
+    window.setMultiSparkleEfx(
+      strip.Color(0, 71, 171),
+      random(5, 20), random(5, 20),
+      random(40, 60), random(10, 100));
+  }
+
+  if (winState.counter % steps == 4 &&
+      winState.nextStepAllowed) {
+    Serial.println("W01::Step 5");
+    resetWindow(winState, window);
+  }
+}
+
+void runStrips() {
+  NeoWindow::updateTime();
+
+  if (window01.effectDone() && !win01State.nextStepAllowed) {
+    Serial.println("W01::Effect Done");
+    win01State.counter++;
+    win01State.nextStepAllowed = true;
+  }
+
+  window01.updateWindow();
+  strip01.show();
+
+  window02.updateWindow();
+  strip02.show();
 }
 
 void setup() {
+  randomSeed(analogRead(0));
+
   Serial.begin(9600);
 
   initJoysticks();
@@ -134,4 +221,7 @@ void setup() {
 
 void loop() {
   automaton.run();
+  win01State.effect = ID_EFFECT_STORM;
+  runStormEffect(win01State, window01, strip01);
+  runStrips();
 }
