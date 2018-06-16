@@ -71,6 +71,14 @@ WindowState win02State = {
   .effect = ID_EFFECT_NONE
 };
 
+const int LEN_EFFECTS_QUEUE = 2;
+int effectsCounter = 0;
+
+byte effectsQueue[LEN_EFFECTS_QUEUE] = {
+  ID_EFFECT_CALM,
+  ID_EFFECT_STORM
+};
+
 void onJoyUp(int idx, int v, int up) {
   Serial.print("U::");
   Serial.println(idx);
@@ -117,16 +125,16 @@ void initJoysticks() {
   .onPress(onJoyRight, JOYSTICK_ID_02);
 }
 
-void initStrips() {
-  strip01.begin();
-  strip01.setBrightness(255);
-  strip01.clearStrip();
-  strip01.show();
+void initStrip(NeoStrip &strip) {
+  strip.begin();
+  strip.setBrightness(255);
+  strip.clearStrip();
+  strip.show();
+}
 
-  strip02.begin();
-  strip02.setBrightness(255);
-  strip02.clearStrip();
-  strip02.show();
+void initStrips() {
+  initStrip(strip01);
+  initStrip(strip02);
 }
 
 void resetWindow(WindowState &winState, NeoWindow &window) {
@@ -136,76 +144,100 @@ void resetWindow(WindowState &winState, NeoWindow &window) {
   window.setNoEfx();
 }
 
+void runCalmEffect(WindowState &winState, NeoWindow &window, NeoStrip &strip) {
+  if (winState.effect != ID_EFFECT_CALM) {
+    return;
+  }
+
+  if (!winState.nextStepAllowed) {
+    return;
+  }
+
+  winState.nextStepAllowed = false;
+
+  switch (winState.counter) {
+    case 0:
+      window.setFadeEfx(
+        strip.Color(66, 63, 97),
+        strip.Color(0, 71, 171),
+        100, window.fadeTypeCycle, random(100, 200));
+      break;
+    default:
+      resetWindow(winState, window);
+  }
+}
+
 void runStormEffect(WindowState &winState, NeoWindow &window, NeoStrip &strip) {
   if (winState.effect != ID_EFFECT_STORM) {
     return;
   }
 
-  const int steps = 5;
-
-  if (winState.counter % steps == 0 &&
-      winState.nextStepAllowed) {
-    Serial.println("W01::Step 1");
-    winState.nextStepAllowed = false;
-
-    window.setFadeEfx(
-      strip.Color(0, 40, 171),
-      strip.Color(0, 71, 171),
-      0, window.fadeTypeJumpBack, random(2, 10));
+  if (!winState.nextStepAllowed) {
+    return;
   }
 
-  if (winState.counter % steps == 1 &&
-      winState.nextStepAllowed) {
-    Serial.println("W01::Step 2");
-    winState.nextStepAllowed = false;
+  winState.nextStepAllowed = false;
 
-    window.setBlinkEfx(
-      strip.Color(0, 71, 171), 20, random(10, 30));
+  switch (winState.counter) {
+    case 0:
+      window.setFadeEfx(
+        strip.Color(0, 40, 171),
+        strip.Color(0, 71, 171),
+        0, window.fadeTypeJumpBack, random(0, 10));
+      break;
+    case 1:
+      window.setBlinkEfx(
+        strip.Color(0, 71, 171), 20, random(0, 30));
+      break;
+    case 2:
+      window.setFadeEfx(
+        strip.Color(125, 249, 255),
+        strip.Color(0, 71, 171),
+        0, window.fadeTypeJumpBack, random(0, 2));
+      break;
+    case 3:
+      window.setMultiSparkleEfx(
+        strip.Color(0, 71, 171),
+        random(5, 20), random(5, 20),
+        random(40, 60), random(10, 100));
+      break;
+    default:
+      resetWindow(winState, window);
+  }
+}
+
+void updateAndShow(WindowState &winState, NeoWindow &window, NeoStrip &strip) {
+  if (window.effectDone() && !winState.nextStepAllowed) {
+    winState.counter++;
+    winState.nextStepAllowed = true;
   }
 
-  if (winState.counter % steps == 2 &&
-      winState.nextStepAllowed) {
-    Serial.println("W01::Step 3");
-    winState.nextStepAllowed = false;
-
-    window.setFadeEfx(
-      strip.Color(125, 249, 255),
-      strip.Color(0, 71, 171),
-      0, window.fadeTypeJumpBack, random(1, 2));
-  }
-
-  if (winState.counter % steps == 3 &&
-      winState.nextStepAllowed) {
-    Serial.println("W01::Step 4");
-    winState.nextStepAllowed = false;
-
-    window.setMultiSparkleEfx(
-      strip.Color(0, 71, 171),
-      random(5, 20), random(5, 20),
-      random(40, 60), random(10, 100));
-  }
-
-  if (winState.counter % steps == 4 &&
-      winState.nextStepAllowed) {
-    Serial.println("W01::Step 5");
-    resetWindow(winState, window);
-  }
+  window.updateWindow();
+  strip.show();
 }
 
 void runStrips() {
   NeoWindow::updateTime();
 
-  if (window01.effectDone() && !win01State.nextStepAllowed) {
-    Serial.println("W01::Effect Done");
-    win01State.counter++;
-    win01State.nextStepAllowed = true;
+  setNextEffect(win01State);
+  runCalmEffect(win01State, window01, strip01);
+  runStormEffect(win01State, window01, strip01);
+  updateAndShow(win01State, window01, strip01);
+}
+
+void setNextEffect(WindowState &winState) {
+  if (winState.effect != ID_EFFECT_NONE) {
+    return;
   }
 
-  window01.updateWindow();
-  strip01.show();
+  int effectIdx = effectsCounter % LEN_EFFECTS_QUEUE;
+  byte effect = effectsQueue[effectIdx];
+  effectsCounter++;
 
-  window02.updateWindow();
-  strip02.show();
+  Serial.print("Effect::");
+  Serial.println(effect);
+
+  winState.effect == effect;
 }
 
 void setup() {
@@ -221,7 +253,5 @@ void setup() {
 
 void loop() {
   automaton.run();
-  win01State.effect = ID_EFFECT_STORM;
-  runStormEffect(win01State, window01, strip01);
   runStrips();
 }
