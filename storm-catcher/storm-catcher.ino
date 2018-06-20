@@ -10,6 +10,10 @@ typedef struct joystickInfo {
 
 typedef struct stripDot {
   int idxStart;
+  uint32_t color;
+  bool isBlinking;
+  bool isBlinkOn;
+  Adafruit_NeoPixel &strip;
 } StripDot;
 
 const int DOT_SIZE = 3;
@@ -23,6 +27,8 @@ Atm_button joy02BtnUp;
 Atm_button joy02BtnDown;
 Atm_button joy02BtnLeft;
 Atm_button joy02BtnRight;
+
+Atm_timer randomizeTimer;
 
 const int JOYSTICK_ID_01 = 1;
 const int JOYSTICK_ID_02 = 2;
@@ -41,6 +47,8 @@ JoystickInfo joyInfo02 = {
   .pinRight = 11
 };
 
+const int RANDOMIZE_TIMER_MS = 4000;
+
 const uint16_t NEOPIX_NUM_01 = 150;
 const uint8_t NEOPIX_PIN_01 = 12;
 
@@ -50,16 +58,89 @@ const uint8_t NEOPIX_PIN_02 = 13;
 Adafruit_NeoPixel strip01 = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel strip02 = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
 
+StripDot dotP1 = {
+  .idxStart = 0,
+  .color = Adafruit_NeoPixel::Color(255, 255, 255),
+  .isBlinking = true,
+  .isBlinkOn = false,
+  .strip = strip01
+};
+
+StripDot targetP1 = {
+  .idxStart = 0,
+  .color = Adafruit_NeoPixel::Color(0, 255, 0),
+  .isBlinking = true,
+  .isBlinkOn = false,
+  .strip = strip01
+};
+
+StripDot dotP2 = {
+  .idxStart = 0,
+  .color = Adafruit_NeoPixel::Color(255, 255, 255),
+  .isBlinking = true,
+  .isBlinkOn = false,
+  .strip = strip02
+};
+
+StripDot targetP2 = {
+  .idxStart = 0,
+  .color = Adafruit_NeoPixel::Color(0, 255, 0),
+  .isBlinking = true,
+  .isBlinkOn = false,
+  .strip = strip02
+};
+
 /**
    Moving "right" = Moving away from pixel index 0
 */
 void moveDotRight(StripDot &dot) {
+  int idxTarget = dot.idxStart + DOT_SIZE;
+  int limit = dot.strip.numPixels() - DOT_SIZE;
+
+  if (idxTarget > limit) {
+    idxTarget = limit;
+  }
+
+  dot.idxStart = idxTarget;
 }
 
 /**
    Moving "left" = Moving towards pixel index 0
 */
 void moveDotLeft(StripDot &dot) {
+  int idxTarget = dot.idxStart - DOT_SIZE;
+
+  if (idxTarget < 0) {
+    idxTarget = 0;
+  }
+
+  dot.idxStart = idxTarget;
+}
+
+void drawDot(StripDot &dot) {
+  uint32_t drawColor = dot.color;
+
+  if (dot.isBlinking && dot.isBlinkOn) {
+    dot.isBlinkOn = false;
+    drawColor = Adafruit_NeoPixel::Color(0, 0, 0);
+  } else if (dot.isBlinking && !dot.isBlinkOn) {
+    dot.isBlinkOn = true;
+  }
+
+  for (int i = 0; i < dot.idxStart + DOT_SIZE; i++) {
+    dot.strip.setPixelColor(i, drawColor);
+  }
+}
+
+bool isDotsMatch(StripDot &dot01, StripDot &dot02) {
+  return dot01.idxStart == dot02.idxStart;
+}
+
+void randomizeDot(StripDot &dot) {
+  int maxMultiplier = (dot.strip.numPixels() / DOT_SIZE) - 1;
+  int multiplier = random(0, maxMultiplier);
+  dot.idxStart = 0 + (DOT_SIZE * multiplier);
+  dot.color = Adafruit_NeoPixel::Color(random(0, 255), random(0, 255), random(0, 255));
 }
 
 void onJoyUp(int idx, int v, int up) {
@@ -75,11 +156,34 @@ void onJoyDown(int idx, int v, int up) {
 void onJoyLeft(int idx, int v, int up) {
   Serial.print("L::");
   Serial.println(idx);
+
+  switch (idx) {
+    case JOYSTICK_ID_01:
+      moveDotLeft(dotP1);
+      break;
+    case JOYSTICK_ID_02:
+      moveDotLeft(dotP2);
+      break;
+  }
 }
 
 void onJoyRight(int idx, int v, int up) {
   Serial.print("R::");
   Serial.println(idx);
+
+  switch (idx) {
+    case JOYSTICK_ID_01:
+      moveDotRight(dotP1);
+      break;
+    case JOYSTICK_ID_02:
+      moveDotRight(dotP2);
+      break;
+  }
+}
+
+void onRandomizeTimer(int idx, int v, int up) {
+  randomizeDot(dotP1);
+  randomizeDot(dotP2);
 }
 
 void initJoysticks() {
@@ -108,6 +212,22 @@ void initJoysticks() {
   .onPress(onJoyRight, JOYSTICK_ID_02);
 }
 
+void initMachines() {
+  randomizeTimer
+  .begin(RANDOMIZE_TIMER_MS)
+  .repeat(-1)
+  .onTimer(onRandomizeTimer)
+  .start();
+}
+
+void drawDots() {
+  drawDot(targetP1);
+  drawDot(dotP1);
+
+  drawDot(targetP2);
+  drawDot(dotP2);
+}
+
 void clearStrip01() {
   strip01.clear();
   strip01.show();
@@ -118,18 +238,26 @@ void clearStrip02() {
   strip02.show();
 }
 
+void clearStrips() {
+  clearStrip01();
+  clearStrip02();
+}
+
+void showStrips() {
+  strip01.show();
+  strip02.show();
+}
+
 void initStrips() {
   strip01.begin();
   strip01.setBrightness(200);
   strip01.show();
 
-  clearStrip01();
-
   strip02.begin();
   strip02.setBrightness(200);
   strip02.show();
 
-  clearStrip02();
+  clearStrips();
 }
 
 void setup() {
@@ -137,10 +265,14 @@ void setup() {
 
   initJoysticks();
   initStrips();
+  initMachines();
 
   Serial.println(">> Starting Storm Catcher program");
 }
 
 void loop() {
   automaton.run();
+  clearStrips();
+  drawDots();
+  showStrips();
 }
