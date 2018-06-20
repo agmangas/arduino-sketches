@@ -20,6 +20,9 @@ typedef struct programState {
 const int ENC_PIN_A = 8;
 const int ENC_PIN_B = 9;
 
+const byte PIN_AUDIO_TRACK_POTS = 11;
+const byte PIN_AUDIO_TRACK_ENCODER = 12;
+
 const byte FINAL_RELAY_PIN = 7;
 
 const uint16_t NEOPIXEL_NUM = 244;
@@ -134,6 +137,7 @@ void onPotsSolutionValid(int idx, int v, int up) {
 
   Serial.println("Pots stable: Verification OK");
 
+  playTrack(PIN_AUDIO_TRACK_POTS);
   activateValidPotsStrip();
   programState.isEncoderActive = true;
 }
@@ -145,6 +149,7 @@ void onMaxEncoderLevel(int idx, int v, int up) {
 
   Serial.println("Max encoder level reached: Opening relay");
 
+  stopHoldTrack(PIN_AUDIO_TRACK_ENCODER);
   programState.maxEncoderLevelReached = true;
   openRelay();
 }
@@ -152,6 +157,10 @@ void onMaxEncoderLevel(int idx, int v, int up) {
 void onRotEncoderChange(int idx, int v, int up) {
   if (!programState.isEncoderActive) {
     return;
+  }
+
+  if (!programState.maxEncoderLevelReached) {
+    playHoldTrack(PIN_AUDIO_TRACK_ENCODER);
   }
 
   Serial.print("onRotEncoderChange:: idx=");
@@ -264,7 +273,34 @@ void initRelay() {
   lockRelay();
 }
 
+void playTrack(byte trackPin) {
+  Serial.print("Playing track: ");
+  Serial.println(trackPin);
+
+  digitalWrite(trackPin, LOW);
+  delay(500);
+  digitalWrite(trackPin, HIGH);
+}
+
+void playHoldTrack(byte trackPin) {
+  digitalWrite(trackPin, LOW);
+}
+
+void stopHoldTrack(byte trackPin) {
+  digitalWrite(trackPin, HIGH);
+}
+
+void initAudioPins() {
+  pinMode(PIN_AUDIO_TRACK_POTS, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_POTS, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_ENCODER, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_ENCODER, HIGH);
+}
+
 void setup() {
+  initAudioPins();
+
   Serial.begin(9600);
 
   initMachines();
