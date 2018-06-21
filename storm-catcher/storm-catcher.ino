@@ -30,8 +30,17 @@ Atm_button joy02BtnRight;
 
 Atm_timer randomizeTimer;
 
+Atm_button buttonP01;
+Atm_button buttonP02;
+
+const int BUTTON_ID_01 = 100;
+const int BUTTON_ID_02 = 200;
+
 const int JOYSTICK_ID_01 = 1;
 const int JOYSTICK_ID_02 = 2;
+
+const byte BUTTON_P01_PIN = 2;
+const byte BUTTON_P02_PIN = 3;
 
 JoystickInfo joyInfo01 = {
   .pinUp = 4,
@@ -212,12 +221,32 @@ void initJoysticks() {
   .onPress(onJoyRight, JOYSTICK_ID_02);
 }
 
+void onButtonChange(int idx, int v, int up) {
+  Serial.print("Button::");
+  Serial.println(idx);
+
+  switch (idx) {
+    case BUTTON_ID_01:
+      break;
+    case BUTTON_ID_02:
+      break;
+  }
+}
+
 void initMachines() {
   randomizeTimer
   .begin(RANDOMIZE_TIMER_MS)
   .repeat(-1)
   .onTimer(onRandomizeTimer)
   .start();
+
+  buttonP01
+  .begin(BUTTON_P01_PIN)
+  .onPress(onButtonChange, BUTTON_ID_01);
+
+  buttonP02
+  .begin(BUTTON_P02_PIN)
+  .onPress(onButtonChange, BUTTON_ID_02);
 }
 
 void drawDots() {
