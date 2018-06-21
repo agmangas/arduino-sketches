@@ -70,7 +70,8 @@ Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO
 const unsigned long POTS_STRIP_DELAY_STEP_MS = 100;
 
 const uint32_t POTS_VALID_COLOR = pixelStrip.Color(80, 0, 255);
-const uint32_t ENCODER_COLOR = pixelStrip.Color(200, 0, 0);
+const uint32_t ENCODER_COLOR = pixelStrip.Color(80, 0, 255);
+const uint32_t LIGHTNING_COLOR = pixelStrip.Color(255, 255, 255);
 
 ProgramState programState = {
   .isEncoderActive = false,
@@ -151,6 +152,7 @@ void onMaxEncoderLevel(int idx, int v, int up) {
 
   stopHoldTrack(PIN_AUDIO_TRACK_ENCODER);
   programState.maxEncoderLevelReached = true;
+  showLightningEffect();
   openRelay();
 }
 
@@ -176,6 +178,35 @@ void onRotEncoderChange(int idx, int v, int up) {
     Serial.println("Encoder event");
     increaseEncoderLevel();
   }
+}
+
+void clearEncoderStripBlock() {
+  for (int i = STRIP_BLOCK_LEN; i < NEOPIXEL_NUM; i++) {
+    pixelStrip.setPixelColor(i, 0, 0, 0);
+  }
+
+  pixelStrip.show();
+}
+
+void showLightningEffect() {
+  const int blockSize = 15;
+
+  int limitIdx = STRIP_BLOCK_LEN;
+  int pivotIdx = STRIP_BLOCK_LEN + MAX_ENCODER_LEVEL;
+
+  while ((pivotIdx - blockSize) > limitIdx) {
+    clearEncoderStripBlock();
+
+    for (int i = pivotIdx; i > (pivotIdx - blockSize); i--) {
+      pixelStrip.setPixelColor(i, LIGHTNING_COLOR);
+    }
+
+    pixelStrip.show();
+
+    pivotIdx--;
+  }
+
+  clearEncoderStripBlock();
 }
 
 void updateEncoderStrip() {
@@ -209,7 +240,7 @@ void increaseEncoderLevel() {
   }
 }
 
-void decreaseEncoderLevel(int idx, int v, int up) {
+void decreaseEncoderLevel() {
   if (isMaxEncoderLevel()) {
     return;
   }
@@ -219,6 +250,14 @@ void decreaseEncoderLevel(int idx, int v, int up) {
     updateEncoderStrip();
     Serial.print("Encoder level: ");
     Serial.println(programState.encoderLevel);
+  }
+}
+
+void onEncoderTimer(int idx, int v, int up) {
+  if (programState.maxEncoderLevelReached) {
+    showLightningEffect();
+  } else {
+    decreaseEncoderLevel();
   }
 }
 
@@ -243,7 +282,7 @@ void initMachines() {
   encoderLevelTimer
   .begin(ENCODER_BOUNCE_MS)
   .repeat(-1)
-  .onTimer(decreaseEncoderLevel)
+  .onTimer(onEncoderTimer)
   .start();
 
   encoderController
@@ -254,7 +293,7 @@ void initMachines() {
 
 void initStrip() {
   pixelStrip.begin();
-  pixelStrip.setBrightness(180);
+  pixelStrip.setBrightness(200);
   pixelStrip.show();
 
   setStripsOff();
