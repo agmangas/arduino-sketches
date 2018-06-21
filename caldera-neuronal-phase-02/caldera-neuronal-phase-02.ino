@@ -53,8 +53,22 @@ PotInfo potInfos[TOTAL_POTS] = {
    5 Azul: Gatos
    2 Rojo: Arte
    7 Amarillo: Dormir
+   Reference key: 5/2/5
 */
-int potSolutionKey[TOTAL_POTS] = { 5, 2, 5 };
+
+const int SOLUTIONS_SIZE = 9;
+
+int potSolutionKey[SOLUTIONS_SIZE][TOTAL_POTS] = {
+  { 5, 2, 5 },
+  { 4, 2, 5 },
+  { 6, 2, 5 },
+  { 5, 1, 5 },
+  { 5, 3, 5 },
+  { 5, 2, 6 },
+  { 5, 2, 4 },
+  { 6, 2, 6 },
+  { 5, 1, 5 }
+};
 
 Atm_analog pots[TOTAL_POTS];
 Atm_controller potsController;
@@ -101,13 +115,23 @@ bool isPotsSolutionValid(int idx) {
 }
 
 bool isPotsSolutionValid() {
-  for (int i = 0; i < TOTAL_POTS; i++) {
-    if (pots[i].state() != potSolutionKey[i]) {
-      return false;
+  bool isValid;
+
+  for (int i = 0; i < SOLUTIONS_SIZE; i++) {
+    isValid = true;
+
+    for (int j = 0; j < TOTAL_POTS; j++) {
+      if (pots[j].state() != potSolutionKey[i][j]) {
+        isValid = false;
+      }
+    }
+
+    if (isValid) {
+      return true;
     }
   }
 
-  return true;
+  return false;
 }
 
 void activateValidPotsStrip() {
