@@ -40,7 +40,7 @@ const int POT_RANGE_HI = 9;
 
 const int TOTAL_POTS = 3;
 
-const unsigned long POTS_SOLUTION_DELAY_MS = 3000;
+const unsigned long POTS_SOLUTION_DELAY_MS = 4000;
 const int POTS_SOLUTION_CHECKS = 10;
 
 PotInfo potInfos[TOTAL_POTS] = {
@@ -56,18 +56,14 @@ PotInfo potInfos[TOTAL_POTS] = {
    Reference key: 5/2/5
 */
 
-const int SOLUTIONS_SIZE = 9;
+const int SOLUTIONS_SIZE = 5;
 
 int potSolutionKey[SOLUTIONS_SIZE][TOTAL_POTS] = {
   { 5, 2, 5 },
-  { 4, 2, 5 },
-  { 6, 2, 5 },
   { 5, 1, 5 },
   { 5, 3, 5 },
   { 5, 2, 6 },
-  { 5, 2, 4 },
-  { 6, 2, 6 },
-  { 5, 1, 5 }
+  { 5, 2, 4 }
 };
 
 Atm_analog pots[TOTAL_POTS];
