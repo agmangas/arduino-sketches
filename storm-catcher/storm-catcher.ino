@@ -9,7 +9,7 @@ typedef struct joystickInfo {
 } JoystickInfo;
 
 typedef struct stripDot {
-  int idxIni;
+  int idxStart;
   uint32_t color;
   bool isBlinking;
   bool isBlinkOn;
@@ -64,16 +64,8 @@ const uint8_t NEOPIX_PIN_01 = 12;
 const uint16_t NEOPIX_NUM_02 = 150;
 const uint8_t NEOPIX_PIN_02 = 13;
 
-Adafruit_NeoPixel strip01 = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel strip02 = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
-
 const uint32_t COLOR_PLAYER = Adafruit_NeoPixel::Color(255, 255, 255);
-const uint32_t COLOR_TARGET_CAUGHT = Adafruit_NeoPixel::Color(0, 0, 0);
-
-/**
-   The order in the following array is the same order
-   that the player must follow to complete the game.
-*/
+const uint32_t COLOR_TARGET_DONE = Adafruit_NeoPixel::Color(0, 0, 0);
 
 const int NUM_TARGETS = 4;
 
@@ -84,68 +76,66 @@ uint32_t targetColors[NUM_TARGETS] = {
   Adafruit_NeoPixel::Color(255, 255, 0)
 };
 
-/**
-   StripDot factory function.
-*/
-StripDot buildDot(uint32_t color, Adafruit_NeoPixel &strip) {
-  StripDot theDot = {
-    .idxIni = 0,
-    .color = color,
-    .isBlinking = true,
-    .isBlinkOn = false,
-    .strip = strip
-  };
+Adafruit_NeoPixel strip01 = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip02 = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
 
-  return theDot;
-}
-
-/**
-   Strip dots initialization.
-*/
-
-StripDot dotP1 = buildDot(COLOR_PLAYER, strip01);
-
-StripDot targetsP1[NUM_TARGETS] = {
-  buildDot(targetColors[0], strip01),
-  buildDot(targetColors[1], strip01),
-  buildDot(targetColors[2], strip01),
-  buildDot(targetColors[3], strip01)
+StripDot dotP1 = {
+  .idxStart = 0,
+  .color = COLOR_PLAYER,
+  .isBlinking = true,
+  .isBlinkOn = false,
+  .strip = strip01
 };
 
-StripDot dotP2 = buildDot(COLOR_PLAYER, strip02);
+StripDot targetP1 = {
+  .idxStart = 0,
+  .color = Adafruit_NeoPixel::Color(0, 255, 0),
+  .isBlinking = false,
+  .isBlinkOn = false,
+  .strip = strip01
+};
 
-StripDot targetsP2[NUM_TARGETS] = {
-  buildDot(targetColors[0], strip02),
-  buildDot(targetColors[1], strip02),
-  buildDot(targetColors[2], strip02),
-  buildDot(targetColors[3], strip02)
+StripDot dotP2 = {
+  .idxStart = 0,
+  .color = COLOR_PLAYER,
+  .isBlinking = true,
+  .isBlinkOn = false,
+  .strip = strip02
+};
+
+StripDot targetP2 = {
+  .idxStart = 0,
+  .color = Adafruit_NeoPixel::Color(0, 255, 0),
+  .isBlinking = false,
+  .isBlinkOn = false,
+  .strip = strip02
 };
 
 /**
    Moving "right" = Moving away from pixel index 0
 */
 void moveDotRight(StripDot &dot) {
-  int idxTarget = dot.idxIni + DOT_SIZE;
+  int idxTarget = dot.idxStart + DOT_SIZE;
   int limit = dot.strip.numPixels() - DOT_SIZE;
 
   if (idxTarget > limit) {
     idxTarget = limit;
   }
 
-  dot.idxIni = idxTarget;
+  dot.idxStart = idxTarget;
 }
 
 /**
    Moving "left" = Moving towards pixel index 0
 */
 void moveDotLeft(StripDot &dot) {
-  int idxTarget = dot.idxIni - DOT_SIZE;
+  int idxTarget = dot.idxStart - DOT_SIZE;
 
   if (idxTarget < 0) {
     idxTarget = 0;
   }
 
-  dot.idxIni = idxTarget;
+  dot.idxStart = idxTarget;
 }
 
 void drawDot(StripDot &dot) {
@@ -158,94 +148,38 @@ void drawDot(StripDot &dot) {
     dot.isBlinkOn = true;
   }
 
-  for (int i = 0; i < dot.idxIni + DOT_SIZE; i++) {
+  for (int i = 0; i < dot.idxStart + DOT_SIZE; i++) {
     dot.strip.setPixelColor(i, drawColor);
   }
 }
 
 bool isDotsMatch(StripDot &dot01, StripDot &dot02) {
-  return dot01.idxIni == dot02.idxIni;
+  return dot01.idxStart == dot02.idxStart;
 }
 
-void randomizeTargets(StripDot &playerDot, StripDot targets[]) {
-  int blockSize = playerDot.strip.numPixels() / NUM_TARGETS;
+void randomizeTargetDot(StripDot &targetDot, StripDot &playerDot) {
+  int colorIdx = random(0, NUM_TARGETS);
+  uint32_t randColor = COLOR_TARGET_DONE;
 
-  int blockIniIdx;
-  int blockEndIdx;
-  int targetIdx;
-
-  for (int i = 0; i < NUM_TARGETS; i++) {
-    blockIniIdx = 0 * blockSize;
-    blockEndIdx = blockIniIdx + blockSize;
-    targetIdx = randomTargetIdx(playerDot, blockIniIdx, blockEndIdx);
-    targets[i].idxIni = targetIdx;
-  }
-}
-
-int randomTargetIdx(StripDot &playerDot, int minIdx, int maxIdx) {
-  int maxMultiplier = (playerDot.strip.numPixels() / DOT_SIZE) - 1;
-
-  Serial.print("randomTargetIdx:: minIdx=");
-  Serial.print(minIdx);
-  Serial.print(" maxIdx=");
-  Serial.print(maxIdx);
-  Serial.print(" maxMultiplier=");
-  Serial.print(maxMultiplier);
-  Serial.println();
-  Serial.flush();
-
-  int currIniIdx;
-  int currEndIdx;
-
-  int optsCounter = 0;
-  int firstOptIniIdx = -1;
-
-  for (int i = 0; i <= maxMultiplier; i++) {
-    currIniIdx = DOT_SIZE * i;
-    currEndIdx = currIniIdx + DOT_SIZE;
-
-    if (currIniIdx >= minIdx && currEndIdx <= maxIdx) {
-      if (firstOptIniIdx == -1) {
-        firstOptIniIdx = currIniIdx;
-      }
-
-      optsCounter++;
+  for (int i = colorIdx; i < (colorIdx + NUM_TARGETS); i++) {
+    if (targetColors[i] != COLOR_TARGET_DONE) {
+      randColor = targetColors[i];
     }
   }
 
-  Serial.print("randomTargetIdx:: optsCounter=");
-  Serial.print(optsCounter);
-  Serial.print(" firstOptIniIdx=");
-  Serial.print(firstOptIniIdx);
-  Serial.println();
-  Serial.flush();
-
-  if (optsCounter <= 0 || firstOptIniIdx == -1) {
-    Serial.println("randomTargetIdx:: Not enough candidates");
-    return -1;
+  if (randColor == COLOR_TARGET_DONE) {
+    return;
   }
 
-  int ret = firstOptIniIdx + random(0, optsCounter) * DOT_SIZE;
+  int maxMultiplier = (targetDot.strip.numPixels() / DOT_SIZE) - 1;
 
-  const int maxAttempts = 20;
-  int attemptsCounter = 0;
+  bool isPlayerDotMatch = true;
 
-  while (playerDot.idxIni == ret) {
-    ret = firstOptIniIdx + random(0, optsCounter) * DOT_SIZE;
-    attemptsCounter++;
-
-    if (attemptsCounter > maxAttempts) {
-      Serial.println("randomTargetIdx:: Max randomization attempts reached");
-      return -1;
-    }
+  while (isPlayerDotMatch) {
+    targetDot.idxStart = 0 + (DOT_SIZE * random(0, maxMultiplier));
+    targetDot.color = randColor;
+    isPlayerDotMatch = isDotsMatch(targetDot, playerDot);
   }
-
-  Serial.print("randomTargetIdx:: ret=");
-  Serial.print(ret);
-  Serial.println();
-  Serial.flush();
-
-  return ret;
 }
 
 void onJoyUp(int idx, int v, int up) {
@@ -286,35 +220,68 @@ void onJoyRight(int idx, int v, int up) {
   }
 }
 
+void randomizeTargetDots() {
+  randomizeTargetDot(targetP1, dotP1);
+  randomizeTargetDot(targetP2, dotP2);
+}
+
 void onRandomizeTimer(int idx, int v, int up) {
-  randomizeTargets(dotP1, targetsP1);
-  randomizeTargets(dotP2, targetsP2);
+  randomizeTargetDots();
 }
 
 void initJoysticks() {
-  joy01BtnUp.begin(joyInfo01.pinUp)
+  joy01BtnUp
+  .begin(joyInfo01.pinUp)
   .onPress(onJoyUp, JOYSTICK_ID_01);
 
-  joy01BtnDown.begin(joyInfo01.pinDown)
+  joy01BtnDown
+  .begin(joyInfo01.pinDown)
   .onPress(onJoyDown, JOYSTICK_ID_01);
 
-  joy01BtnLeft.begin(joyInfo01.pinLeft)
+  joy01BtnLeft
+  .begin(joyInfo01.pinLeft)
   .onPress(onJoyLeft, JOYSTICK_ID_01);
 
-  joy01BtnRight.begin(joyInfo01.pinRight)
+  joy01BtnRight
+  .begin(joyInfo01.pinRight)
   .onPress(onJoyRight, JOYSTICK_ID_01);
 
-  joy02BtnUp.begin(joyInfo02.pinUp)
+  joy02BtnUp
+  .begin(joyInfo02.pinUp)
   .onPress(onJoyUp, JOYSTICK_ID_02);
 
-  joy02BtnDown.begin(joyInfo02.pinDown)
+  joy02BtnDown
+  .begin(joyInfo02.pinDown)
   .onPress(onJoyDown, JOYSTICK_ID_02);
 
-  joy02BtnLeft.begin(joyInfo02.pinLeft)
+  joy02BtnLeft
+  .begin(joyInfo02.pinLeft)
   .onPress(onJoyLeft, JOYSTICK_ID_02);
 
-  joy02BtnRight.begin(joyInfo02.pinRight)
+  joy02BtnRight
+  .begin(joyInfo02.pinRight)
   .onPress(onJoyRight, JOYSTICK_ID_02);
+}
+
+void updateTargetIfMatch(StripDot &targetDot, StripDot &playerDot) {
+  uint32_t nextTargetColor = COLOR_TARGET_DONE;
+
+  for (int i = 0; i < NUM_TARGETS; i++) {
+    if (targetColors[i] != COLOR_TARGET_DONE) {
+      nextTargetColor = targetColors[i];
+    }
+  }
+
+  if (nextTargetColor == COLOR_TARGET_DONE ||
+      nextTargetColor != targetDot.color) {
+    return;
+  }
+
+  if (!isDotsMatch(targetDot, playerDot)) {
+    return;
+  }
+
+  targetDot.color = COLOR_TARGET_DONE;
 }
 
 void onButtonChange(int idx, int v, int up) {
@@ -323,8 +290,10 @@ void onButtonChange(int idx, int v, int up) {
 
   switch (idx) {
     case BUTTON_ID_01:
+      updateTargetIfMatch(targetP1, dotP1);
       break;
     case BUTTON_ID_02:
+      updateTargetIfMatch(targetP2, dotP2);
       break;
   }
 }
@@ -346,7 +315,10 @@ void initMachines() {
 }
 
 void drawDots() {
+  drawDot(targetP1);
   drawDot(dotP1);
+
+  drawDot(targetP2);
   drawDot(dotP2);
 }
 
@@ -385,11 +357,10 @@ void initStrips() {
 void setup() {
   Serial.begin(9600);
 
-  randomSeed(analogRead(0));
-
   initJoysticks();
   initStrips();
   initMachines();
+  randomizeTargetDots();
 
   Serial.println(">> Starting Storm Catcher program");
 }
