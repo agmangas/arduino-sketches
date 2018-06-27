@@ -16,7 +16,7 @@ typedef struct stripDot {
   Adafruit_NeoPixel &strip;
 } StripDot;
 
-const int DOT_SIZE = 3;
+const int DOT_SIZE = 5;
 
 Atm_button joy01BtnUp;
 Atm_button joy01BtnDown;
@@ -43,10 +43,10 @@ const byte BUTTON_P01_PIN = 2;
 const byte BUTTON_P02_PIN = 3;
 
 JoystickInfo joyInfo01 = {
-  .pinUp = 4,
-  .pinDown = 5,
-  .pinLeft = 6,
-  .pinRight = 7
+  .pinUp = 7,
+  .pinDown = 6,
+  .pinLeft = 4,
+  .pinRight = 5
 };
 
 JoystickInfo joyInfo02 = {
@@ -56,12 +56,14 @@ JoystickInfo joyInfo02 = {
   .pinRight = 11
 };
 
-const int RANDOMIZE_TIMER_MS = 4000;
+const int DELAY_LOOP_MS = 5;
 
-const uint16_t NEOPIX_NUM_01 = 150;
+const int RANDOMIZE_TIMER_MS = 2500;
+
+const uint16_t NEOPIX_NUM_01 = 135;
 const uint8_t NEOPIX_PIN_01 = 12;
 
-const uint16_t NEOPIX_NUM_02 = 150;
+const uint16_t NEOPIX_NUM_02 = 135;
 const uint8_t NEOPIX_PIN_02 = 13;
 
 const uint32_t COLOR_PLAYER = Adafruit_NeoPixel::Color(255, 255, 255);
@@ -73,7 +75,7 @@ uint32_t targetColors[NUM_TARGETS] = {
   Adafruit_NeoPixel::Color(255, 0, 0),
   Adafruit_NeoPixel::Color(0, 255, 0),
   Adafruit_NeoPixel::Color(0, 0, 255),
-  Adafruit_NeoPixel::Color(255, 255, 0)
+  Adafruit_NeoPixel::Color(255, 0, 255)
 };
 
 Adafruit_NeoPixel strip01 = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
@@ -148,7 +150,7 @@ void drawDot(StripDot &dot) {
     dot.isBlinkOn = true;
   }
 
-  for (int i = 0; i < dot.idxStart + DOT_SIZE; i++) {
+  for (int i = dot.idxStart; i < dot.idxStart + DOT_SIZE; i++) {
     dot.strip.setPixelColor(i, drawColor);
   }
 }
@@ -164,6 +166,7 @@ void randomizeTargetDot(StripDot &targetDot, StripDot &playerDot) {
   for (int i = colorIdx; i < (colorIdx + NUM_TARGETS); i++) {
     if (targetColors[i] != COLOR_TARGET_DONE) {
       randColor = targetColors[i];
+      break;
     }
   }
 
@@ -183,17 +186,17 @@ void randomizeTargetDot(StripDot &targetDot, StripDot &playerDot) {
 }
 
 void onJoyUp(int idx, int v, int up) {
-  Serial.print("U::");
+  Serial.print("U:");
   Serial.println(idx);
 }
 
 void onJoyDown(int idx, int v, int up) {
-  Serial.print("D::");
+  Serial.print("D:");
   Serial.println(idx);
 }
 
 void onJoyLeft(int idx, int v, int up) {
-  Serial.print("L::");
+  Serial.print("L:");
   Serial.println(idx);
 
   switch (idx) {
@@ -207,7 +210,7 @@ void onJoyLeft(int idx, int v, int up) {
 }
 
 void onJoyRight(int idx, int v, int up) {
-  Serial.print("R::");
+  Serial.print("R:");
   Serial.println(idx);
 
   switch (idx) {
@@ -263,38 +266,55 @@ void initJoysticks() {
   .onPress(onJoyRight, JOYSTICK_ID_02);
 }
 
-void updateTargetIfMatch(StripDot &targetDot, StripDot &playerDot) {
+bool updateTargetIfMatch(StripDot &targetDot, StripDot &playerDot) {
   uint32_t nextTargetColor = COLOR_TARGET_DONE;
+  int targetIdx = -1;
 
   for (int i = 0; i < NUM_TARGETS; i++) {
     if (targetColors[i] != COLOR_TARGET_DONE) {
       nextTargetColor = targetColors[i];
+      targetIdx = i;
+      break;
     }
   }
 
   if (nextTargetColor == COLOR_TARGET_DONE ||
       nextTargetColor != targetDot.color) {
-    return;
+    return false;
   }
 
   if (!isDotsMatch(targetDot, playerDot)) {
-    return;
+    return false;
   }
 
+  targetColors[targetIdx] = COLOR_TARGET_DONE;
   targetDot.color = COLOR_TARGET_DONE;
+
+  return true;
 }
 
 void onButtonChange(int idx, int v, int up) {
-  Serial.print("Button::");
+  Serial.print("Btn:");
   Serial.println(idx);
+
+  bool isMatch = false;
 
   switch (idx) {
     case BUTTON_ID_01:
-      updateTargetIfMatch(targetP1, dotP1);
+      isMatch = updateTargetIfMatch(targetP1, dotP1);
+      if (isMatch)  randomizeTargetDot(targetP1, dotP1);
       break;
     case BUTTON_ID_02:
-      updateTargetIfMatch(targetP2, dotP2);
+      isMatch = updateTargetIfMatch(targetP2, dotP2);
+      if (isMatch)  randomizeTargetDot(targetP2, dotP2);
       break;
+  }
+
+  Serial.print("Match:");
+  Serial.println(isMatch);
+
+  if (isMatch) {
+    randomizeTimer.start();
   }
 }
 
@@ -370,4 +390,5 @@ void loop() {
   clearStrips();
   drawDots();
   showStrips();
+  delay(DELAY_LOOP_MS);
 }
