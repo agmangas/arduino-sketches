@@ -12,9 +12,6 @@ typedef struct windowState {
   byte effect;
 } WindowState;
 
-const byte PIN_AUDIO_TRACK_THUNDER_01 = 9;
-const byte PIN_AUDIO_TRACK_THUNDER_02 = 10;
-
 const uint16_t NEOPIX_NUM_01 = 300;
 const uint8_t NEOPIX_PIN_01 = 12;
 
@@ -118,7 +115,6 @@ void runStormEffect(WindowState &winState, NeoWindow &window) {
       break;
     case 2:
       Serial.println("Storm::2");
-      playRandomThunder();
       window.setFadeEfx(
         COLOR_STORM_BLUE_DARK,
         COLOR_STORM_BLUE_LIGHT,
@@ -171,42 +167,10 @@ void setNextEffect(WindowState &winState) {
   winState.effect = effect;
 }
 
-void playTrack(byte trackPin) {
-  Serial.print("Playing track: ");
-  Serial.println(trackPin);
-
-  digitalWrite(trackPin, LOW);
-  delay(500);
-  digitalWrite(trackPin, HIGH);
-}
-
-void playRandomThunder() {
-  int randVal = random(0, 100);
-
-  if (randVal > 50) {
-    playTrack(PIN_AUDIO_TRACK_THUNDER_01);
-  } else {
-    playTrack(PIN_AUDIO_TRACK_THUNDER_02);
-  }
-}
-
-void initAudioPins() {
-  pinMode(PIN_AUDIO_TRACK_THUNDER_01, OUTPUT);
-  digitalWrite(PIN_AUDIO_TRACK_THUNDER_01, HIGH);
-
-  pinMode(PIN_AUDIO_TRACK_THUNDER_02, OUTPUT);
-  digitalWrite(PIN_AUDIO_TRACK_THUNDER_02, HIGH);
-}
-
 void setup() {
-  initAudioPins();
-
-  randomSeed(analogRead(0));
-
   Serial.begin(9600);
-
+  randomSeed(analogRead(0));
   initStrips();
-
   Serial.println(">> Starting Storm Effects program");
 }
 
