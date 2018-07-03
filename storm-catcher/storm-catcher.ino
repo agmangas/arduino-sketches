@@ -177,12 +177,15 @@ void randomizeTargetDot(StripDot &targetDot, StripDot &playerDot) {
   int maxMultiplier = (targetDot.strip.numPixels() / DOT_SIZE) - 1;
 
   bool isPlayerDotMatch = true;
+  int tempIdxStart;
 
   while (isPlayerDotMatch) {
-    targetDot.idxStart = 0 + (DOT_SIZE * random(0, maxMultiplier));
-    targetDot.color = randColor;
-    isPlayerDotMatch = isDotsLocationEqual(targetDot, playerDot);
+    tempIdxStart =  0 + (DOT_SIZE * random(0, maxMultiplier));
+    isPlayerDotMatch = playerDot.idxStart == tempIdxStart;
   }
+
+  targetDot.idxStart = tempIdxStart;
+  targetDot.color = randColor;
 }
 
 void onJoyUp(int idx, int v, int up) {
@@ -273,14 +276,14 @@ void showMatchSuccessEffect(Adafruit_NeoPixel &strip) {
 
   for (int i = 0; i < numIters; i++) {
     for (int j = 0; j < strip.numPixels(); j++) {
-      strip.setPixelColor(i, 0, 0, 0);
+      strip.setPixelColor(j, 0, 0, 0);
     }
 
     strip.show();
     delay(blinkMs);
 
     for (int j = 0; j < strip.numPixels(); j = j + 3) {
-      strip.setPixelColor(i, 240, 240, 240);
+      strip.setPixelColor(j, 240, 240, 240);
     }
 
     strip.show();
@@ -307,7 +310,7 @@ bool isTargetMatch(StripDot &targetDot, StripDot &playerDot) {
 }
 
 void handleButtonPush(StripDot &targetDot, StripDot &playerDot) {
-  if (isTargetMatch(targetP1, dotP1)) {
+  if (isTargetMatch(targetDot, playerDot)) {
     playerDot.matchCounter++;
     showMatchSuccessEffect(playerDot.strip);
     randomizeTargetDot(targetDot, playerDot);
