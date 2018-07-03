@@ -40,14 +40,16 @@ const int BUTTON_ID_02 = 200;
 const int JOYSTICK_ID_01 = 1;
 const int JOYSTICK_ID_02 = 2;
 
+const byte FINAL_RELAY_PIN = A0;
+
 const byte BUTTON_P01_PIN = 2;
 const byte BUTTON_P02_PIN = 3;
 
 JoystickInfo joyInfo01 = {
-  .pinUp = 7,
-  .pinDown = 6,
-  .pinLeft = 4,
-  .pinRight = 5
+  .pinUp = 4,
+  .pinDown = 5,
+  .pinLeft = 6,
+  .pinRight = 7
 };
 
 JoystickInfo joyInfo02 = {
@@ -93,7 +95,7 @@ StripDot dotP1 = {
 
 StripDot targetP1 = {
   .idxStart = 0,
-  .color = Adafruit_NeoPixel::Color(0, 255, 0),
+  .color = targetColors[0],
   .isBlinking = false,
   .isBlinkOn = false,
   .strip = strip01,
@@ -111,7 +113,7 @@ StripDot dotP2 = {
 
 StripDot targetP2 = {
   .idxStart = 0,
-  .color = Adafruit_NeoPixel::Color(0, 255, 0),
+  .color = targetColors[0],
   .isBlinking = false,
   .isBlinkOn = false,
   .strip = strip02,
@@ -265,23 +267,20 @@ void initJoysticks() {
 }
 
 void showMatchSuccessEffect(Adafruit_NeoPixel &strip) {
-  const int totalMs = 2000;
+  const int totalMs = 2500;
   const int blinkMs = 30;
   const int numIters = totalMs / (blinkMs * 2);
 
-  const uint32_t blinkColor1 = Adafruit_NeoPixel::Color(0, 0, 0);
-  const uint32_t blinkColor2 = Adafruit_NeoPixel::Color(255, 255, 255);
-
   for (int i = 0; i < numIters; i++) {
     for (int j = 0; j < strip.numPixels(); j++) {
-      strip.setPixelColor(i, blinkColor1);
+      strip.setPixelColor(i, 0, 0, 0);
     }
 
     strip.show();
     delay(blinkMs);
 
-    for (int j = 0; j < strip.numPixels(); j++) {
-      strip.setPixelColor(i, blinkColor2);
+    for (int j = 0; j < strip.numPixels(); j = j + 3) {
+      strip.setPixelColor(i, 240, 240, 240);
     }
 
     strip.show();
@@ -328,6 +327,11 @@ void onButtonChange(int idx, int v, int up) {
       handleButtonPush(targetP2, dotP2);
       break;
   }
+
+  if (dotP1.matchCounter >= NUM_TARGETS &&
+      dotP2.matchCounter >= NUM_TARGETS) {
+    openRelay();
+  }
 }
 
 void initMachines() {
@@ -358,19 +362,12 @@ void drawDots() {
   }
 }
 
-void clearStrip01() {
+void clearStrips() {
   strip01.clear();
   strip01.show();
-}
 
-void clearStrip02() {
   strip02.clear();
   strip02.show();
-}
-
-void clearStrips() {
-  clearStrip01();
-  clearStrip02();
 }
 
 void showStrips() {
@@ -380,25 +377,40 @@ void showStrips() {
 
 void initStrips() {
   strip01.begin();
-  strip01.setBrightness(255);
+  strip01.setBrightness(220);
   strip01.show();
 
   strip02.begin();
-  strip02.setBrightness(255);
+  strip02.setBrightness(220);
   strip02.show();
 
   clearStrips();
 }
 
+void lockRelay() {
+  digitalWrite(FINAL_RELAY_PIN, LOW);
+}
+
+void openRelay() {
+  Serial.println("Relay:ON");
+  digitalWrite(FINAL_RELAY_PIN, HIGH);
+}
+
+void initRelay() {
+  pinMode(FINAL_RELAY_PIN, OUTPUT);
+  lockRelay();
+}
+
 void setup() {
   Serial.begin(9600);
 
+  initRelay();
   initJoysticks();
   initStrips();
   initMachines();
   randomizeTargetDots();
 
-  Serial.println(">> Starting Storm Catcher program");
+  Serial.println(">> Storm Catcher program");
 }
 
 void loop() {
@@ -408,3 +420,4 @@ void loop() {
   showStrips();
   delay(DELAY_LOOP_MS);
 }
+
