@@ -42,6 +42,9 @@ const int JOYSTICK_ID_02 = 2;
 
 const byte FINAL_RELAY_PIN = A0;
 
+const byte PIN_AUDIO_TRACK_SUCCESS = A1;
+const byte PIN_AUDIO_TRACK_FINAL = A2;
+
 const byte BUTTON_P01_PIN = 2;
 const byte BUTTON_P02_PIN = 3;
 
@@ -61,12 +64,12 @@ JoystickInfo joyInfo02 = {
 
 const int DELAY_LOOP_MS = 5;
 
-const int RANDOMIZE_TIMER_MS = 2500;
+const int RANDOMIZE_TIMER_MS = 3000;
 
-const uint16_t NEOPIX_NUM_01 = 135;
+const uint16_t NEOPIX_NUM_01 = 130;
 const uint8_t NEOPIX_PIN_01 = 12;
 
-const uint16_t NEOPIX_NUM_02 = 135;
+const uint16_t NEOPIX_NUM_02 = 130;
 const uint8_t NEOPIX_PIN_02 = 13;
 
 const uint32_t COLOR_PLAYER = Adafruit_NeoPixel::Color(255, 255, 255);
@@ -78,7 +81,7 @@ uint32_t targetColors[NUM_TARGETS] = {
   Adafruit_NeoPixel::Color(255, 0, 0),
   Adafruit_NeoPixel::Color(0, 255, 0),
   Adafruit_NeoPixel::Color(0, 0, 255),
-  Adafruit_NeoPixel::Color(255, 0, 255)
+  Adafruit_NeoPixel::Color(255, 255, 0)
 };
 
 Adafruit_NeoPixel strip01 = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
@@ -119,6 +122,8 @@ StripDot targetP2 = {
   .strip = strip02,
   .matchCounter = 0
 };
+
+bool relayOpened = false;
 
 /**
    Moving "right" = Moving away from pixel index 0
@@ -270,7 +275,7 @@ void initJoysticks() {
 }
 
 void showMatchSuccessEffect(Adafruit_NeoPixel &strip) {
-  const int totalMs = 2500;
+  const int totalMs = 3200;
   const int blinkMs = 30;
   const int numIters = totalMs / (blinkMs * 2);
 
@@ -311,6 +316,7 @@ bool isTargetMatch(StripDot &targetDot, StripDot &playerDot) {
 
 void handleButtonPush(StripDot &targetDot, StripDot &playerDot) {
   if (isTargetMatch(targetDot, playerDot)) {
+    playTrack(PIN_AUDIO_TRACK_SUCCESS);
     playerDot.matchCounter++;
     showMatchSuccessEffect(playerDot.strip);
     randomizeTargetDot(targetDot, playerDot);
@@ -397,6 +403,11 @@ void lockRelay() {
 void openRelay() {
   Serial.println("Relay:ON");
   digitalWrite(FINAL_RELAY_PIN, HIGH);
+
+  if (!relayOpened) {
+    playTrack(PIN_AUDIO_TRACK_FINAL);
+    relayOpened = true;
+  }
 }
 
 void initRelay() {
@@ -404,7 +415,23 @@ void initRelay() {
   lockRelay();
 }
 
+void playTrack(byte trackPin) {
+  digitalWrite(trackPin, LOW);
+  delay(500);
+  digitalWrite(trackPin, HIGH);
+}
+
+void initAudioPins() {
+  pinMode(PIN_AUDIO_TRACK_SUCCESS, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_SUCCESS, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_FINAL, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_FINAL, HIGH);
+}
+
 void setup() {
+  initAudioPins();
+
   Serial.begin(9600);
 
   initRelay();
