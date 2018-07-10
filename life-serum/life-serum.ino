@@ -8,6 +8,13 @@ typedef struct programState {
 } ProgramState;
 
 /**
+   Global
+*/
+
+const int DELAY_CHECK_MS = 25;
+const int NUM_CHECKS = 20;
+
+/**
    Relay
 */
 
@@ -36,7 +43,7 @@ int buttonPins[NUM_BUTTONS] = {
 };
 
 bool buttonsPattern[NUM_BUTTONS] = {
-  true, false, false, true, true, false, false
+  false, false, false, true, true, false, true
 };
 
 Atm_button buttons[NUM_BUTTONS];
@@ -57,9 +64,6 @@ Atm_analog pots[NUM_POTS];
 const byte POTS_RANGE_LO = 0;
 const byte POTS_RANGE_HI = 4;
 
-const int DELAY_CHECK_MS = 25;
-const int NUM_CHECKS = 20;
-
 const int NUM_POT_PATTERNS = 2;
 
 byte potPatterns[NUM_POT_PATTERNS][NUM_POTS] = {
@@ -71,7 +75,7 @@ byte potPatterns[NUM_POT_PATTERNS][NUM_POTS] = {
    LED
 */
 
-const uint16_t NEOPIXEL_NUM = 23;
+const uint16_t NEOPIXEL_NUM = 21;
 const uint8_t NEOPIXEL_PIN = 13;
 
 const byte buttonLeds[NUM_BUTTONS] = {
@@ -79,13 +83,13 @@ const byte buttonLeds[NUM_BUTTONS] = {
 };
 
 const byte DSWITCH_SIGNAL_LED_START = 15;
-const byte DSWITCH_SIGNAL_LED_END = 17;
+const byte DSWITCH_SIGNAL_LED_END = 16;
 
-const byte BUTTONS_SIGNAL_LED_START = 18;
-const byte BUTTONS_SIGNAL_LED_END = 20;
+const byte BUTTONS_SIGNAL_LED_START = 17;
+const byte BUTTONS_SIGNAL_LED_END = 18;
 
-const byte POTS_SIGNAL_LED_START = 21;
-const byte POTS_SIGNAL_LED_END = 23;
+const byte POTS_SIGNAL_LED_START = 19;
+const byte POTS_SIGNAL_LED_END = 20;
 
 const uint32_t COLOR_BUTTONS = Adafruit_NeoPixel::Color(0, 255, 0);
 const uint32_t COLOR_SIGNALS = Adafruit_NeoPixel::Color(255, 0, 0);
@@ -122,15 +126,27 @@ void onCorrectButtonsCombi() {
   progState.solvedButtons = true;
 }
 
-bool isCorrectButtonsCombi() {
+bool checkButtonsCombination() {
   for (int i = 0; i < NUM_BUTTONS; i++) {
-    if (buttonBits[i].state() == 0 &&
-        buttonsPattern[i] == true) {
+    if ((buttonBits[i].state() == 0 && buttonsPattern[i] == true) ||
+        (buttonBits[i].state() == 1 && buttonsPattern[i] == false)) {
       return false;
     }
   }
 
   return true;
+}
+
+bool isCorrectButtonsCombi() {
+  for (int i = 0; i < NUM_CHECKS; i++) {
+    if (checkButtonsCombination() == false) {
+      return false;
+    }
+
+    delay(DELAY_CHECK_MS);
+  }
+
+  return checkButtonsCombination();
 }
 
 void initButtons() {
@@ -163,7 +179,7 @@ void onCorrectDigitalSwitchesCombi() {
   progState.solvedDigitalSwitches = true;
 }
 
-bool isCorrectDigitalSwitchesCombi() {
+bool checkDigitalSwitchesCombination() {
   for (int i = 0; i < NUM_DIGITAL_SWITCH; i++) {
     if (digitalSwitches[i].state() != Atm_button::PRESSED) {
       return false;
@@ -171,6 +187,18 @@ bool isCorrectDigitalSwitchesCombi() {
   }
 
   return true;
+}
+
+bool isCorrectDigitalSwitchesCombi() {
+  for (int i = 0; i < NUM_CHECKS; i++) {
+    if (checkDigitalSwitchesCombination() == false) {
+      return false;
+    }
+
+    delay(DELAY_CHECK_MS);
+  }
+
+  return checkDigitalSwitchesCombination();
 }
 
 void initDigitalSwitches() {
@@ -215,10 +243,6 @@ bool checkPotsCombination() {
 }
 
 bool isCorrectPotsCombi() {
-  if (progState.solvedPots) {
-    return true;
-  }
-
   for (int i = 0; i < NUM_CHECKS; i++) {
     if (checkPotsCombination() == false) {
       return false;
@@ -333,24 +357,25 @@ void initRelay() {
    Utility functions and entrypoint
 */
 
-void checkSolutions() {
-  bool dswitchOk = isCorrectDigitalSwitchesCombi();
-  bool buttonsOk = isCorrectButtonsCombi();
-  bool potsOk = isCorrectPotsCombi();
-
-  if (dswitchOk) {
+void checkSolutionState() {
+  if (!progState.solvedDigitalSwitches &&
+      isCorrectDigitalSwitchesCombi()) {
     onCorrectDigitalSwitchesCombi();
   }
 
-  if (buttonsOk) {
+  if (!progState.solvedButtons &&
+      isCorrectButtonsCombi()) {
     onCorrectButtonsCombi();
   }
 
-  if (potsOk) {
+  if (!progState.solvedPots &&
+      isCorrectPotsCombi()) {
     onCorrectPotsCombi();
   }
 
-  if (dswitchOk && buttonsOk && potsOk) {
+  if (progState.solvedDigitalSwitches &&
+      progState.solvedButtons &&
+      progState.solvedPots) {
     openRelay();
   }
 }
@@ -369,6 +394,6 @@ void setup() {
 
 void loop() {
   automaton.run();
-  checkSolutions();
+  checkSolutionState();
   showStrip();
 }
