@@ -11,7 +11,7 @@ typedef struct programState {
    Global
 */
 
-const int DELAY_CHECK_MS = 25;
+const int DELAY_CHECK_MS = 40;
 const int NUM_CHECKS = 20;
 
 /**
@@ -91,8 +91,8 @@ const byte BUTTONS_SIGNAL_LED_END = 18;
 const byte POTS_SIGNAL_LED_START = 19;
 const byte POTS_SIGNAL_LED_END = 20;
 
-const uint32_t COLOR_BUTTONS = Adafruit_NeoPixel::Color(0, 255, 0);
-const uint32_t COLOR_SIGNALS = Adafruit_NeoPixel::Color(255, 0, 0);
+const uint32_t COLOR_BUTTONS = Adafruit_NeoPixel::Color(0, 0, 255);
+const uint32_t COLOR_SIGNALS = Adafruit_NeoPixel::Color(0, 255, 0);
 
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -329,7 +329,7 @@ void showStrip() {
   }
 
   if (progState.solvedButtons) {
-    showButtonsStrip();
+    showButtonsSignalStrip();
   }
 }
 
