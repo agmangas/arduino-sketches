@@ -8,6 +8,12 @@ typedef struct programState {
 } ProgramState;
 
 /**
+   Relay
+*/
+
+const int PIN_RELAY = A5;
+
+/**
    Digital switches
 */
 
@@ -30,7 +36,7 @@ int buttonPins[NUM_BUTTONS] = {
 };
 
 bool buttonsPattern[NUM_BUTTONS] = {
-  true, false, true, false, true, false, true
+  true, false, false, true, true, false, false
 };
 
 Atm_button buttons[NUM_BUTTONS];
@@ -51,8 +57,8 @@ Atm_analog pots[NUM_POTS];
 const byte POTS_RANGE_LO = 0;
 const byte POTS_RANGE_HI = 4;
 
-const int DELAY_CHECK_MS = 50;
-const int NUM_CHECKS = 10;
+const int DELAY_CHECK_MS = 25;
+const int NUM_CHECKS = 20;
 
 const int NUM_POT_PATTERNS = 2;
 
@@ -65,8 +71,26 @@ byte potPatterns[NUM_POT_PATTERNS][NUM_POTS] = {
    LED
 */
 
-const uint16_t NEOPIXEL_NUM = 244;
-const uint8_t NEOPIXEL_PIN = 5;
+const uint16_t NEOPIXEL_NUM = 23;
+const uint8_t NEOPIXEL_PIN = 13;
+
+const byte buttonLeds[NUM_BUTTONS] = {
+  0, 2, 4, 6, 8, 10, 12
+};
+
+const byte DSWITCH_SIGNAL_LED_START = 15;
+const byte DSWITCH_SIGNAL_LED_END = 17;
+
+const byte BUTTONS_SIGNAL_LED_START = 18;
+const byte BUTTONS_SIGNAL_LED_END = 20;
+
+const byte POTS_SIGNAL_LED_START = 21;
+const byte POTS_SIGNAL_LED_END = 23;
+
+const uint32_t COLOR_BUTTONS = Adafruit_NeoPixel::Color(0, 255, 0);
+const uint32_t COLOR_SIGNALS = Adafruit_NeoPixel::Color(255, 0, 0);
+
+Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 /**
    Program state
@@ -74,7 +98,8 @@ const uint8_t NEOPIXEL_PIN = 5;
 
 ProgramState progState = {
   .solvedDigitalSwitches = false,
-  .solvedButtons = false
+  .solvedButtons = false,
+  .solvedPots = false
 };
 
 /**
@@ -93,7 +118,7 @@ void onCorrectButtonsCombi() {
     return;
   }
 
-  Serial.println("Btn:V");
+  Serial.println("Btn:OK");
   progState.solvedButtons = true;
 }
 
@@ -134,7 +159,7 @@ void onCorrectDigitalSwitchesCombi() {
     return;
   }
 
-  Serial.println("DSW:V");
+  Serial.println("DSW:OK");
   progState.solvedDigitalSwitches = true;
 }
 
@@ -165,7 +190,7 @@ void onCorrectPotsCombi() {
     return;
   }
 
-  Serial.println("P:V");
+  Serial.println("P:OK");
   progState.solvedPots = true;
 }
 
@@ -221,17 +246,112 @@ void initPots() {
   }
 }
 
+/**
+   LED functions
+*/
+
+void initStrip() {
+  pixelStrip.begin();
+  pixelStrip.setBrightness(100);
+  pixelStrip.clear();
+  pixelStrip.show();
+}
+
+void showButtonsSignalStrip() {
+  for (int i = BUTTONS_SIGNAL_LED_START; i <= BUTTONS_SIGNAL_LED_END; i++) {
+    pixelStrip.setPixelColor(i, COLOR_SIGNALS);
+  }
+
+  pixelStrip.show();
+}
+
+void showDswitchSignalStrip() {
+  for (int i = DSWITCH_SIGNAL_LED_START; i <= DSWITCH_SIGNAL_LED_END; i++) {
+    pixelStrip.setPixelColor(i, COLOR_SIGNALS);
+  }
+
+  pixelStrip.show();
+}
+
+void showPotsSignalStrip() {
+  for (int i = POTS_SIGNAL_LED_START; i <= POTS_SIGNAL_LED_END; i++) {
+    pixelStrip.setPixelColor(i, COLOR_SIGNALS);
+  }
+
+  pixelStrip.show();
+}
+
+void showButtonsStrip() {
+  for (int i = 0; i < NUM_BUTTONS; i++) {
+    if (buttonBits[i].state() == 0) {
+      pixelStrip.setPixelColor(buttonLeds[i], 0, 0, 0);
+    } else {
+      pixelStrip.setPixelColor(buttonLeds[i], COLOR_BUTTONS);
+    }
+  }
+
+  pixelStrip.show();
+}
+
+void showStrip() {
+  showButtonsStrip();
+
+  if (progState.solvedPots) {
+    showPotsSignalStrip();
+  }
+
+  if (progState.solvedDigitalSwitches) {
+    showDswitchSignalStrip();
+  }
+
+  if (progState.solvedButtons) {
+    showButtonsStrip();
+  }
+}
+
+/**
+   Relay functions
+*/
+
+void lockRelay() {
+  digitalWrite(PIN_RELAY, LOW);
+}
+
+void openRelay() {
+  if (digitalRead(PIN_RELAY) == LOW) {
+    Serial.println("Relay:Open");
+    digitalWrite(PIN_RELAY, HIGH);
+  }
+}
+
+void initRelay() {
+  pinMode(PIN_RELAY, OUTPUT);
+  lockRelay();
+}
+
+/**
+   Utility functions and entrypoint
+*/
+
 void checkSolutions() {
-  if (isCorrectDigitalSwitchesCombi()) {
+  bool dswitchOk = isCorrectDigitalSwitchesCombi();
+  bool buttonsOk = isCorrectButtonsCombi();
+  bool potsOk = isCorrectPotsCombi();
+
+  if (dswitchOk) {
     onCorrectDigitalSwitchesCombi();
   }
 
-  if (isCorrectButtonsCombi()) {
+  if (buttonsOk) {
     onCorrectButtonsCombi();
   }
 
-  if (isCorrectPotsCombi()) {
+  if (potsOk) {
     onCorrectPotsCombi();
+  }
+
+  if (dswitchOk && buttonsOk && potsOk) {
+    openRelay();
   }
 }
 
@@ -241,6 +361,8 @@ void setup() {
   initDigitalSwitches();
   initButtons();
   initPots();
+  initStrip();
+  initRelay();
 
   Serial.println(">> Serum");
 }
@@ -248,4 +370,5 @@ void setup() {
 void loop() {
   automaton.run();
   checkSolutions();
+  showStrip();
 }
