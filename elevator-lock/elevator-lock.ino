@@ -6,11 +6,11 @@
 */
 
 typedef struct programState {
-  bool keypadSolved;
+  bool isLockDisabled;
 } ProgramState;
 
 ProgramState progState = {
-  .keypadSolved = false
+  .isLockDisabled = false
 };
 
 /**
@@ -47,7 +47,8 @@ Keypad kpd = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 const int SOLUTION_SIZE = 4;
 
-char solutionKeys[SOLUTION_SIZE] = {'*', '8',  '6', 'A',};
+char solutionKeys[SOLUTION_SIZE] = {'*', '8', '6', 'A',};
+char resetKeys[SOLUTION_SIZE] = {'#', '*', '#', '0',};
 
 /**
    Inputs buffer
@@ -69,13 +70,13 @@ void updateKeyBuffer() {
   }
 }
 
-bool isSolutionInBuffer() {
+bool isCodeInBuffer(char *code) {
   if (keyBuffer.size() < SOLUTION_SIZE) {
     return false;
   }
 
   for (int i = 0; i < keyBuffer.size(); i++) {
-    if (keyBuffer[i] != solutionKeys[i]) {
+    if (keyBuffer[i] != code[i]) {
       return false;
     }
   }
@@ -83,19 +84,23 @@ bool isSolutionInBuffer() {
   return true;
 }
 
-void onKeypadSolution() {
-  openRelay();
-  ledOff(LED_A);
-  ledOn(LED_B);
+bool isSolutionInBuffer() {
+  return isCodeInBuffer(solutionKeys);
+}
+
+bool isResetInBuffer() {
+  return isCodeInBuffer(resetKeys);
 }
 
 void runKeypad() {
   updateKeyBuffer();
 
-  if (isSolutionInBuffer() && !progState.keypadSolved) {
-    Serial.println("Keypad:OK");
-    progState.keypadSolved = true;
-    onKeypadSolution();
+  if (isSolutionInBuffer() && !progState.isLockDisabled) {
+    Serial.println("Lock:Disabling");
+    disableLock();
+  } else if (isResetInBuffer() && progState.isLockDisabled) {
+    Serial.println("Lock:Enabling");
+    enableLock();
   }
 };
 
@@ -124,6 +129,24 @@ void initRelay() {
   lockRelay();
 }
 
+/*
+   Lock functions
+*/
+
+void enableLock() {
+  progState.isLockDisabled = false;
+  ledOn(LED_A);
+  ledOff(LED_B);
+  lockRelay();
+}
+
+void disableLock() {
+  progState.isLockDisabled = true;
+  ledOff(LED_A);
+  ledOn(LED_B);
+  openRelay();
+}
+
 /**
    LED functions
 */
@@ -143,7 +166,6 @@ void ledOn(int ledPin) {
   digitalWrite(ledPin, HIGH);
 }
 
-
 void ledOff(int ledPin) {
   digitalWrite(ledPin, LOW);
 }
@@ -157,7 +179,7 @@ void setup() {
 
   initRelay();
   initLeds();
-  ledOn(LED_A);
+  enableLock();
 
   Serial.println(">> Elevator Lock program");
 }
