@@ -61,21 +61,21 @@ const int LED_LEVELS = 30;
 const int LED_BOUNCE_MS = 500;
 
 // NeoPixels PIN and total number
-const uint16_t NEOPIXEL_NUM = 60;
+const uint16_t NEOPIXEL_NUM = 88;
 const uint8_t NEOPIXEL_PIN = 6;
 
 const uint16_t NEOPIXEL_START_NUM = 60;
 const uint8_t NEOPIXEL_START_PIN = 7;
 
 // Index of the LED that marks the limit of the pixel strip first patch
-// Assertion: STRIP_PATCH_SIZE < NEOPIXEL_NUM
-const uint8_t STRIP_PATCH_SIZE = 50;
+// Assertion: STRIP_PATCH_SIZE <= NEOPIXEL_NUM
+const uint8_t STRIP_PATCH_SIZE = 88;
 
 // LED heartbeat variables
 const int BEAT_SEGMENT_LEN = 10;
 const int BEAT_PATTERN = 3;
-const int BEAT_LONG_MS = 10;
-const int BEAT_SHORT_MS = 3;
+const int BEAT_LONG_MS = 25;
+const int BEAT_SHORT_MS = 15;
 
 // Initial LED strip configuration
 const int LED_START_DELAY_MS = 150;
@@ -276,13 +276,17 @@ void onMaxLevelReached() {
 
   playHoldTrack(PIN_AUDIO_TRACK_COMPLETION);
 
-  for (int i = STRIP_PATCH_SIZE; i < NEOPIXEL_NUM; i++) {
-    pixelStrip.setPixelColor(i, colorActive);
-  }
-
-  pixelStrip.show();
+  byte solutionPatchLevel = 0;
 
   while (true) {
+    solutionPatchLevel += 5;
+
+    for (int i = STRIP_PATCH_SIZE; i < NEOPIXEL_NUM; i++) {
+      pixelStrip.setPixelColor(i, solutionPatchLevel, 0, 0);
+    }
+
+    pixelStrip.show();
+
     for (int i = 0; i < STRIP_PATCH_SIZE; i++) {
       pixelStrip.setPixelColor(i, 0, 0, 0);
     }
