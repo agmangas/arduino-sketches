@@ -63,7 +63,13 @@ const int LED_BOUNCE_MS = 500;
 // NeoPixels PIN and total number
 const uint16_t NEOPIXEL_NUM = 60;
 const uint8_t NEOPIXEL_PIN = 6;
+
+const uint16_t NEOPIXEL_START_NUM = 60;
 const uint8_t NEOPIXEL_START_PIN = 7;
+
+// Index of the LED that marks the limit of the pixel strip first patch
+// Assertion: STRIP_PATCH_SIZE < NEOPIXEL_NUM
+const uint8_t STRIP_PATCH_SIZE = 50;
 
 // LED heartbeat variables
 const int BEAT_SEGMENT_LEN = 10;
@@ -76,10 +82,10 @@ const int LED_START_DELAY_MS = 150;
 
 // Initialize the NeoPixel instance
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel pixelStripStart = Adafruit_NeoPixel(NEOPIXEL_NUM, NEOPIXEL_START_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixelStripStart = Adafruit_NeoPixel(NEOPIXEL_START_NUM, NEOPIXEL_START_PIN, NEO_GRB + NEO_KHZ800);
 
 // NeoPixel active color
-uint32_t colorActive = pixelStrip.Color(255, 0, 0);
+uint32_t colorActive = Adafruit_NeoPixel::Color(255, 0, 0);
 
 // Timestamp (millis) of the last state sample
 unsigned long lastStateMillis;
@@ -190,13 +196,15 @@ void setPixelsToLevel(int theLevel) {
   Serial.println(theLevel);
   Serial.flush();
 
-  float totalPixels = (float) NEOPIXEL_NUM;
+  float totalPixels = (float) STRIP_PATCH_SIZE;
   int pixelsPerLevel = ceil(totalPixels / LED_LEVELS);
   int totalPixelsOn = pixelsPerLevel * theLevel;
 
-  if (totalPixelsOn > NEOPIXEL_NUM) totalPixelsOn = NEOPIXEL_NUM;
+  if (totalPixelsOn > totalPixels) {
+    totalPixelsOn = totalPixels;
+  }
 
-  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+  for (int i = 0; i < STRIP_PATCH_SIZE; i++) {
     if (i < totalPixelsOn) {
       pixelStrip.setPixelColor(i, colorActive);
     } else {
@@ -268,14 +276,20 @@ void onMaxLevelReached() {
 
   playHoldTrack(PIN_AUDIO_TRACK_COMPLETION);
 
+  for (int i = STRIP_PATCH_SIZE; i < NEOPIXEL_NUM; i++) {
+    pixelStrip.setPixelColor(i, colorActive);
+  }
+
+  pixelStrip.show();
+
   while (true) {
-    for (int i = 0; i < NEOPIXEL_NUM; i++) {
+    for (int i = 0; i < STRIP_PATCH_SIZE; i++) {
       pixelStrip.setPixelColor(i, 0, 0, 0);
     }
 
     pixelStrip.show();
 
-    if (offset + BEAT_SEGMENT_LEN > NEOPIXEL_NUM) {
+    if (offset + BEAT_SEGMENT_LEN > STRIP_PATCH_SIZE) {
       offset = 0;
       beatCounter += 1;
     }
@@ -305,12 +319,10 @@ void onMaxLevelReached() {
    Turn all the LED strips off.
 */
 void deactivateAllLeds() {
-  for (int i = 0; i < NEOPIXEL_NUM; i++) {
-    pixelStripStart.setPixelColor(i, 0, 0, 0);
-    pixelStrip.setPixelColor(i, 0, 0, 0);
-  }
-
+  pixelStripStart.clear();
   pixelStripStart.show();
+
+  pixelStrip.clear();
   pixelStrip.show();
 }
 
@@ -318,7 +330,7 @@ void deactivateAllLeds() {
    Turn on the LED strip that signals that the program has started.
 */
 void activateInitialLeds() {
-  for (int i = 0; i < NEOPIXEL_NUM; i++) {
+  for (int i = 0; i < NEOPIXEL_START_NUM; i++) {
     pixelStripStart.setPixelColor(i, colorActive);
     pixelStripStart.show();
 
