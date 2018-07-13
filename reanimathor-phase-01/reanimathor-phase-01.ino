@@ -31,9 +31,9 @@ const uint8_t NEOPIXEL_PIN_SOLUTION = 8;
 
 // Solution key
 const int SOLUTION_INPUT_1 = 25;
-const int SOLUTION_INPUT_2 = 10;
+const int SOLUTION_INPUT_2 = 14;
 const int SOLUTION_INPUT_3 = 10;
-const int SOLUTION_INPUT_4 = 25;
+const int SOLUTION_INPUT_4 = 18;
 
 // Audio tracks pins
 const int PIN_AUDIO_TRACK_END = 12;
