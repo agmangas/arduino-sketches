@@ -177,12 +177,17 @@ void onPotChange(int idx, int v, int up) {
 
 bool isCorrectPotsCombi() {
   bool isValid;
+  int currState[NUM_POTS];
+
+  for (int i = 0; i < NUM_POTS; i++) {
+    currState[i] = pots[i].state();
+  }
 
   for (int i = 0; i < NUM_POT_PATTERNS; i++) {
     isValid = true;
 
     for (int j = 0; j < NUM_POTS; j++) {
-      if (pots[j].state() != potPatterns[i][j]) {
+      if (currState[j] != potPatterns[i][j]) {
         isValid = false;
       }
     }
@@ -339,7 +344,7 @@ void setup() {
   initStrip();
   initRelay();
 
-  Serial.println(">> Life Serum program");
+  Serial.println(">>");
 }
 
 void loop() {
