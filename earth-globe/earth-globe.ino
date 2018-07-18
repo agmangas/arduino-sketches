@@ -17,25 +17,17 @@ char matchTag3[SIZE_TAG_ID] = "5C00CB17DC5C";
 
 void openFirstRelay(char *tag) {
   Serial.println("Opening relay 01");
-  openRelay(RELAY_PIN_1);
+  digitalWrite(RELAY_PIN_1, HIGH);
 }
 
 void openSecondRelay(char *tag) {
   Serial.println("Opening relay 02");
-  openRelay(RELAY_PIN_2);
+  digitalWrite(RELAY_PIN_2, HIGH);
 }
 
 void openThirdRelay(char *tag) {
-  Serial.println("Opening relay 03");
-  openRelay(RELAY_PIN_3);
-}
-
-void lockRelay(byte pin) {
-  digitalWrite(pin, HIGH);
-}
-
-void openRelay(byte pin) {
-  digitalWrite(pin, LOW);
+  Serial.println("Opening relay 03 (Room of Storms)");
+  digitalWrite(RELAY_PIN_3, LOW);
 }
 
 void initRelays() {
@@ -43,9 +35,9 @@ void initRelays() {
   pinMode(RELAY_PIN_2, OUTPUT);
   pinMode(RELAY_PIN_3, OUTPUT);
 
-  lockRelay(RELAY_PIN_1);
-  lockRelay(RELAY_PIN_2);
-  lockRelay(RELAY_PIN_3);
+  digitalWrite(RELAY_PIN_1, LOW);
+  digitalWrite(RELAY_PIN_2, LOW);
+  digitalWrite(RELAY_PIN_3, HIGH);
 }
 
 void initRFID() {
