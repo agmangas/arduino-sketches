@@ -41,7 +41,8 @@ const int BUTTON_ID_02 = 200;
 const int JOYSTICK_ID_01 = 1;
 const int JOYSTICK_ID_02 = 2;
 
-const int NUM_TARGETS = 3;
+const int NUM_TARGETS = 4;
+const int MIN_TARGETS = 4;
 
 /**
    Color consts and arrays
@@ -52,9 +53,10 @@ const uint32_t COLOR_PLAYER_2 = Adafruit_NeoPixel::Color(0, 0, 255);
 const uint32_t COLOR_TARGET_DONE = Adafruit_NeoPixel::Color(0, 0, 0);
 
 uint32_t targetColors[NUM_TARGETS] = {
-  Adafruit_NeoPixel::Color(255, 255, 255),
-  Adafruit_NeoPixel::Color(255, 255, 255),
-  Adafruit_NeoPixel::Color(255, 255, 255)
+  Adafruit_NeoPixel::Color(255, 255, 0),
+  Adafruit_NeoPixel::Color(255, 255, 0),
+  Adafruit_NeoPixel::Color(255, 255, 0),
+  Adafruit_NeoPixel::Color(255, 255, 0)
 };
 
 /**
@@ -119,10 +121,10 @@ const byte BUTTON_P02_PIN = 3;
 */
 
 const uint16_t NEOPIX_NUM_01 = 120;
-const uint8_t NEOPIX_PIN_01 = 12;
+const uint8_t NEOPIX_PIN_01 = 13;
 
 const uint16_t NEOPIX_NUM_02 = 120;
-const uint8_t NEOPIX_PIN_02 = 13;
+const uint8_t NEOPIX_PIN_02 = 12;
 
 Adafruit_NeoPixel strip01 = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel strip02 = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
@@ -372,7 +374,7 @@ void handleButtonPush(PlayerDot &dot) {
   if (isTargetMatch(dot)) {
     dot.matchCounter++;
 
-    if (!allTargetsCaptured()) {
+    if (!enoughTargetsCaptured()) {
       playTrack(PIN_AUDIO_TRACK_SUCCESS);
       showMatchSuccessEffect(dot.strip);
     }
@@ -382,9 +384,8 @@ void handleButtonPush(PlayerDot &dot) {
   }
 }
 
-bool allTargetsCaptured() {
-  return dotP1.matchCounter >= NUM_TARGETS &&
-         dotP2.matchCounter >= NUM_TARGETS;
+bool enoughTargetsCaptured() {
+  return (dotP1.matchCounter + dotP2.matchCounter) >= MIN_TARGETS;
 }
 
 void onButtonChange(int idx, int v, int up) {
@@ -400,7 +401,7 @@ void onButtonChange(int idx, int v, int up) {
       break;
   }
 
-  if (allTargetsCaptured()) {
+  if (enoughTargetsCaptured()) {
     openRelay();
   }
 }
