@@ -110,17 +110,6 @@ uint32_t solutionColors[NUM_PHASES] = {
 
 const uint32_t PROGRESS_COLOR = pixelStrip.Color(15, 0, 15);
 
-const int TRACK_NAME_LEN = 12;
-
-char startTrack[TRACK_NAME_LEN] = "START000OGG";
-char failTrack[TRACK_NAME_LEN] = "FAIL0000OGG";
-
-char postPhaseTracks[NUM_PHASES][TRACK_NAME_LEN] = {
-  "PHASE001OGG",
-  "PHASE002OGG",
-  "PHASE003OGG"
-};
-
 ProgramState programState = {
   .currPhase = 0,
   .isStarted = false,
@@ -324,15 +313,15 @@ void onButtonChange(int idx, int v, int up) {
   }
 }
 
-void startProgram(int idx, int v, int up) {
+void restartPhase(int idx, int v, int up) {
+  blinkAndPlaySolutionPattern();
+
   if (programState.isStarted) {
     return;
   }
 
-  playTrack(PIN_AUDIO_TRACK_PHASE);
-
   programState.isStarted = true;
-  blinkAndPlaySolutionPattern();
+  playTrack(PIN_AUDIO_TRACK_PHASE);
 }
 
 void playTrack(byte trackPin) {
@@ -343,15 +332,21 @@ void playTrack(byte trackPin) {
 
 void initMachines() {
   for (int i = 0; i < TOTAL_BUTTONS; i++) {
-    atmButtons[i].begin(btnConfs[i].btnPin).onPress(onButtonChange, i);
-    atmLeds[i].begin(btnConfs[i].ledPin);
-    atmLeds[i].trigger(atmLeds[i].EVT_OFF);
+    atmButtons[i]
+    .begin(btnConfs[i].btnPin)
+    .onPress(onButtonChange, i);
+
+    atmLeds[i]
+    .begin(btnConfs[i].ledPin);
+
+    atmLeds[i]
+    .trigger(atmLeds[i].EVT_OFF);
   }
 
   startupController.begin()
   .IF(atmButtons[START_BTN_0], '=', atmButtons[START_BTN_0].PRESSED)
   .IF(atmButtons[START_BTN_1], '=', atmButtons[START_BTN_1].PRESSED)
-  .onChange(true, startProgram);
+  .onChange(true, restartPhase);
 }
 
 void initAudioPins() {
