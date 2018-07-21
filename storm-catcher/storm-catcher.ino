@@ -33,7 +33,7 @@ typedef struct playerDot {
 
 const int DOT_SIZE = 5;
 const int DELAY_LOOP_MS = 5;
-const int RANDOMIZE_TIMER_MS = 1500;
+const int RANDOMIZE_TIMER_MS = 2000;
 
 const int BUTTON_ID_01 = 100;
 const int BUTTON_ID_02 = 200;
@@ -41,20 +41,20 @@ const int BUTTON_ID_02 = 200;
 const int JOYSTICK_ID_01 = 1;
 const int JOYSTICK_ID_02 = 2;
 
-const int NUM_TARGETS = 4;
+const int NUM_TARGETS = 3;
 
 /**
    Color consts and arrays
 */
 
-const uint32_t COLOR_PLAYER = Adafruit_NeoPixel::Color(255, 255, 255);
+const uint32_t COLOR_PLAYER_1 = Adafruit_NeoPixel::Color(255, 0, 0);
+const uint32_t COLOR_PLAYER_2 = Adafruit_NeoPixel::Color(0, 0, 255);
 const uint32_t COLOR_TARGET_DONE = Adafruit_NeoPixel::Color(0, 0, 0);
 
 uint32_t targetColors[NUM_TARGETS] = {
-  Adafruit_NeoPixel::Color(255, 0, 0),
-  Adafruit_NeoPixel::Color(0, 255, 0),
-  Adafruit_NeoPixel::Color(0, 0, 255),
-  Adafruit_NeoPixel::Color(255, 255, 0)
+  Adafruit_NeoPixel::Color(255, 255, 255),
+  Adafruit_NeoPixel::Color(255, 255, 255),
+  Adafruit_NeoPixel::Color(255, 255, 255)
 };
 
 /**
@@ -131,7 +131,7 @@ Adafruit_NeoPixel strip02 = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_
    Initialization of PlayerDot structs
 */
 
-byte targetsIdxP1[NUM_TARGETS] = {0, 0, 0, 0};
+byte targetsIdxP1[NUM_TARGETS] = {0, 0, 0};
 
 TargetDots targetsP1 = {
   .indexes = targetsIdxP1,
@@ -140,7 +140,7 @@ TargetDots targetsP1 = {
 
 PlayerDot dotP1 = {
   .idxStart = 30,
-  .color = COLOR_PLAYER,
+  .color = COLOR_PLAYER_1,
   .isBlinking = true,
   .isBlinkOn = false,
   .strip = strip01,
@@ -148,7 +148,7 @@ PlayerDot dotP1 = {
   .targets = targetsP1
 };
 
-byte targetsIdxP2[NUM_TARGETS] = {0, 0, 0, 0};
+byte targetsIdxP2[NUM_TARGETS] = {0, 0, 0};
 
 TargetDots targetsP2 = {
   .indexes = targetsIdxP2,
@@ -157,7 +157,7 @@ TargetDots targetsP2 = {
 
 PlayerDot dotP2 = {
   .idxStart = 30,
-  .color = COLOR_PLAYER,
+  .color = COLOR_PLAYER_2,
   .isBlinking = true,
   .isBlinkOn = false,
   .strip = strip02,
@@ -370,12 +370,21 @@ void onRandomizeTimer(int idx, int v, int up) {
 
 void handleButtonPush(PlayerDot &dot) {
   if (isTargetMatch(dot)) {
-    playTrack(PIN_AUDIO_TRACK_SUCCESS);
     dot.matchCounter++;
-    showMatchSuccessEffect(dot.strip);
+
+    if (!allTargetsCaptured()) {
+      playTrack(PIN_AUDIO_TRACK_SUCCESS);
+      showMatchSuccessEffect(dot.strip);
+    }
+
     randomizeTargetDots(dot);
     randomizeTimer.start();
   }
+}
+
+bool allTargetsCaptured() {
+  return dotP1.matchCounter >= NUM_TARGETS &&
+         dotP2.matchCounter >= NUM_TARGETS;
 }
 
 void onButtonChange(int idx, int v, int up) {
@@ -391,8 +400,7 @@ void onButtonChange(int idx, int v, int up) {
       break;
   }
 
-  if (dotP1.matchCounter >= NUM_TARGETS &&
-      dotP2.matchCounter >= NUM_TARGETS) {
+  if (allTargetsCaptured()) {
     openRelay();
   }
 }
