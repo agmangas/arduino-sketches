@@ -7,8 +7,9 @@
 
 typedef struct programState {
   byte matchCounter;
+  byte currColorIdx;
+  byte targetPosition;
   bool relayOpened;
-  byte* idxTargets;
 } ProgramState;
 
 typedef struct joystickInfo {
@@ -51,7 +52,7 @@ const uint32_t COLOR_TARGET_DONE = Adafruit_NeoPixel::Color(0, 0, 0);
 uint32_t targetColors[NUM_TARGETS] = {
   Adafruit_NeoPixel::Color(255, 0, 0),
   Adafruit_NeoPixel::Color(0, 255, 0),
-  Adafruit_NeoPixel::Color(0, 255, 255),
+  Adafruit_NeoPixel::Color(0, 0, 255),
   Adafruit_NeoPixel::Color(255, 255, 0)
 };
 
@@ -132,7 +133,7 @@ Adafruit_NeoPixel stripProgress = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02
 */
 
 PlayerDot dotP1 = {
-  .idxStart = 30,
+  .idxStart = 20,
   .color = COLOR_PLAYER,
   .isBlinking = true,
   .isBlinkOn = false
@@ -145,12 +146,11 @@ PlayerDot dotP2 = {
   .isBlinkOn = false
 };
 
-byte idxTargets[NUM_TARGETS] = {0, 0, 0, 0};
-
 ProgramState progState = {
   .matchCounter = 0,
-  .relayOpened = false,
-  .idxTargets = idxTargets
+  .currColorIdx = 0,
+  .targetPosition = 0,
+  .relayOpened = false
 };
 
 /**
@@ -182,15 +182,12 @@ void movePlayerDotLeft(PlayerDot &dot) {
   dot.idxStart = idxTarget;
 }
 
-void drawTargetDots() {
-  int idxStart;
+void drawTargetDot() {
+  uint32_t color = targetColors[progState.currColorIdx];
+  int pos = progState.targetPosition;
 
-  for (int i = progState.matchCounter; i < NUM_TARGETS; i++) {
-    idxStart = progState.idxTargets[i];
-
-    for (int j = idxStart; j < idxStart + DOT_SIZE; j++) {
-      stripPlayers.setPixelColor(j, targetColors[i]);
-    }
+  for (int i = pos; i < pos + DOT_SIZE; i++) {
+    stripPlayers.setPixelColor(i, color);
   }
 }
 
@@ -209,26 +206,17 @@ void drawPlayerDot(PlayerDot &dot) {
   }
 }
 
-void randomizeTargetDots() {
-  int numRemainingTargets = NUM_TARGETS - progState.matchCounter;
-
-  if (numRemainingTargets <= 0) {
+void randomizeTargetDot() {
+  if (progState.matchCounter >= NUM_TARGETS) {
     return;
   }
 
   int totalPositions = stripPlayers.numPixels() / DOT_SIZE;
-  int patchSize = totalPositions / numRemainingTargets;
+  int targetPosition = random(0, totalPositions) * DOT_SIZE;
+  int currColorIdx = random(progState.matchCounter, NUM_TARGETS);
 
-  int targetOffset = random(0, numRemainingTargets);
-  int targetIdx;
-  int targetPosition;
-
-  for (int i = 0; i < numRemainingTargets; i++) {
-    targetIdx = ((i + targetOffset) % numRemainingTargets) + progState.matchCounter;
-    targetPosition = random(0, patchSize) + (i * patchSize);
-
-    progState.idxTargets[targetIdx] = targetPosition * DOT_SIZE;
-  }
+  progState.currColorIdx = currColorIdx;
+  progState.targetPosition = targetPosition;
 }
 
 bool isTargetMatch(PlayerDot &dot) {
@@ -236,17 +224,13 @@ bool isTargetMatch(PlayerDot &dot) {
     return false;
   }
 
-  uint32_t nextTargetColor = targetColors[progState.matchCounter];
-  uint32_t currColor = COLOR_TARGET_DONE;
+  bool isPositionMatch = dot.idxStart == progState.targetPosition;
+  bool isColorMatch = progState.currColorIdx == progState.matchCounter;
 
-  for (int i = 0; i < NUM_TARGETS; i++) {
-    if (dot.idxStart == progState.idxTargets[i]) {
-      currColor = targetColors[i];
-    }
-  }
-
-  if (currColor == COLOR_TARGET_DONE ||
-      currColor != nextTargetColor) {
+  if (isPositionMatch == true && isColorMatch == false) {
+    showColorEffect(0);
+    return false;
+  } else if (isPositionMatch == false || isColorMatch == false) {
     return false;
   }
 
@@ -258,7 +242,7 @@ void drawDots() {
     return;
   }
 
-  drawTargetDots();
+  drawTargetDot();
   drawPlayerDot(dotP1);
   drawPlayerDot(dotP2);
 }
@@ -344,7 +328,7 @@ void initJoysticks() {
 */
 
 void onRandomizeTimer(int idx, int v, int up) {
-  randomizeTargetDots();
+  randomizeTargetDot();
 }
 
 void handleButtonPush(PlayerDot &dot) {
@@ -352,6 +336,7 @@ void handleButtonPush(PlayerDot &dot) {
     return;
   }
 
+  showColorEffect(targetColors[progState.matchCounter]);
   progState.matchCounter++;
 
   if (!enoughTargetsCaptured()) {
@@ -361,7 +346,7 @@ void handleButtonPush(PlayerDot &dot) {
   }
 
   updateShowProgressStrip();
-  randomizeTargetDots();
+  randomizeTargetDot();
   randomizeTimer.start();
 }
 
@@ -430,6 +415,62 @@ void initStrips() {
 
   stripProgress.clear();
   stripProgress.show();
+}
+
+uint32_t randomColor() {
+  byte randVal = random(0, 3);
+
+  if (randVal == 0) {
+    return Adafruit_NeoPixel::Color(random(50, 250), 0, 0);
+  } else if (randVal == 1) {
+    return Adafruit_NeoPixel::Color(0, random(50, 250), 0);
+  } else {
+    return Adafruit_NeoPixel::Color(0, 0, random(50, 250));
+  }
+}
+
+void showColorEffect(uint32_t color) {
+  stripPlayers.clear();
+  stripPlayers.show();
+
+  bool isError = color == 0;
+
+  int blinkMs;
+  int blinkLen;
+  uint32_t showColor;
+
+  if (!isError) {
+    blinkMs = 200;
+    blinkLen = 4;
+  } else {
+    blinkMs = 10;
+    blinkLen = 50;
+  }
+
+  for (int k = 0; k < blinkLen; k++) {
+    if (!isError) {
+      showColor = color;
+    } else {
+      showColor = randomColor();
+    }
+
+    for (int i = 0; i < stripPlayers.numPixels(); i++) {
+      stripPlayers.setPixelColor(i, showColor);
+    }
+
+    stripPlayers.show();
+    delay(blinkMs);
+
+    for (int i = 0; i < stripPlayers.numPixels(); i++) {
+      stripPlayers.setPixelColor(i, 0);
+    }
+
+    stripPlayers.show();
+    delay(blinkMs);
+  }
+
+  stripPlayers.clear();
+  stripPlayers.show();
 }
 
 void updateShowProgressStrip() {
@@ -513,7 +554,7 @@ void setup() {
   initJoysticks();
   initStrips();
   initMachines();
-  randomizeTargetDots();
+  randomizeTargetDot();
 
   Serial.println(">>");
 }
