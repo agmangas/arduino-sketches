@@ -5,6 +5,12 @@
   Structs
 */
 
+typedef struct programState {
+  byte matchCounter;
+  bool relayOpened;
+  byte* idxTargets;
+} ProgramState;
+
 typedef struct joystickInfo {
   byte pinUp;
   byte pinDown;
@@ -12,19 +18,11 @@ typedef struct joystickInfo {
   byte pinRight;
 } JoystickInfo;
 
-typedef struct targetDots {
-  byte* indexes;
-  uint32_t* colors;
-} TargetDots;
-
 typedef struct playerDot {
   int idxStart;
   uint32_t color;
   bool isBlinking;
   bool isBlinkOn;
-  Adafruit_NeoPixel &strip;
-  byte matchCounter;
-  TargetDots targets;
 } PlayerDot;
 
 /**
@@ -33,7 +31,7 @@ typedef struct playerDot {
 
 const int DOT_SIZE = 5;
 const int DELAY_LOOP_MS = 5;
-const int RANDOMIZE_TIMER_MS = 2000;
+const int RANDOMIZE_TIMER_MS = 600;
 
 const int BUTTON_ID_01 = 100;
 const int BUTTON_ID_02 = 200;
@@ -42,20 +40,18 @@ const int JOYSTICK_ID_01 = 1;
 const int JOYSTICK_ID_02 = 2;
 
 const int NUM_TARGETS = 4;
-const int MIN_TARGETS = 4;
 
 /**
    Color consts and arrays
 */
 
-const uint32_t COLOR_PLAYER_1 = Adafruit_NeoPixel::Color(255, 0, 0);
-const uint32_t COLOR_PLAYER_2 = Adafruit_NeoPixel::Color(0, 0, 255);
+const uint32_t COLOR_PLAYER = Adafruit_NeoPixel::Color(255, 255, 255);
 const uint32_t COLOR_TARGET_DONE = Adafruit_NeoPixel::Color(0, 0, 0);
 
 uint32_t targetColors[NUM_TARGETS] = {
-  Adafruit_NeoPixel::Color(255, 255, 0),
-  Adafruit_NeoPixel::Color(255, 255, 0),
-  Adafruit_NeoPixel::Color(255, 255, 0),
+  Adafruit_NeoPixel::Color(255, 0, 0),
+  Adafruit_NeoPixel::Color(0, 255, 0),
+  Adafruit_NeoPixel::Color(0, 255, 255),
   Adafruit_NeoPixel::Color(255, 255, 0)
 };
 
@@ -126,52 +122,34 @@ const uint8_t NEOPIX_PIN_01 = 13;
 const uint16_t NEOPIX_NUM_02 = 120;
 const uint8_t NEOPIX_PIN_02 = 12;
 
-Adafruit_NeoPixel strip01 = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel strip02 = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel stripPlayers = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel stripProgress = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
 
 /**
-   Initialization of PlayerDot structs
+   Initialization of dot structs and program state
 */
-
-byte targetsIdxP1[NUM_TARGETS] = {0, 0, 0};
-
-TargetDots targetsP1 = {
-  .indexes = targetsIdxP1,
-  .colors = targetColors
-};
 
 PlayerDot dotP1 = {
   .idxStart = 30,
-  .color = COLOR_PLAYER_1,
+  .color = COLOR_PLAYER,
   .isBlinking = true,
-  .isBlinkOn = false,
-  .strip = strip01,
-  .matchCounter = 0,
-  .targets = targetsP1
-};
-
-byte targetsIdxP2[NUM_TARGETS] = {0, 0, 0};
-
-TargetDots targetsP2 = {
-  .indexes = targetsIdxP2,
-  .colors = targetColors
+  .isBlinkOn = false
 };
 
 PlayerDot dotP2 = {
-  .idxStart = 30,
-  .color = COLOR_PLAYER_2,
+  .idxStart = 80,
+  .color = COLOR_PLAYER,
   .isBlinking = true,
-  .isBlinkOn = false,
-  .strip = strip02,
-  .matchCounter = 0,
-  .targets = targetsP2
+  .isBlinkOn = false
 };
 
-/**
-   Program state variables
-*/
+byte idxTargets[NUM_TARGETS] = {0, 0, 0, 0};
 
-bool relayOpened = false;
+ProgramState progState = {
+  .matchCounter = 0,
+  .relayOpened = false,
+  .idxTargets = idxTargets
+};
 
 /**
    PlayerDot functions
@@ -181,7 +159,7 @@ bool relayOpened = false;
 
 void movePlayerDotRight(PlayerDot &dot) {
   int idxTarget = dot.idxStart + DOT_SIZE;
-  int limit = dot.strip.numPixels() - DOT_SIZE;
+  int limit = stripPlayers.numPixels() - DOT_SIZE;
 
   if (idxTarget > limit) {
     idxTarget = limit;
@@ -202,17 +180,19 @@ void movePlayerDotLeft(PlayerDot &dot) {
   dot.idxStart = idxTarget;
 }
 
-void drawPlayerDot(PlayerDot &dot) {
+void drawTargetDots() {
   int idxStart;
 
-  for (int i = dot.matchCounter; i < NUM_TARGETS; i++) {
-    idxStart = dot.targets.indexes[i];
+  for (int i = progState.matchCounter; i < NUM_TARGETS; i++) {
+    idxStart = progState.idxTargets[i];
 
     for (int j = idxStart; j < idxStart + DOT_SIZE; j++) {
-      dot.strip.setPixelColor(j, dot.targets.colors[i]);
+      stripPlayers.setPixelColor(j, targetColors[i]);
     }
   }
+}
 
+void drawPlayerDot(PlayerDot &dot) {
   uint32_t drawColor = dot.color;
 
   if (dot.isBlinking && dot.isBlinkOn) {
@@ -223,18 +203,18 @@ void drawPlayerDot(PlayerDot &dot) {
   }
 
   for (int i = dot.idxStart; i < dot.idxStart + DOT_SIZE; i++) {
-    dot.strip.setPixelColor(i, drawColor);
+    stripPlayers.setPixelColor(i, drawColor);
   }
 }
 
-void randomizeTargetDots(PlayerDot &dot) {
-  int numRemainingTargets = NUM_TARGETS - dot.matchCounter;
+void randomizeTargetDots() {
+  int numRemainingTargets = NUM_TARGETS - progState.matchCounter;
 
   if (numRemainingTargets <= 0) {
     return;
   }
 
-  int totalPositions = dot.strip.numPixels() / DOT_SIZE;
+  int totalPositions = stripPlayers.numPixels() / DOT_SIZE;
   int patchSize = totalPositions / numRemainingTargets;
 
   int targetOffset = random(0, numRemainingTargets);
@@ -242,24 +222,24 @@ void randomizeTargetDots(PlayerDot &dot) {
   int targetPosition;
 
   for (int i = 0; i < numRemainingTargets; i++) {
-    targetIdx = ((i + targetOffset) % numRemainingTargets) + dot.matchCounter;
+    targetIdx = ((i + targetOffset) % numRemainingTargets) + progState.matchCounter;
     targetPosition = random(0, patchSize) + (i * patchSize);
 
-    dot.targets.indexes[targetIdx] = targetPosition * DOT_SIZE;
+    progState.idxTargets[targetIdx] = targetPosition * DOT_SIZE;
   }
 }
 
 bool isTargetMatch(PlayerDot &dot) {
-  if (dot.matchCounter >= NUM_TARGETS) {
+  if (progState.matchCounter >= NUM_TARGETS) {
     return false;
   }
 
-  uint32_t nextTargetColor = dot.targets.colors[dot.matchCounter];
+  uint32_t nextTargetColor = targetColors[progState.matchCounter];
   uint32_t currColor = COLOR_TARGET_DONE;
 
   for (int i = 0; i < NUM_TARGETS; i++) {
-    if (dot.idxStart == dot.targets.indexes[i]) {
-      currColor = dot.targets.colors[i];
+    if (dot.idxStart == progState.idxTargets[i]) {
+      currColor = targetColors[i];
     }
   }
 
@@ -272,13 +252,13 @@ bool isTargetMatch(PlayerDot &dot) {
 }
 
 void drawDots() {
-  if (dotP1.matchCounter < NUM_TARGETS) {
-    drawPlayerDot(dotP1);
+  if (progState.matchCounter >= NUM_TARGETS) {
+    return;
   }
 
-  if (dotP2.matchCounter < NUM_TARGETS) {
-    drawPlayerDot(dotP2);
-  }
+  drawTargetDots();
+  drawPlayerDot(dotP1);
+  drawPlayerDot(dotP2);
 }
 
 /**
@@ -361,31 +341,28 @@ void initJoysticks() {
   Button and timer marchines functions
 */
 
-void randomizeTargetDots() {
-  randomizeTargetDots(dotP1);
-  randomizeTargetDots(dotP2);
-}
-
 void onRandomizeTimer(int idx, int v, int up) {
   randomizeTargetDots();
 }
 
 void handleButtonPush(PlayerDot &dot) {
-  if (isTargetMatch(dot)) {
-    dot.matchCounter++;
-
-    if (!enoughTargetsCaptured()) {
-      playTrack(PIN_AUDIO_TRACK_SUCCESS);
-      showMatchSuccessEffect(dot.strip);
-    }
-
-    randomizeTargetDots(dot);
-    randomizeTimer.start();
+  if (!isTargetMatch(dot)) {
+    return;
   }
+
+  progState.matchCounter++;
+
+  if (!enoughTargetsCaptured()) {
+    playTrack(PIN_AUDIO_TRACK_SUCCESS);
+  }
+
+  updateShowProgressStrip();
+  randomizeTargetDots();
+  randomizeTimer.start();
 }
 
 bool enoughTargetsCaptured() {
-  return (dotP1.matchCounter + dotP2.matchCounter) >= MIN_TARGETS;
+  return progState.matchCounter >= NUM_TARGETS;
 }
 
 void onButtonChange(int idx, int v, int up) {
@@ -426,54 +403,54 @@ void initMachines() {
    LED strips functions
 */
 
-void clearStrips() {
-  strip01.clear();
-  strip01.show();
-
-  strip02.clear();
-  strip02.show();
+void clearPlayerStrips() {
+  stripPlayers.clear();
+  stripPlayers.show();
 }
 
-void showStrips() {
-  strip01.show();
-  strip02.show();
+void showPlayerStrips() {
+  stripPlayers.show();
 }
 
 void initStrips() {
-  strip01.begin();
-  strip01.setBrightness(250);
-  strip01.show();
+  stripPlayers.begin();
+  stripPlayers.setBrightness(250);
+  stripPlayers.show();
 
-  strip02.begin();
-  strip02.setBrightness(250);
-  strip02.show();
+  stripProgress.begin();
+  stripProgress.setBrightness(250);
+  stripProgress.show();
 
-  clearStrips();
+  stripPlayers.clear();
+  stripPlayers.show();
+
+  stripProgress.clear();
+  stripProgress.show();
 }
 
-void showMatchSuccessEffect(Adafruit_NeoPixel &strip) {
-  const int totalMs = 3200;
-  const int blinkMs = 30;
-  const int numIters = totalMs / (blinkMs * 2);
+void updateShowProgressStrip() {
+  stripPlayers.clear();
+  stripPlayers.show();
 
-  for (int i = 0; i < numIters; i++) {
-    for (int j = 0; j < strip.numPixels(); j++) {
-      strip.setPixelColor(j, 0, 0, 0);
-    }
+  int stepMs = 20;
+  uint32_t color = Adafruit_NeoPixel::Color(255, 255, 255);
+  int totalPixels = stripProgress.numPixels();
 
-    strip.show();
-    delay(blinkMs);
-
-    for (int j = 0; j < strip.numPixels(); j = j + 3) {
-      strip.setPixelColor(j, 240, 240, 240);
-    }
-
-    strip.show();
-    delay(blinkMs);
+  for (int i = 0; i < totalPixels; i++) {
+    stripProgress.setPixelColor(i, color);
+    stripProgress.show();
+    delay(stepMs);
   }
 
-  strip.clear();
-  strip.show();
+  float filledRatio = ((float) progState.matchCounter) / NUM_TARGETS;
+  filledRatio = (filledRatio > 1.0) ? 1.0 : filledRatio;
+  int filledNum = floor(totalPixels * filledRatio);
+
+  for (int i = totalPixels - 1; i >= filledNum; i--) {
+    stripProgress.setPixelColor(i, 0);
+    stripProgress.show();
+    delay(stepMs);
+  }
 }
 
 /**
@@ -485,12 +462,12 @@ void lockRelay() {
 }
 
 void openRelay() {
-  Serial.println("Relay:ON");
   digitalWrite(FINAL_RELAY_PIN, HIGH);
 
-  if (!relayOpened) {
+  if (progState.relayOpened == false) {
+    Serial.println("Relay:ON");
     playTrack(PIN_AUDIO_TRACK_FINAL);
-    relayOpened = true;
+    progState.relayOpened = true;
   }
 }
 
@@ -537,8 +514,8 @@ void setup() {
 
 void loop() {
   automaton.run();
-  clearStrips();
+  clearPlayerStrips();
   drawDots();
-  showStrips();
+  showPlayerStrips();
   delay(DELAY_LOOP_MS);
 }
