@@ -116,11 +116,13 @@ const byte BUTTON_P02_PIN = 3;
    LED strips initialization
 */
 
-const uint16_t NEOPIX_NUM_01 = 120;
+const uint16_t NEOPIX_NUM_01 = 95;
 const uint8_t NEOPIX_PIN_01 = 13;
 
-const uint16_t NEOPIX_NUM_02 = 120;
+const uint16_t NEOPIX_NUM_02 = 103;
 const uint8_t NEOPIX_PIN_02 = 12;
+
+const int PROGRESS_PATCH_SIZE = 40;
 
 Adafruit_NeoPixel stripPlayers = Adafruit_NeoPixel(NEOPIX_NUM_01, NEOPIX_PIN_01, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel stripProgress = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02, NEO_GRB + NEO_KHZ800);
@@ -354,6 +356,8 @@ void handleButtonPush(PlayerDot &dot) {
 
   if (!enoughTargetsCaptured()) {
     playTrack(PIN_AUDIO_TRACK_SUCCESS);
+  } else {
+    playTrack(PIN_AUDIO_TRACK_FINAL);
   }
 
   updateShowProgressStrip();
@@ -429,10 +433,10 @@ void initStrips() {
 }
 
 void updateShowProgressStrip() {
-  stripPlayers.clear();
-  stripPlayers.show();
+  stripProgress.clear();
+  stripProgress.show();
 
-  int stepMs = 20;
+  int stepMs = 15;
   uint32_t color = Adafruit_NeoPixel::Color(255, 255, 255);
   int totalPixels = stripProgress.numPixels();
 
@@ -442,12 +446,15 @@ void updateShowProgressStrip() {
     delay(stepMs);
   }
 
+  stripProgress.clear();
+  stripProgress.show();
+
   float filledRatio = ((float) progState.matchCounter) / NUM_TARGETS;
   filledRatio = (filledRatio > 1.0) ? 1.0 : filledRatio;
-  int filledNum = floor(totalPixels * filledRatio);
+  int filledNum = floor(PROGRESS_PATCH_SIZE * filledRatio);
 
-  for (int i = totalPixels - 1; i >= filledNum; i--) {
-    stripProgress.setPixelColor(i, 0);
+  for (int i = totalPixels; i >= (totalPixels - filledNum); i--) {
+    stripProgress.setPixelColor(i, color);
     stripProgress.show();
     delay(stepMs);
   }
@@ -466,7 +473,6 @@ void openRelay() {
 
   if (progState.relayOpened == false) {
     Serial.println("Relay:ON");
-    playTrack(PIN_AUDIO_TRACK_FINAL);
     progState.relayOpened = true;
   }
 }
