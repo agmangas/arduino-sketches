@@ -24,6 +24,8 @@ typedef struct playerDot {
   uint32_t color;
   bool isBlinking;
   bool isBlinkOn;
+  int minIdxStart;
+  int maxIdxStart;
 } PlayerDot;
 
 /**
@@ -32,7 +34,10 @@ typedef struct playerDot {
 
 const int DOT_SIZE = 5;
 const int DELAY_LOOP_MS = 5;
-const int RANDOMIZE_TIMER_MS = 600;
+
+const unsigned int RANDOMIZE_TIMER_MS_SLOW = 2000;
+const unsigned int RANDOMIZE_TIMER_MS_FAST = 600;
+const unsigned int RANDOMIZE_TIMER_MS_FASTER = 500;
 
 const int BUTTON_ID_01 = 100;
 const int BUTTON_ID_02 = 200;
@@ -132,18 +137,22 @@ Adafruit_NeoPixel stripProgress = Adafruit_NeoPixel(NEOPIX_NUM_02, NEOPIX_PIN_02
    Initialization of dot structs and program state
 */
 
-PlayerDot dotP1 = {
+PlayerDot dotP2 = {
   .idxStart = 20,
   .color = COLOR_PLAYER,
   .isBlinking = true,
-  .isBlinkOn = false
+  .isBlinkOn = false,
+  .minIdxStart = 0,
+  .maxIdxStart = 9 * DOT_SIZE
 };
 
-PlayerDot dotP2 = {
-  .idxStart = 80,
+PlayerDot dotP1 = {
+  .idxStart = 75,
   .color = COLOR_PLAYER,
   .isBlinking = true,
-  .isBlinkOn = false
+  .isBlinkOn = false,
+  .minIdxStart = dotP2.maxIdxStart + DOT_SIZE,
+  .maxIdxStart = NEOPIX_NUM_01 - DOT_SIZE
 };
 
 ProgramState progState = {
@@ -162,6 +171,7 @@ ProgramState progState = {
 void movePlayerDotRight(PlayerDot &dot) {
   int idxTarget = dot.idxStart + DOT_SIZE;
   int limit = stripPlayers.numPixels() - DOT_SIZE;
+  limit = limit > dot.maxIdxStart ? dot.maxIdxStart : limit;
 
   if (idxTarget > limit) {
     idxTarget = limit;
@@ -174,9 +184,13 @@ void movePlayerDotRight(PlayerDot &dot) {
 
 void movePlayerDotLeft(PlayerDot &dot) {
   int idxTarget = dot.idxStart - DOT_SIZE;
+  int limit = 0;
+  limit = dot.minIdxStart > limit ? dot.minIdxStart : limit;
 
-  if (idxTarget < 0) {
-    idxTarget = 0;
+  Serial.println(limit);
+
+  if (idxTarget < limit) {
+    idxTarget = limit;
   }
 
   dot.idxStart = idxTarget;
@@ -213,7 +227,9 @@ void randomizeTargetDot() {
 
   int totalPositions = stripPlayers.numPixels() / DOT_SIZE;
   int targetPosition = random(0, totalPositions) * DOT_SIZE;
-  int currColorIdx = random(progState.matchCounter, NUM_TARGETS);
+
+  int currColorIdx = progState.matchCounter > 0 ?
+                     random(progState.matchCounter, NUM_TARGETS) : 0;
 
   progState.currColorIdx = currColorIdx;
   progState.targetPosition = targetPosition;
@@ -327,6 +343,20 @@ void initJoysticks() {
   Button and timer marchines functions
 */
 
+unsigned int getTimerIntervalMs() {
+  switch (progState.matchCounter) {
+    case 0:
+      return RANDOMIZE_TIMER_MS_SLOW;
+      break;
+    case 1:
+      return RANDOMIZE_TIMER_MS_FAST;
+      break;
+    default:
+      return RANDOMIZE_TIMER_MS_FASTER;
+      break;
+  }
+}
+
 void onRandomizeTimer(int idx, int v, int up) {
   randomizeTargetDot();
 }
@@ -347,7 +377,10 @@ void handleButtonPush(PlayerDot &dot) {
 
   updateShowProgressStrip();
   randomizeTargetDot();
-  randomizeTimer.start();
+
+  randomizeTimer
+  .interval(getTimerIntervalMs())
+  .start();
 }
 
 bool enoughTargetsCaptured() {
@@ -374,7 +407,7 @@ void onButtonChange(int idx, int v, int up) {
 
 void initMachines() {
   randomizeTimer
-  .begin(RANDOMIZE_TIMER_MS)
+  .begin(getTimerIntervalMs())
   .repeat(-1)
   .onTimer(onRandomizeTimer)
   .start();
