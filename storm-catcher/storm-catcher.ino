@@ -35,9 +35,9 @@ typedef struct playerDot {
 const int DOT_SIZE = 5;
 const int DELAY_LOOP_MS = 5;
 
-const unsigned int RANDOMIZE_TIMER_MS_SLOW = 2000;
-const unsigned int RANDOMIZE_TIMER_MS_FAST = 600;
-const unsigned int RANDOMIZE_TIMER_MS_FASTER = 500;
+const unsigned int RANDOMIZE_TIMER_MS_SLOW = 10000;
+const unsigned int RANDOMIZE_TIMER_MS_FAST = 1000;
+const unsigned int RANDOMIZE_TIMER_MS_FASTER = 1000;
 
 const int BUTTON_ID_01 = 100;
 const int BUTTON_ID_02 = 200;
@@ -108,8 +108,12 @@ const byte FINAL_RELAY_PIN = A0;
    Audio track pins
 */
 
+// T00
 const byte PIN_AUDIO_TRACK_SUCCESS = A1;
+// T01
 const byte PIN_AUDIO_TRACK_FINAL = A2;
+// T02
+const byte PIN_AUDIO_TRACK_ERROR = A3;
 
 /**
    Button pins
@@ -244,6 +248,7 @@ bool isTargetMatch(PlayerDot &dot) {
   bool isColorMatch = progState.currColorIdx == progState.matchCounter;
 
   if (isPositionMatch == true && isColorMatch == false) {
+    playTrack(PIN_AUDIO_TRACK_ERROR);
     showColorEffect(0);
     return false;
   } else if (isPositionMatch == false || isColorMatch == false) {
@@ -523,14 +528,19 @@ void updateShowProgressStrip() {
   stripProgress.clear();
   stripProgress.show();
 
-  float filledRatio = ((float) progState.matchCounter) / NUM_TARGETS;
-  filledRatio = (filledRatio > 1.0) ? 1.0 : filledRatio;
-  int filledNum = floor(PROGRESS_PATCH_SIZE * filledRatio);
+  int patchStepSize = floor((float) PROGRESS_PATCH_SIZE / NUM_TARGETS);
+  int patchIdxIni = totalPixels;
+  int patchIdxEnd = patchIdxIni - patchStepSize;
 
-  for (int i = totalPixels; i >= (totalPixels - filledNum); i--) {
-    stripProgress.setPixelColor(i, color);
-    stripProgress.show();
-    delay(stepMs);
+  for (int i = 0; i < progState.matchCounter; i++) {
+    for (int j = patchIdxIni; j >= patchIdxEnd; j--) {
+      stripProgress.setPixelColor(j, targetColors[i]);
+      stripProgress.show();
+      delay(stepMs);
+    }
+
+    patchIdxIni = patchIdxEnd - 1;
+    patchIdxEnd = patchIdxIni - patchStepSize;
   }
 }
 
@@ -572,6 +582,9 @@ void initAudioPins() {
 
   pinMode(PIN_AUDIO_TRACK_FINAL, OUTPUT);
   digitalWrite(PIN_AUDIO_TRACK_FINAL, HIGH);
+
+  pinMode(PIN_AUDIO_TRACK_ERROR, OUTPUT);
+  digitalWrite(PIN_AUDIO_TRACK_ERROR, HIGH);
 }
 
 /**
