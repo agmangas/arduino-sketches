@@ -234,6 +234,6 @@ void loop() {
     Serial.flush();
 
     digitalWrite(LOCK_RELAY_PIN, HIGH);
-    progState.relayOpened == true;
+    progState.relayOpened = true;
   }
 }
