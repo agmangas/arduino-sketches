@@ -1,3 +1,5 @@
+#include <Adafruit_NeoPixel.h>
+
 /**
    Structs.
 */
@@ -23,9 +25,29 @@ const int MIN_ACTIVE_COUNTER = 20;
    Photoresistor constants.
 */
 
-const int NUM_PHOTORESISTORS = 1;
-const int PIN_PHOTORESISTORS[NUM_PHOTORESISTORS] = {A0};
-const int LIGHT_THRESHOLD = 50;
+const int NUM_PHOTORESISTORS = 2;
+const int PIN_PHOTORESISTORS[NUM_PHOTORESISTORS] = {2, 3};
+
+/**
+   LED strips.
+*/
+
+const int DEFAULT_BRIGHTNESS = 100;
+
+const uint16_t NEOPIXEL_NUMS[NUM_PHOTORESISTORS] = {
+  1, 1
+};
+
+const uint8_t NEOPIXEL_PINS[NUM_PHOTORESISTORS] = {
+  11, 12
+};
+
+const uint32_t COLORS[NUM_PHOTORESISTORS] = {
+  Adafruit_NeoPixel::Color(255, 0, 255),
+  Adafruit_NeoPixel::Color(255, 0, 255)
+};
+
+Adafruit_NeoPixel pixelStrips[NUM_PHOTORESISTORS];
 
 /**
    Relay constants.
@@ -43,13 +65,9 @@ void initPhoto() {
   }
 }
 
-int readPhotoValue(int idx) {
-  return analogRead(PIN_PHOTORESISTORS[idx]);
-}
-
 bool arePhotoActivated() {
   for (int i = 0; i < NUM_PHOTORESISTORS; i++) {
-    if (readPhotoValue(i) > LIGHT_THRESHOLD) {
+    if (digitalRead(PIN_PHOTORESISTORS[i]) == HIGH) {
       return false;
     }
   }
@@ -62,6 +80,38 @@ void checkPhotoUpdateCounter() {
     progState.activeCounter++;
   } else {
     progState.activeCounter = 0;
+  }
+}
+
+/**
+   LED functions.
+*/
+
+void initLedStrips() {
+  for (int i = 0; i < NUM_PHOTORESISTORS; i++) {
+    pixelStrips[i] = Adafruit_NeoPixel(NEOPIXEL_NUMS[i], NEOPIXEL_PINS[i], NEO_GRB + NEO_KHZ800);
+    pixelStrips[i].begin();
+    pixelStrips[i].setBrightness(DEFAULT_BRIGHTNESS);
+    pixelStrips[i].clear();
+    pixelStrips[i].show();
+  }
+}
+
+void updateLedStrip(int idx) {
+  pixelStrips[idx].clear();
+
+  if (progState.isOpen) {
+    for (int j = 0; j < NEOPIXEL_NUMS[idx]; j++) {
+      pixelStrips[idx].setPixelColor(j, COLORS[idx]);
+    }
+  }
+
+  pixelStrips[idx].show();
+}
+
+void updateLedStrips() {
+  for (int i = 0; i < NUM_PHOTORESISTORS; i++) {
+    updateLedStrip(i);
   }
 }
 
@@ -111,6 +161,7 @@ void setup() {
 
   initPhoto();
   initRelay();
+  initLedStrips();
 
   Serial.println(">> Starting light lock program");
 }
@@ -118,5 +169,6 @@ void setup() {
 void loop() {
   checkPhotoUpdateCounter();
   checkCounterToOpenRelay();
+  updateLedStrips();
   delay(DELAY_LOOP_MS);
 }
