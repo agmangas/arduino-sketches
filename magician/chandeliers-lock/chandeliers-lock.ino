@@ -32,7 +32,7 @@ Atm_button digitalSwitches[NUM_DIGITAL_SWITCH];
 const int DEFAULT_BRIGHTNESS = 220;
 
 const uint16_t NEOPIXEL_NUMS[NUM_DIGITAL_SWITCH] = {
-  30, 30, 30
+  1, 1, 1
 };
 
 const uint8_t NEOPIXEL_PINS[NUM_DIGITAL_SWITCH] = {
