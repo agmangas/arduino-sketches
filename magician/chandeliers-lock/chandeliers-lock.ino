@@ -29,7 +29,7 @@ Atm_button digitalSwitches[NUM_DIGITAL_SWITCH];
    LED constants.
 */
 
-const int DEFAULT_BRIGHTNESS = 220;
+const int DEFAULT_BRIGHTNESS = 120;
 
 const uint16_t NEOPIXEL_NUMS[NUM_DIGITAL_SWITCH] = {
   1, 1, 1
@@ -37,12 +37,6 @@ const uint16_t NEOPIXEL_NUMS[NUM_DIGITAL_SWITCH] = {
 
 const uint8_t NEOPIXEL_PINS[NUM_DIGITAL_SWITCH] = {
   4, 5, 6
-};
-
-const uint32_t COLOR_SWITCHES[NUM_DIGITAL_SWITCH] = {
-  Adafruit_NeoPixel::Color(255, 0, 0),
-  Adafruit_NeoPixel::Color(0, 255, 0),
-  Adafruit_NeoPixel::Color(0, 0, 255)
 };
 
 Adafruit_NeoPixel pixelStrips[NUM_DIGITAL_SWITCH];
@@ -91,19 +85,13 @@ void initDigitalSwitches() {
 */
 
 void lockRelay() {
-  if (digitalRead(PIN_RELAY) == HIGH) {
-    Serial.println("Relay:Lock");
-  }
-
   digitalWrite(PIN_RELAY, LOW);
+  progState.isOpened = false;
 }
 
 void openRelay() {
-  if (digitalRead(PIN_RELAY) == LOW) {
-    Serial.println("Relay:Open");
-  }
-
   digitalWrite(PIN_RELAY, HIGH);
+  progState.isOpened = true;
 }
 
 void initRelay() {
@@ -111,21 +99,26 @@ void initRelay() {
   lockRelay();
 }
 
-void checkStatusToOpenRelay() {
-  if (progState.isOpened) {
-    return;
-  }
-
-  if (allDigitalSwitchesOn()) {
+void checkStatusToUpdateRelay() {
+  if (allDigitalSwitchesOn() && !progState.isOpened) {
     Serial.println("All switches OK: Opening Relay");
-    progState.isOpened = true;
     openRelay();
+  } else if (!allDigitalSwitchesOn() && progState.isOpened) {
+    Serial.println("Some switches are off: Locking Relay");
+    lockRelay();
   }
 }
 
 /**
    LED functions.
 */
+
+uint32_t getRandomReddishColor() {
+  return Adafruit_NeoPixel::Color(
+           random(200, 255),
+           random(0, 70),
+           0);
+}
 
 void initLedStrips() {
   for (int i = 0; i < NUM_DIGITAL_SWITCH; i++) {
@@ -140,9 +133,9 @@ void initLedStrips() {
 void updateLedStrip(int idx) {
   pixelStrips[idx].clear();
 
-  if (isDigitalSwitchOn(idx)) {
+  if (allDigitalSwitchesOn()) {
     for (int j = 0; j < NEOPIXEL_NUMS[idx]; j++) {
-      pixelStrips[idx].setPixelColor(j, COLOR_SWITCHES[idx]);
+      pixelStrips[idx].setPixelColor(j, getRandomReddishColor());
     }
   }
 
@@ -168,5 +161,5 @@ void setup() {
 void loop() {
   automaton.run();
   updateLedStrips();
-  checkStatusToOpenRelay();
+  checkStatusToUpdateRelay();
 }
