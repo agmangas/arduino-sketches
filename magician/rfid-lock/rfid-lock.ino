@@ -44,7 +44,7 @@ const uint16_t NEOPIXEL_NUMS[NUM_READERS] = {
 };
 
 const uint8_t NEOPIXEL_PINS[NUM_READERS] = {
-  4, 5, 6
+  3, 4, 5
 };
 
 const uint32_t LED_COLORS[NUM_READERS] = {
