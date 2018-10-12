@@ -37,7 +37,7 @@ const unsigned long MAX_ACTIVATION_DELAY_MS = 3600000;
    LED constants.
 */
 
-const int DEFAULT_BRIGHTNESS = 120;
+const int DEFAULT_BRIGHTNESS = 100;
 
 const uint16_t NEOPIXEL_NUMS[NUM_READERS] = {
   1, 1, 1
