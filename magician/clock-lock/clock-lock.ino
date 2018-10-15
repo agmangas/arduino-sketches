@@ -1,5 +1,6 @@
 #include <Automaton.h>
 #include <Adafruit_NeoPixel.h>
+#include "limits.h"
 
 typedef struct programState {
   unsigned long encoderCounter;
@@ -28,6 +29,8 @@ const byte RELAY_PIN = 7;
 const int ENCODER_TIMER_MS = 1000;
 const int ENCODER_COUNTER_THRESHOLD = 150;
 
+const unsigned long OPEN_INTERVAL_MS = 60000;
+
 const int ENC_RANGE_LO = 0;
 const int ENC_RANGE_HI = 100;
 
@@ -43,9 +46,6 @@ void onMaxEncoderLevel(int idx, int v, int up) {
   }
 
   Serial.println("Max encoder level reached");
-
-  programState.isOpen = true;
-  programState.openMillis = millis();
 
   openRelay();
 }
@@ -74,6 +74,29 @@ bool isEncoderLevelOverThreshold(int idx) {
 }
 
 void onEncoderTimer(int idx, int v, int up) {
+  if (!programState.isOpen || programState.openMillis == 0) {
+    return;
+  }
+
+  unsigned long now = millis();
+  unsigned long diffMs;
+
+  if (programState.openMillis > now) {
+    diffMs = (ULONG_MAX - programState.openMillis) + now;
+    Serial.println("WARNING: Clock overflow");
+  } else {
+    diffMs = now - programState.openMillis;
+  }
+
+  if (diffMs > OPEN_INTERVAL_MS) {
+    Serial.println("Open timer has expired: Locking relay");
+    lockRelay();
+    programState.encoderCounter = 0;
+  } else {
+    Serial.print("Time left: ");
+    Serial.print(OPEN_INTERVAL_MS - diffMs);
+    Serial.println(" ms");
+  }
 }
 
 void initMachines() {
@@ -97,11 +120,17 @@ void initMachines() {
 void lockRelay() {
   digitalWrite(RELAY_PIN, LOW);
   digitalWrite(LED_BUILTIN, LOW);
+
+  programState.isOpen = false;
+  programState.openMillis = 0;
 }
 
 void openRelay() {
   digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(LED_BUILTIN, HIGH);
+
+  programState.isOpen = true;
+  programState.openMillis = millis();
 }
 
 void initRelay() {
