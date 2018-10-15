@@ -48,9 +48,9 @@ const uint8_t NEOPIXEL_PINS[NUM_READERS] = {
 };
 
 const uint32_t LED_COLORS[NUM_READERS] = {
-  Adafruit_NeoPixel::Color(255, 0, 0),
-  Adafruit_NeoPixel::Color(0, 255, 0),
-  Adafruit_NeoPixel::Color(0, 0, 255)
+  Adafruit_NeoPixel::Color(0, 255, 255),
+  Adafruit_NeoPixel::Color(0, 255, 255),
+  Adafruit_NeoPixel::Color(0, 255, 255)
 };
 
 Adafruit_NeoPixel pixelStrips[NUM_READERS];
@@ -75,9 +75,9 @@ SerialRFID rfid02(sSerial02);
 */
 
 char acceptedTags[NUM_READERS][SIZE_TAG_ID] = {
-  "011005CD9B42",
-  "011005CD9C45",
-  "011005CE79A3"
+  "1D00277FBDF8",
+  "1D00278D53E4",
+  "1D0027B80A88"
 };
 
 /**
@@ -283,7 +283,7 @@ void setup() {
   sSerial01.begin(9600);
   sSerial02.begin(9600);
 
-  lockRelay();
+  initRelay();
   updateListenerPort();
   initLedStrips();
 
