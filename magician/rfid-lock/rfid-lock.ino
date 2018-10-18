@@ -136,6 +136,12 @@ void readMainTag() {
     Serial.println();
     Serial.flush();
 
+    if (!SerialRFID::isEqualTag(newTag, acceptedTags[0])) {
+      Serial.println("Invalid tag on HW serial");
+      clearStreamsAndBuffers();
+      return;
+    }
+
     for (int k = 0; k < LEN_TAG_ID; k++) {
       currentTags[0][k] = newTag[k];
     }
@@ -160,6 +166,13 @@ void readSecondaryTag(SerialRFID &theRfid, int portIndex) {
     Serial.print(portIndex);
     Serial.println();
     Serial.flush();
+
+    if (!SerialRFID::isEqualTag(newTag, acceptedTags[portIndex])) {
+      Serial.print("Invalid tag on SW serial: ");
+      Serial.println(portIndex);
+      clearStreamsAndBuffers();
+      return;
+    }
 
     for (int k = 0; k < LEN_TAG_ID; k++) {
       currentTags[portIndex][k] = newTag[k];
