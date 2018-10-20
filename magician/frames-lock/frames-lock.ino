@@ -36,6 +36,12 @@ RDM6300 rfidReaders[NUM_READERS] = {
   rfid04
 };
 
+unsigned int readerEmptyCount[NUM_READERS] = {
+  0, 0, 0, 0
+};
+
+const unsigned int EMPTY_TOLERANCE = 1;
+
 String currentTags[NUM_READERS];
 
 String validTags[NUM_READERS] = {
@@ -56,8 +62,18 @@ void initRfidReaders() {
 }
 
 void pollRfidReaders() {
+  String tagId;
+
   for (int i = 0; i < NUM_READERS; i++) {
-    currentTags[i] = rfidReaders[i].getTagId();
+    tagId = rfidReaders[i].getTagId();
+
+    if (tagId.length()) {
+      readerEmptyCount[i] = 0;
+    } else if (readerEmptyCount[i]  <= EMPTY_TOLERANCE) {
+      readerEmptyCount[i] += 1;
+    }
+
+    currentTags[i] = tagId;
   }
 }
 
