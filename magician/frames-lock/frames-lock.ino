@@ -1,18 +1,6 @@
 #include "rdm630.h"
 
 /**
-  Structs.
-*/
-
-typedef struct programState {
-  bool relayOpened;
-} ProgramState;
-
-ProgramState progState = {
-  .relayOpened = false
-};
-
-/**
    Relay
 */
 
@@ -23,6 +11,8 @@ const byte PIN_RELAY = 11;
 */
 
 const byte NUM_READERS = 4;
+
+// RX, TX
 
 RDM6300 rfid01(2, 3);
 RDM6300 rfid02(4, 5);
@@ -36,10 +26,6 @@ RDM6300 rfidReaders[NUM_READERS] = {
   rfid04
 };
 
-unsigned int readerEmptyCount[NUM_READERS] = {
-  0, 0, 0, 0
-};
-
 const unsigned int EMPTY_TOLERANCE = 1;
 
 String currentTags[NUM_READERS];
@@ -49,6 +35,20 @@ String validTags[NUM_READERS] = {
   "1D00277B1400",
   "1D00277B1500",
   "1D00277B1600"
+};
+
+/**
+  Structs.
+*/
+
+typedef struct programState {
+  bool relayOpened;
+  unsigned int emptyReadCount[NUM_READERS];
+} ProgramState;
+
+ProgramState progState = {
+  .relayOpened = false,
+  .emptyReadCount = {0, 0, 0, 0}
 };
 
 /**
@@ -68,9 +68,17 @@ void pollRfidReaders() {
     tagId = rfidReaders[i].getTagId();
 
     if (tagId.length()) {
-      readerEmptyCount[i] = 0;
-    } else if (readerEmptyCount[i]  <= EMPTY_TOLERANCE) {
-      readerEmptyCount[i] += 1;
+      progState.emptyReadCount[i] = 0;
+    } else if (progState.emptyReadCount[i] <= EMPTY_TOLERANCE) {
+      progState.emptyReadCount[i] += 1;
+    }
+
+    if (!tagId.length() &&
+        currentTags[i].length() &&
+        progState.emptyReadCount[i] <= EMPTY_TOLERANCE) {
+      Serial.print("Ignoring empty read on reader: ");
+      Serial.println(i);
+      return;
     }
 
     currentTags[i] = tagId;
