@@ -13,13 +13,13 @@ const byte NUM_STAGES = 3;
 */
 
 typedef struct programState {
-  bool isStageLit[NUM_STAGES];
+  bool isStageCompleted[NUM_STAGES];
   bool isRelayOpen[NUM_STAGES];
   short currentActiveStage;
 } ProgramState;
 
 ProgramState progState = {
-  .isStageLit = {false, false, false},
+  .isStageCompleted = {false, false, false},
   .isRelayOpen = {false, false, false},
   .currentActiveStage = -1
 };
@@ -96,7 +96,10 @@ void initLedStrip() {
 }
 
 void showMainLeds() {
-  uint32_t color = (progState.currentActiveStage < 0) || (progState.currentActiveStage >= NUM_STAGES) ?
+  bool noStageActive = (progState.currentActiveStage < 0) ||
+                       (progState.currentActiveStage >= NUM_STAGES);
+
+  uint32_t color = noStageActive ?
                    Adafruit_NeoPixel::Color(0, 0, 0) :
                    LED_COLORS[progState.currentActiveStage];
 
@@ -116,7 +119,7 @@ void showStageLeds(byte idxStage) {
 
   int endIdx = iniIdx + LED_STAGE_PATCH_SIZES[idxStage];
 
-  uint32_t color = (progState.isStageLit[idxStage]) ?
+  uint32_t color = (progState.isStageCompleted[idxStage]) ?
                    LED_COLORS[idxStage] :
                    Adafruit_NeoPixel::Color(0, 0, 0);
 
@@ -193,6 +196,76 @@ void initRelays() {
   }
 }
 
+void updateRelay(byte idx) {
+  if (progState.isStageCompleted[idx] && !progState.isRelayOpen[idx]) {
+    openRelay(idx);
+  } else if (!progState.isStageCompleted[idx] && progState.isRelayOpen[idx]) {
+    lockRelay(idx);
+  }
+}
+
+void updateRelays() {
+  for (int i = 0; i < NUM_STAGES; i++) {
+    updateRelay(i);
+  }
+}
+
+/**
+   RFID functions.
+*/
+
+void readTagId() {
+  const unsigned long OPEN_RELAY_SLEEP_MS = 1000;
+  const unsigned long AUDIO_WAIT_SLEEP_MS = 10;
+  const unsigned long MAX_AUDIO_WAIT_MS = 10000;
+
+  unsigned long ini;
+  unsigned long now;
+
+  if (rfid.readTag(tagId, sizeof(tagId))) {
+    tagIdMillis = millis();
+
+    Serial.print("Tag: ");
+    Serial.println(tagId);
+
+    for (int i = 0; i < NUM_STAGES; i++) {
+      if (SerialRFID::isEqualTag(tagId, validStageTags[i])) {
+        Serial.print("Tag match for stage: ");
+        Serial.println(i);
+
+        progState.isStageCompleted[i] = true;
+        progState.currentActiveStage = i;
+
+        showMainLeds();
+        playTrack(PIN_AUDIO_T0);
+
+        ini = millis();
+
+        while (isTrackPlaying()) {
+          delay(AUDIO_WAIT_SLEEP_MS);
+
+          now = millis();
+
+          if ((now < ini) || ((now - ini) > MAX_AUDIO_WAIT_MS)) {
+            Serial.println("Max audio wait time reached: Breaking loop");
+            break;
+          }
+        }
+
+        Serial.print("Sleeping for (ms): ");
+        Serial.println(OPEN_RELAY_SLEEP_MS);
+
+        delay(OPEN_RELAY_SLEEP_MS);
+
+        updateRelay(i);
+        showStageLeds(i);
+
+        break;
+      }
+    }
+  }
+}
+
 /**
    Entrypoint.
 */
@@ -210,5 +283,7 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  readTagId();
+  showLeds();
+  updateRelays();
 }
