@@ -79,7 +79,11 @@ char validStageTags[NUM_STAGES][SIZE_TAG_ID] = {
   "1D0027B80A88"
 };
 
-const char RESET_TAG[SIZE_TAG_ID] = "112233445566";
+const byte NUM_RESET_TAGS = 1;
+
+const char resetTags[NUM_RESET_TAGS][SIZE_TAG_ID] = {
+  "112233445566"
+};
 
 char tagId[SIZE_TAG_ID];
 unsigned long tagIdMillis;
@@ -263,6 +267,18 @@ void onValidStageTagId(int idx) {
   showStageLeds(idx);
 }
 
+void onResetTagId() {
+  ledStrip.clear();
+  ledStrip.show();
+
+  for (int i = 0; i < NUM_STAGES; i++) {
+    lockRelay(i);
+    progState.isStageCompleted[i] = false;
+  }
+
+  progState.currentActiveStage = -1;
+}
+
 void readTagId() {
   if (rfid.readTag(tagId, sizeof(tagId))) {
     tagIdMillis = millis();
@@ -272,11 +288,17 @@ void readTagId() {
 
     for (int i = 0; i < NUM_STAGES; i++) {
       if (SerialRFID::isEqualTag(tagId, validStageTags[i])) {
-        Serial.print("Tag match for stage: ");
+        Serial.print("Stage tag match: ");
         Serial.println(i);
-
         onValidStageTagId(i);
+        return;
+      }
+    }
 
+    for (int i = 0; i < NUM_RESET_TAGS; i++) {
+      if (SerialRFID::isEqualTag(tagId, resetTags[i])) {
+        Serial.println("Reset tag match");
+        onResetTagId();
         return;
       }
     }
