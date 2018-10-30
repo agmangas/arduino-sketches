@@ -214,7 +214,7 @@ void updateRelays() {
    RFID functions.
 */
 
-void readTagId() {
+void onValidStageTagId(int idx) {
   const unsigned long OPEN_RELAY_SLEEP_MS = 1000;
   const unsigned long AUDIO_WAIT_SLEEP_MS = 10;
   const unsigned long MAX_AUDIO_WAIT_MS = 10000;
@@ -222,6 +222,41 @@ void readTagId() {
   unsigned long ini;
   unsigned long now;
 
+  progState.isStageCompleted[idx] = true;
+  progState.currentActiveStage = idx;
+
+  Serial.println("Showing main LEDs & playing audio");
+
+  showMainLeds();
+  playTrack(PIN_AUDIO_T0);
+
+  Serial.println("Waiting for audio track to finish");
+
+  ini = millis();
+
+  while (isTrackPlaying()) {
+    delay(AUDIO_WAIT_SLEEP_MS);
+
+    now = millis();
+
+    if ((now < ini) || ((now - ini) > MAX_AUDIO_WAIT_MS)) {
+      Serial.println("Max audio wait: Breaking loop");
+      break;
+    }
+  }
+
+  Serial.print("Sleeping for (ms): ");
+  Serial.println(OPEN_RELAY_SLEEP_MS);
+
+  delay(OPEN_RELAY_SLEEP_MS);
+
+  Serial.println("Updating relays and showing stage LEDs");
+
+  updateRelay(idx);
+  showStageLeds(idx);
+}
+
+void readTagId() {
   if (rfid.readTag(tagId, sizeof(tagId))) {
     tagIdMillis = millis();
 
@@ -233,34 +268,9 @@ void readTagId() {
         Serial.print("Tag match for stage: ");
         Serial.println(i);
 
-        progState.isStageCompleted[i] = true;
-        progState.currentActiveStage = i;
+        onValidStageTagId(i);
 
-        showMainLeds();
-        playTrack(PIN_AUDIO_T0);
-
-        ini = millis();
-
-        while (isTrackPlaying()) {
-          delay(AUDIO_WAIT_SLEEP_MS);
-
-          now = millis();
-
-          if ((now < ini) || ((now - ini) > MAX_AUDIO_WAIT_MS)) {
-            Serial.println("Max audio wait time reached: Breaking loop");
-            break;
-          }
-        }
-
-        Serial.print("Sleeping for (ms): ");
-        Serial.println(OPEN_RELAY_SLEEP_MS);
-
-        delay(OPEN_RELAY_SLEEP_MS);
-
-        updateRelay(i);
-        showStageLeds(i);
-
-        break;
+        return;
       }
     }
   }
