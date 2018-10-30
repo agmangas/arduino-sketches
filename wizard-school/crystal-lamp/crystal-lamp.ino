@@ -215,6 +215,13 @@ void updateRelays() {
 */
 
 void onValidStageTagId(int idx) {
+  if (progState.isStageCompleted[idx]) {
+    progState.currentActiveStage = idx;
+    Serial.print("Stage is already completed: ");
+    Serial.println(idx);
+    return;
+  }
+
   const unsigned long OPEN_RELAY_SLEEP_MS = 1000;
   const unsigned long AUDIO_WAIT_SLEEP_MS = 10;
   const unsigned long MAX_AUDIO_WAIT_MS = 10000;
