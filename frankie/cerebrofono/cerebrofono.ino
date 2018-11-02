@@ -77,8 +77,8 @@ Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(
 
 void initAudio() {
   for (int i = 0; i < NUM_TRACKS; i++) {
-    pinMode(TRACK_PINS[i], OUTPUT);
     digitalWrite(TRACK_PINS[i], HIGH);
+    pinMode(TRACK_PINS[i], OUTPUT);
   }
 }
 
