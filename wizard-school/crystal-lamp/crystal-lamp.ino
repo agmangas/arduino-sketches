@@ -148,17 +148,14 @@ void showLeds() {
 
 void playTrack(byte trackPin) {
   digitalWrite(trackPin, LOW);
-  delay(500);
-  digitalWrite(trackPin, HIGH);
+  pinMode(trackPin, OUTPUT);
+  delay(200);
+  pinMode(trackPin, INPUT);
 }
 
 void initAudioPins() {
-  pinMode(PIN_AUDIO_T0, OUTPUT);
-  digitalWrite(PIN_AUDIO_T0, HIGH);
-
-  pinMode(PIN_AUDIO_T1, OUTPUT);
-  digitalWrite(PIN_AUDIO_T1, HIGH);
-
+  pinMode(PIN_AUDIO_T0, INPUT);
+  pinMode(PIN_AUDIO_T1, INPUT);
   pinMode(PIN_AUDIO_ACT, INPUT);
   pinMode(PIN_AUDIO_RST, INPUT);
 }
