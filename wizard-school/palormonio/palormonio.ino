@@ -1,6 +1,19 @@
 #include <Automaton.h>
 #include <Adafruit_NeoPixel.h>
+#include <CircularBuffer.h>
 #include "limits.h"
+
+/**
+  Structs.
+*/
+
+typedef struct programState {
+  bool isAllowedToPlay;
+} ProgramState;
+
+ProgramState progState = {
+  .isAllowedToPlay = true
+};
 
 /**
    Microphones.
@@ -20,6 +33,33 @@ const byte MICRO_PINS[MICROS_NUM] = {
 uint16_t MICROS_AVG_BUFS[MICROS_NUM][MICROS_AVG_BUF_SIZE];
 
 Atm_analog microphones[MICROS_NUM];
+
+/**
+   Solution key.
+*/
+
+const int SOLUTION_SIZE = 10;
+
+CircularBuffer<byte, SOLUTION_SIZE> triggerHistory;
+
+const byte SOLUTION_KEY[SOLUTION_SIZE] = {
+  0, 1, 2, 3, 4, 0, 1, 2, 3, 4
+};
+
+const unsigned long SEQUENCE_LIGHT_MS = 200;
+const uint32_t SEQUENCE_COLOR = Adafruit_NeoPixel::Color(0, 0, 255);
+
+const int SEQUENCE_TIMINGS_SIZE = 5;
+
+// The total number of LED sequence steps is SEQUENCE_TIMINGS_SIZE + 1
+
+const unsigned long SEQUENCE_TIMINGS_MS[SEQUENCE_TIMINGS_SIZE] = {
+  1000,
+  1000,
+  1000,
+  1000,
+  1000
+};
 
 /**
    Audio FX.
@@ -52,10 +92,16 @@ void onMicroChange(int idx, int v, int up) {
   Serial.print(F(" :: "));
   Serial.println(v);
 
+  if (isTrackPlaying()) {
+    Serial.println(F("# Audio still playing: Skipping"));
+    return;
+  }
+
   if (v >= MICROS_THRESHOLD) {
     Serial.println(F("# Micro active: Playing audio"));
+    triggerHistory.push(idx);
+    progState.isAllowedToPlay = true;
     playTrack(AUDIO_PINS[idx]);
-    waitForAudio();
   }
 }
 
@@ -93,36 +139,6 @@ bool isTrackPlaying() {
   return digitalRead(PIN_AUDIO_ACT) == LOW;
 }
 
-void waitForAudio() {
-  const unsigned long AUDIO_WAIT_SLEEP_MS = 10;
-  const unsigned long MAX_AUDIO_WAIT_MS = 10000;
-
-  unsigned long ini;
-  unsigned long now;
-  unsigned long dif;
-
-  Serial.println(F("Waiting for audio track to finish"));
-
-  ini = millis();
-
-  while (isTrackPlaying()) {
-    delay(AUDIO_WAIT_SLEEP_MS);
-
-    now = millis();
-
-    if (now > ini) {
-      dif = now - ini;
-    } else {
-      dif = (ULONG_MAX - ini) + now;
-    }
-
-    if (dif > MAX_AUDIO_WAIT_MS) {
-      Serial.println(F("Max audio wait: Breaking loop"));
-      break;
-    }
-  }
-}
-
 void resetAudio() {
   digitalWrite(PIN_AUDIO_RST, LOW);
   pinMode(PIN_AUDIO_RST, OUTPUT);
@@ -147,8 +163,57 @@ void clearLeds() {
   ledStrip.show();
 }
 
-void playLedPattern() {
-  Serial.println(F("Playing LED pattern"));
+void playLedSequenceStep() {
+  clearLeds();
+
+  for (int i = 0; i < LED_NUM; i++) {
+    ledStrip.setPixelColor(i, SEQUENCE_COLOR);
+  }
+
+  ledStrip.show();
+
+  delay(SEQUENCE_LIGHT_MS);
+
+  clearLeds();
+}
+
+void playLedSequence() {
+  if (isTrackPlaying()) {
+    return;
+  }
+
+  if (isPatternOk() == false || progState.isAllowedToPlay == false) {
+    return;
+  }
+
+  playLedSequenceStep();
+
+  for (int i = 0; i < SEQUENCE_TIMINGS_SIZE; i++) {
+    delay(SEQUENCE_TIMINGS_MS[i]);
+    playLedSequenceStep();
+  }
+
+  clearLeds();
+
+  progState.isAllowedToPlay = false;
+}
+
+/**
+   Other functions.
+*/
+
+bool isPatternOk() {
+  if (triggerHistory.size() < SOLUTION_SIZE) {
+    return false;
+  }
+
+  for (int i = 0; i < SOLUTION_SIZE; i++) {
+    if (triggerHistory[i] != SOLUTION_KEY[i]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**
@@ -170,4 +235,5 @@ void setup() {
 void loop() {
   automaton.run();
   clearLeds();
+  playLedSequence();
 }
