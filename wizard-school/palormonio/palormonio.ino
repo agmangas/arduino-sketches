@@ -15,6 +15,12 @@ ProgramState progState = {
   .isAllowedToPlay = true
 };
 
+typedef struct ledSequenceStep {
+  unsigned long afterDelay;
+  unsigned long lightDelay;
+  uint32_t color;
+} LedSequenceStep;
+
 /**
    Microphones.
 */
@@ -46,19 +52,36 @@ const byte SOLUTION_KEY[SOLUTION_SIZE] = {
   0, 1, 2, 3, 4, 0, 1, 2, 3, 4
 };
 
-const unsigned long SEQUENCE_LIGHT_MS = 200;
-const uint32_t SEQUENCE_COLOR = Adafruit_NeoPixel::Color(0, 0, 255);
+const unsigned long SEQUENCE_DEFAULT_LIGHT_MS = 200;
+const uint32_t SEQUENCE_DEFAULT_COLOR = Adafruit_NeoPixel::Color(0, 0, 255);
+const int SEQUENCE_SIZE = 5;
 
-const int SEQUENCE_TIMINGS_SIZE = 5;
-
-// The total number of LED sequence steps is SEQUENCE_TIMINGS_SIZE + 1
-
-const unsigned long SEQUENCE_TIMINGS_MS[SEQUENCE_TIMINGS_SIZE] = {
-  1000,
-  1000,
-  1000,
-  1000,
-  1000
+const LedSequenceStep ledSeqSteps[SEQUENCE_SIZE] = {
+  {
+    .afterDelay = 500,
+    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
+    .color = SEQUENCE_DEFAULT_COLOR
+  },
+  {
+    .afterDelay = 1000,
+    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
+    .color = SEQUENCE_DEFAULT_COLOR
+  },
+  {
+    .afterDelay = 500,
+    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
+    .color = SEQUENCE_DEFAULT_COLOR
+  },
+  {
+    .afterDelay = 500,
+    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
+    .color = SEQUENCE_DEFAULT_COLOR
+  },
+  {
+    .afterDelay = 1000,
+    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
+    .color = SEQUENCE_DEFAULT_COLOR
+  }
 };
 
 /**
@@ -163,20 +186,6 @@ void clearLeds() {
   ledStrip.show();
 }
 
-void playLedSequenceStep() {
-  clearLeds();
-
-  for (int i = 0; i < LED_NUM; i++) {
-    ledStrip.setPixelColor(i, SEQUENCE_COLOR);
-  }
-
-  ledStrip.show();
-
-  delay(SEQUENCE_LIGHT_MS);
-
-  clearLeds();
-}
-
 void playLedSequence() {
   if (isTrackPlaying()) {
     return;
@@ -186,11 +195,17 @@ void playLedSequence() {
     return;
   }
 
-  playLedSequenceStep();
+  for (int i = 0; i < SEQUENCE_SIZE; i++) {
+    clearLeds();
 
-  for (int i = 0; i < SEQUENCE_TIMINGS_SIZE; i++) {
-    delay(SEQUENCE_TIMINGS_MS[i]);
-    playLedSequenceStep();
+    for (int j = 0; j < LED_NUM; j++) {
+      ledStrip.setPixelColor(j, ledSeqSteps[i].color);
+    }
+
+    ledStrip.show();
+    delay(ledSeqSteps[i].lightDelay);
+    clearLeds();
+    delay(ledSeqSteps[i].afterDelay);
   }
 
   clearLeds();
