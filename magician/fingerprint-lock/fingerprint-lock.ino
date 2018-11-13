@@ -25,7 +25,7 @@ const unsigned int EMPTY_TOLERANCE = 1;
 String currentTags[NUM_READERS];
 
 String validTags[NUM_READERS] = {
-  "1D0027B6BE32"
+  "1D0027B6BE00"
 };
 
 /**
