@@ -95,6 +95,8 @@ const byte AUDIO_PINS[MICROS_NUM] = {
   8, 7, 6, 5, 4
 };
 
+const byte PIN_AUDIO_FINAL = 10;
+
 /**
    LED strips.
 */
@@ -186,7 +188,7 @@ void clearLeds() {
   ledStrip.show();
 }
 
-void playLedSequence() {
+void checkStatusPlayLedSequence() {
   if (isTrackPlaying()) {
     return;
   }
@@ -194,6 +196,8 @@ void playLedSequence() {
   if (isPatternOk() == false || progState.isAllowedToPlay == false) {
     return;
   }
+
+  playTrack(PIN_AUDIO_FINAL);
 
   for (int i = 0; i < SEQUENCE_SIZE; i++) {
     clearLeds();
@@ -203,8 +207,11 @@ void playLedSequence() {
     }
 
     ledStrip.show();
+
     delay(ledSeqSteps[i].lightDelay);
+
     clearLeds();
+
     delay(ledSeqSteps[i].afterDelay);
   }
 
@@ -250,5 +257,5 @@ void setup() {
 void loop() {
   automaton.run();
   clearLeds();
-  playLedSequence();
+  checkStatusPlayLedSequence();
 }
