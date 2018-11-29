@@ -30,6 +30,15 @@ const int LDR_SNAPSHOT_MS = 200;
 
 CircularBuffer<LdrSnapshot, LDR_SNAPSHOT_BUF_SIZE> ldrSnapBuf;
 
+const int LDR_SNAPSHOT_SOLUTION_SIZE = 4;
+
+const LdrSnapshot ldrSnapSolution[LDR_SNAPSHOT_SOLUTION_SIZE] = {
+  {.states = {false, false, false}},
+  {.states = {false, false, true}},
+  {.states = {false, true, true}},
+  {.states = {true, true, true}}
+};
+
 /**
    Audio FX.
 */
@@ -44,6 +53,27 @@ const byte AUDIO_PINS[LDR_NUM] = {
 /**
    State machine functions.
 */
+
+bool isValidLdrSnapHistory() {
+  if (ldrSnapBuf.size() < LDR_SNAPSHOT_SOLUTION_SIZE) {
+    return false;
+  }
+
+  int iniIdx = ldrSnapBuf.size() - LDR_SNAPSHOT_SOLUTION_SIZE;
+  int endIdx = ldrSnapBuf.size();
+
+  int pivot = 0;
+
+  for (int i = iniIdx; i < endIdx; i++) {
+    if (!equalLdrSnaps(ldrSnapBuf[i], ldrSnapSolution[pivot])) {
+      return false;
+    }
+
+    pivot++;
+  }
+
+  return true;
+}
 
 bool equalLdrSnaps(const LdrSnapshot &one, const LdrSnapshot &other) {
   for (int i = 0; i < LDR_NUM; i++) {
