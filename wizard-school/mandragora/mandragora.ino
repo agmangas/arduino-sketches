@@ -43,15 +43,18 @@ const LdrSnapshot ldrSnapSolution[LDR_SNAPSHOT_SOLUTION_SIZE] = {
    Audio FX.
 */
 
-const byte PIN_AUDIO_RST = 11;
-const byte PIN_AUDIO_ACT = 6;
+const byte AUDIO_PIN_RST = 11;
+const byte AUDIO_PIN_ACT = 6;
+const byte AUDIO_PIN_FINAL = 7;
 
-const byte AUDIO_PINS[LDR_NUM] = {
+const int AUDIO_NUM_TRACKS = 3;
+
+const byte AUDIO_PINS[AUDIO_NUM_TRACKS] = {
   10, 9, 8
 };
 
 /**
-   State machine functions.
+   LDR functions.
 */
 
 bool isValidLdrSnapHistory() {
@@ -108,6 +111,10 @@ void takeLdrSnapshot(int idx, int v, int up) {
   }
 }
 
+/**
+   State machine functions.
+*/
+
 void initMachines() {
   for (int i = 0; i < LDR_NUM; i++) {
     ldrBits[i]
@@ -142,20 +149,41 @@ void initAudioPins() {
     pinMode(AUDIO_PINS[i], INPUT);
   }
 
-  pinMode(PIN_AUDIO_ACT, INPUT);
-  pinMode(PIN_AUDIO_RST, INPUT);
+  pinMode(AUDIO_PIN_ACT, INPUT);
+  pinMode(AUDIO_PIN_RST, INPUT);
 }
 
 bool isTrackPlaying() {
-  return digitalRead(PIN_AUDIO_ACT) == LOW;
+  return digitalRead(AUDIO_PIN_ACT) == LOW;
 }
 
 void resetAudio() {
-  digitalWrite(PIN_AUDIO_RST, LOW);
-  pinMode(PIN_AUDIO_RST, OUTPUT);
+  digitalWrite(AUDIO_PIN_RST, LOW);
+  pinMode(AUDIO_PIN_RST, OUTPUT);
   delay(10);
-  pinMode(PIN_AUDIO_RST, INPUT);
+  pinMode(AUDIO_PIN_RST, INPUT);
   delay(1000);
+}
+
+void checkStatusToPlayAudio() {
+  if (ldrSnapBuf.isEmpty() || isTrackPlaying()) {
+    return;
+  }
+
+  LdrSnapshot defaultSnap = {
+    .states = {false, false, false}
+  };
+
+  if (equalLdrSnaps(defaultSnap, ldrSnapBuf.last())) {
+    return;
+  }
+
+  if (isValidLdrSnapHistory()) {
+    playTrack(AUDIO_PIN_FINAL);
+  } else {
+    long randAudioIdx = random(0, AUDIO_NUM_TRACKS);
+    playTrack(AUDIO_PINS[randAudioIdx]);
+  }
 }
 
 /**
@@ -174,5 +202,6 @@ void setup() {
 
 void loop() {
   automaton.run();
+  checkStatusToPlayAudio();
 }
 
