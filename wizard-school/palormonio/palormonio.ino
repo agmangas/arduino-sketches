@@ -8,11 +8,13 @@
 */
 
 typedef struct programState {
-  bool isAllowedToPlay;
+  bool isComplete;
+  bool hasPlayedFinalAudio;
 } ProgramState;
 
 ProgramState progState = {
-  .isAllowedToPlay = true
+  .isComplete = false,
+  .hasPlayedFinalAudio = false
 };
 
 typedef struct ledSequenceStep {
@@ -27,10 +29,10 @@ typedef struct ledSequenceStep {
 
 const int MICROS_NUM = 5;
 const int MICROS_AVG_BUF_SIZE = 5;
-const int MICROS_SAMPLE_RATE_MS = 50;
+const int MICROS_SAMPLE_RATE_MS = 30;
 const int MICROS_RANGE_MIN = 1;
-const int MICROS_RANGE_MAX = 1000;
-const int MICROS_THRESHOLD = 850;
+const int MICROS_RANGE_MAX = 100;
+const int MICROS_THRESHOLD = 5;
 
 const byte MICRO_PINS[MICROS_NUM] = {
   A0, A1, A2, A3, A4
@@ -52,35 +54,51 @@ const byte SOLUTION_KEY[SOLUTION_SIZE] = {
   0, 1, 2, 3, 4, 0, 1, 2, 3, 4
 };
 
-const unsigned long SEQUENCE_DEFAULT_LIGHT_MS = 200;
-const uint32_t SEQUENCE_DEFAULT_COLOR = Adafruit_NeoPixel::Color(0, 0, 255);
-const int SEQUENCE_SIZE = 5;
+const uint32_t COLOR_BLUE = Adafruit_NeoPixel::Color(0, 0, 255);
+const uint32_t COLOR_RED = Adafruit_NeoPixel::Color(255, 0, 0);
+
+const unsigned long DELAY_SHORT = 300;
+const unsigned long DELAY_LONG = 1000;
+const unsigned long DELAY_BEFORE_SEQUENCE = 3000;
+const unsigned long DEFAULT_LIGHT_DELAY = 300;
+
+const int SEQUENCE_SIZE = 7;
 
 const LedSequenceStep ledSeqSteps[SEQUENCE_SIZE] = {
   {
-    .afterDelay = 500,
-    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
-    .color = SEQUENCE_DEFAULT_COLOR
+    .afterDelay = DELAY_SHORT,
+    .lightDelay = DEFAULT_LIGHT_DELAY,
+    .color = COLOR_BLUE
   },
   {
-    .afterDelay = 1000,
-    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
-    .color = SEQUENCE_DEFAULT_COLOR
+    .afterDelay = DELAY_SHORT,
+    .lightDelay = DEFAULT_LIGHT_DELAY,
+    .color = COLOR_BLUE
   },
   {
-    .afterDelay = 500,
-    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
-    .color = SEQUENCE_DEFAULT_COLOR
+    .afterDelay = DELAY_LONG,
+    .lightDelay = DEFAULT_LIGHT_DELAY,
+    .color = COLOR_RED
   },
   {
-    .afterDelay = 500,
-    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
-    .color = SEQUENCE_DEFAULT_COLOR
+    .afterDelay = DELAY_SHORT,
+    .lightDelay = DEFAULT_LIGHT_DELAY,
+    .color = COLOR_BLUE
   },
   {
-    .afterDelay = 1000,
-    .lightDelay = SEQUENCE_DEFAULT_LIGHT_MS,
-    .color = SEQUENCE_DEFAULT_COLOR
+    .afterDelay = DELAY_SHORT,
+    .lightDelay = DEFAULT_LIGHT_DELAY,
+    .color = COLOR_BLUE
+  },
+  {
+    .afterDelay = DELAY_LONG,
+    .lightDelay = DEFAULT_LIGHT_DELAY,
+    .color = COLOR_RED
+  },
+  {
+    .afterDelay = DELAY_LONG,
+    .lightDelay = DEFAULT_LIGHT_DELAY,
+    .color = COLOR_RED
   }
 };
 
@@ -101,9 +119,11 @@ const byte PIN_AUDIO_FINAL = 10;
    LED strips.
 */
 
-const int LED_BRIGHTNESS = 180;
+const int LED_BRIGHTNESS = 170;
 const int LED_PIN = 11;
-const int LED_NUM = 10;
+const int LED_NUM = 30;
+
+const unsigned long LED_FADEIN_STEP_MS = 10;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -117,15 +137,13 @@ void onMicroChange(int idx, int v, int up) {
   Serial.print(F(" :: "));
   Serial.println(v);
 
-  if (isTrackPlaying()) {
-    Serial.println(F("# Audio still playing: Skipping"));
+  if (isTrackPlaying() || progState.isComplete) {
     return;
   }
 
   if (v >= MICROS_THRESHOLD) {
     Serial.println(F("# Micro active: Playing audio"));
     triggerHistory.push(idx);
-    progState.isAllowedToPlay = true;
     playTrack(AUDIO_PINS[idx]);
   }
 }
@@ -145,9 +163,17 @@ void initMicros() {
 */
 
 void playTrack(byte trackPin) {
+  if (isTrackPlaying()) {
+    Serial.println(F("# Skipping: Audio still playing"));
+    return;
+  }
+
+  Serial.print(F("# Playing track on pin: "));
+  Serial.println(trackPin);
+
   digitalWrite(trackPin, LOW);
   pinMode(trackPin, OUTPUT);
-  delay(100);
+  delay(300);
   pinMode(trackPin, INPUT);
 }
 
@@ -165,11 +191,16 @@ bool isTrackPlaying() {
 }
 
 void resetAudio() {
+  Serial.println(F("# Audio FX reset"));
+
   digitalWrite(PIN_AUDIO_RST, LOW);
   pinMode(PIN_AUDIO_RST, OUTPUT);
   delay(10);
   pinMode(PIN_AUDIO_RST, INPUT);
-  delay(1000);
+
+  Serial.println(F("# Waiting for Audio FX startup"));
+
+  delay(2000);
 }
 
 /**
@@ -188,17 +219,23 @@ void clearLeds() {
   ledStrip.show();
 }
 
-void checkStatusPlayLedSequence() {
-  if (isTrackPlaying()) {
-    return;
+void ledFadeIn() {
+  clearLeds();
+
+  for (int i = 0; i < 200; i++) {
+    for (int j = 0; j < LED_NUM; j++) {
+      ledStrip.setPixelColor(j, i, i, i);
+    }
+
+    ledStrip.show();
+
+    delay(LED_FADEIN_STEP_MS);
   }
 
-  if (isPatternOk() == false || progState.isAllowedToPlay == false) {
-    return;
-  }
+  clearLeds();
+}
 
-  playTrack(PIN_AUDIO_FINAL);
-
+void playLedSequence() {
   for (int i = 0; i < SEQUENCE_SIZE; i++) {
     clearLeds();
 
@@ -214,14 +251,10 @@ void checkStatusPlayLedSequence() {
 
     delay(ledSeqSteps[i].afterDelay);
   }
-
-  clearLeds();
-
-  progState.isAllowedToPlay = false;
 }
 
 /**
-   Other functions.
+   Program state functions.
 */
 
 bool isPatternOk() {
@@ -236,6 +269,25 @@ bool isPatternOk() {
   }
 
   return true;
+}
+
+void applyCompletionStatus() {
+  bool isComplete = isPatternOk() || progState.isComplete;
+
+  if (isTrackPlaying() || !isComplete) {
+    return;
+  }
+
+  progState.isComplete = true;
+
+  if (!progState.hasPlayedFinalAudio) {
+    progState.hasPlayedFinalAudio = true;
+    playTrack(PIN_AUDIO_FINAL);
+  }
+
+  ledFadeIn();
+  delay(DELAY_BEFORE_SEQUENCE);
+  playLedSequence();
 }
 
 /**
@@ -257,5 +309,5 @@ void setup() {
 void loop() {
   automaton.run();
   clearLeds();
-  checkStatusPlayLedSequence();
+  applyCompletionStatus();
 }
