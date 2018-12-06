@@ -50,7 +50,7 @@ const byte AUDIO_PIN_FINAL = 7;
 const int AUDIO_NUM_TRACKS = 3;
 
 const byte AUDIO_PINS[AUDIO_NUM_TRACKS] = {
-  10, 9, 8
+  10, 8, 2
 };
 
 /**
@@ -99,7 +99,7 @@ void takeLdrSnapshot(int idx, int v, int up) {
                     !equalLdrSnaps(currSnapshot, ldrSnapBuf.last());
 
   if (shouldPush) {
-    Serial.print(F("Pushing LDR snapshot: "));
+    Serial.print(F("LDR snapshot: "));
 
     for (int i = 0; i < LDR_NUM; i++) {
       Serial.print(currSnapshot.states[i]);
@@ -121,7 +121,7 @@ void initMachines() {
     .begin();
 
     ldrs[i]
-    .begin(LDR_PINS[i], LDR_PULSE_DURATION, false, false)
+    .begin(LDR_PINS[i], LDR_PULSE_DURATION, true, true)
     .onChange(HIGH, ldrBits[i], ldrBits[i].EVT_ON)
     .onChange(LOW, ldrBits[i], ldrBits[i].EVT_OFF);
   }
@@ -138,9 +138,16 @@ void initMachines() {
 */
 
 void playTrack(byte trackPin) {
+  if (isTrackPlaying()) {
+    return;
+  }
+
+  Serial.print("## Playing track: ");
+  Serial.println(trackPin);
+
   digitalWrite(trackPin, LOW);
   pinMode(trackPin, OUTPUT);
-  delay(100);
+  delay(300);
   pinMode(trackPin, INPUT);
 }
 
@@ -158,10 +165,15 @@ bool isTrackPlaying() {
 }
 
 void resetAudio() {
+  Serial.println("## Audio FX reset");
+
   digitalWrite(AUDIO_PIN_RST, LOW);
   pinMode(AUDIO_PIN_RST, OUTPUT);
   delay(10);
   pinMode(AUDIO_PIN_RST, INPUT);
+
+  Serial.println("## Waiting for Audio FX");
+
   delay(1000);
 }
 
