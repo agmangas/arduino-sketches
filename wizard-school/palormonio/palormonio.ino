@@ -32,7 +32,7 @@ const int MICROS_AVG_BUF_SIZE = 5;
 const int MICROS_SAMPLE_RATE_MS = 30;
 const int MICROS_RANGE_MIN = 1;
 const int MICROS_RANGE_MAX = 100;
-const int MICROS_THRESHOLD = 5;
+const int MICROS_THRESHOLD = 10;
 
 const byte MICRO_PINS[MICROS_NUM] = {
   A0, A1, A2, A3, A4
