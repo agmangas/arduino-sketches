@@ -9,6 +9,7 @@ typedef struct programState {
   bool isEncoderActive;
   int encoderLevel;
   bool maxEncoderLevelReached;
+  bool isManuallyActivated;
 } ProgramState;
 
 /**
@@ -49,6 +50,8 @@ PotInfo potInfos[TOTAL_POTS] = {
   { .potPin = A2 }
 };
 
+const byte PIN_MANUAL_ACTIVATION = 3;
+
 /**
    5 Azul: Gatos
    2 Rojo: Arte
@@ -71,6 +74,7 @@ Atm_controller potsController;
 Atm_controller encoderController;
 Atm_encoder rotEncoder;
 Atm_timer encoderLevelTimer;
+Atm_button btnManualActivation;
 
 unsigned long rotCounter = 1;
 const unsigned long ROT_COUNTER_DIVISOR = 8;
@@ -86,7 +90,8 @@ const uint32_t LIGHTNING_COLOR = pixelStrip.Color(255, 255, 255);
 ProgramState programState = {
   .isEncoderActive = false,
   .encoderLevel = 0,
-  .maxEncoderLevelReached = false
+  .maxEncoderLevelReached = false,
+  .isManuallyActivated = false
 };
 
 void setStripsOff() {
@@ -98,7 +103,7 @@ void setStripsOff() {
 }
 
 void onPotChange(int idx, int v, int up) {
-  Serial.print("onPotChange:: idx=");
+  Serial.print(F("onPotChange:: idx="));
   Serial.print(idx);
   Serial.print(" v=");
   Serial.print(v);
@@ -111,6 +116,11 @@ bool isPotsSolutionValid(int idx) {
 }
 
 bool isPotsSolutionValid() {
+  if (programState.isManuallyActivated == true) {
+    Serial.println(F("Manual activation: Triggering valid pots combination"));
+    return true;
+  }
+
   bool isValid;
 
   for (int i = 0; i < SOLUTIONS_SIZE; i++) {
@@ -143,13 +153,13 @@ void onPotsSolutionValid(int idx, int v, int up) {
     return;
   }
 
-  Serial.println("Valid pots: Verifying");
+  Serial.println(F("Valid pots: Verifying"));
 
   unsigned long delayByCheck = POTS_SOLUTION_DELAY_MS / POTS_SOLUTION_CHECKS;
 
   for (int i = 0; i < POTS_SOLUTION_CHECKS; i++) {
     if (!isPotsSolutionValid()) {
-      Serial.println("Pots changed: Verification failed");
+      Serial.println(F("Pots changed: Verification failed"));
       return;
     }
 
@@ -168,7 +178,7 @@ void onMaxEncoderLevel(int idx, int v, int up) {
     return;
   }
 
-  Serial.println("Max encoder level reached: Opening relay");
+  Serial.println(F("Max encoder level reached: Opening relay"));
 
   stopHoldTrack(PIN_AUDIO_TRACK_ENCODER);
   programState.maxEncoderLevelReached = true;
@@ -185,7 +195,7 @@ void onRotEncoderChange(int idx, int v, int up) {
     playHoldTrack(PIN_AUDIO_TRACK_ENCODER);
   }
 
-  Serial.print("onRotEncoderChange:: idx=");
+  Serial.print(F("onRotEncoderChange:: idx="));
   Serial.print(idx);
   Serial.print(" v=");
   Serial.print(v);
@@ -255,7 +265,7 @@ void increaseEncoderLevel() {
   if (!isMaxEncoderLevel()) {
     programState.encoderLevel++;
     updateEncoderStrip();
-    Serial.print("Encoder level: ");
+    Serial.print(F("Encoder level: "));
     Serial.println(programState.encoderLevel);
   }
 }
@@ -268,7 +278,7 @@ void decreaseEncoderLevel() {
   if (programState.encoderLevel > 0) {
     programState.encoderLevel--;
     updateEncoderStrip();
-    Serial.print("Encoder level: ");
+    Serial.print(F("Encoder level: "));
     Serial.println(programState.encoderLevel);
   }
 }
@@ -281,6 +291,13 @@ void onEncoderTimer(int idx, int v, int up) {
   }
 }
 
+void onManualActivation(int idx, int v, int up) {
+  if (programState.isManuallyActivated == false) {
+    Serial.println(F("Manual activation detected"));
+    programState.isManuallyActivated = true;
+  }
+}
+
 void initMachines() {
   for (int i = 0; i < TOTAL_POTS; i++) {
     pots[i]
@@ -288,6 +305,10 @@ void initMachines() {
     .range(POT_RANGE_LO, POT_RANGE_HI)
     .onChange(onPotChange, i);
   }
+
+  btnManualActivation
+  .begin(PIN_MANUAL_ACTIVATION)
+  .onPress(onManualActivation);
 
   potsController
   .begin()
@@ -366,11 +387,9 @@ void setup() {
   initStrip();
   initRelay();
 
-  Serial.println(">> Starting Caldera Neuronal Phase 2 program");
+  Serial.println(F(">> Starting Caldera Neuronal Phase 2 program"));
 }
 
 void loop() {
   automaton.run();
 }
-
-
