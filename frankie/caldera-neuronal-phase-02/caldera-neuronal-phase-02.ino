@@ -117,7 +117,6 @@ bool isPotsSolutionValid(int idx) {
 
 bool isPotsSolutionValid() {
   if (programState.isManuallyActivated == true) {
-    Serial.println(F("Manual activation: Triggering valid pots combination"));
     return true;
   }
 
@@ -155,18 +154,22 @@ void onPotsSolutionValid(int idx, int v, int up) {
 
   Serial.println(F("Valid pots: Verifying"));
 
-  unsigned long delayByCheck = POTS_SOLUTION_DELAY_MS / POTS_SOLUTION_CHECKS;
+  if (programState.isManuallyActivated == false) {
+    unsigned long delayByCheck = POTS_SOLUTION_DELAY_MS / POTS_SOLUTION_CHECKS;
 
-  for (int i = 0; i < POTS_SOLUTION_CHECKS; i++) {
-    if (!isPotsSolutionValid()) {
-      Serial.println(F("Pots changed: Verification failed"));
-      return;
+    for (int i = 0; i < POTS_SOLUTION_CHECKS; i++) {
+      if (!isPotsSolutionValid()) {
+        Serial.println(F("Pots changed: Verification failed"));
+        return;
+      }
+
+      delay(delayByCheck);
     }
 
-    delay(delayByCheck);
+    Serial.println(F("Pots stable: Verification OK"));
+  } else {
+    Serial.println(F("Manual activation: Skipping pots verification"));
   }
-
-  Serial.println("Pots stable: Verification OK");
 
   playTrack(PIN_AUDIO_TRACK_POTS);
   activateValidPotsStrip();
