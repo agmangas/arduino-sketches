@@ -8,20 +8,43 @@
 */
 
 typedef struct programState {
-  bool isComplete;
+  bool isAudioPatternOk;
   bool hasPlayedFinalAudio;
+  unsigned long lastKnock;
 } ProgramState;
 
 ProgramState progState = {
-  .isComplete = false,
-  .hasPlayedFinalAudio = false
+  .isAudioPatternOk = false,
+  .hasPlayedFinalAudio = false,
+  .lastKnock = 0
 };
 
-typedef struct ledSequenceStep {
-  unsigned long afterDelay;
-  unsigned long lightDelay;
-  uint32_t color;
-} LedSequenceStep;
+/**
+   Piezo knock sensor.
+*/
+
+const byte KNOCK_PIN = A0;
+const byte KNOCK_THRESHOLD = 10;
+const byte KNOCK_SAMPLERATE = 50;
+const byte KNOCK_BUF_SIZE = 30;
+const byte KNOCK_TRAINING_SIZE = 5;
+const byte KNOCK_PATTERN_SIZE = 10;
+const float KNOCK_TOLERANCE = 0.9;
+const unsigned int KNOCK_DELAY_MS = 150;
+
+unsigned int knockTrainingSet[KNOCK_TRAINING_SIZE][KNOCK_PATTERN_SIZE] = {
+  {0, 478, 1279, 1609, 2292, 3481, 4069, 4961, 5282, 5808},
+  {0, 595, 1448, 1775, 2354, 3607, 4188, 5086, 5404, 5944},
+  {0, 596, 1446, 1751, 2409, 3688, 4271, 5180, 5485, 5994},
+  {0, 621, 1549, 1840, 2462, 3616, 4211, 5093, 5391, 5950},
+  {0, 556, 1542, 1846, 2477, 3397, 4462, 5206, 5460, 5992}
+};
+
+Atm_analog knockAnalog;
+Atm_controller knockController;
+CircularBuffer<unsigned long, KNOCK_BUF_SIZE> knockHistory;
+float knockPattern[KNOCK_PATTERN_SIZE];
+float meanKnockPatternDiff;
 
 /**
    Microphones.
@@ -54,54 +77,6 @@ const byte SOLUTION_KEY[SOLUTION_SIZE] = {
   0, 1, 2, 3, 4, 0, 1, 2, 3, 4
 };
 
-const uint32_t COLOR_BLUE = Adafruit_NeoPixel::Color(0, 0, 255);
-const uint32_t COLOR_RED = Adafruit_NeoPixel::Color(255, 0, 0);
-
-const unsigned long DELAY_SHORT = 300;
-const unsigned long DELAY_LONG = 1000;
-const unsigned long DELAY_BEFORE_SEQUENCE = 3000;
-const unsigned long DEFAULT_LIGHT_DELAY = 300;
-
-const int SEQUENCE_SIZE = 7;
-
-const LedSequenceStep ledSeqSteps[SEQUENCE_SIZE] = {
-  {
-    .afterDelay = DELAY_SHORT,
-    .lightDelay = DEFAULT_LIGHT_DELAY,
-    .color = COLOR_BLUE
-  },
-  {
-    .afterDelay = DELAY_SHORT,
-    .lightDelay = DEFAULT_LIGHT_DELAY,
-    .color = COLOR_BLUE
-  },
-  {
-    .afterDelay = DELAY_LONG,
-    .lightDelay = DEFAULT_LIGHT_DELAY,
-    .color = COLOR_RED
-  },
-  {
-    .afterDelay = DELAY_SHORT,
-    .lightDelay = DEFAULT_LIGHT_DELAY,
-    .color = COLOR_BLUE
-  },
-  {
-    .afterDelay = DELAY_SHORT,
-    .lightDelay = DEFAULT_LIGHT_DELAY,
-    .color = COLOR_BLUE
-  },
-  {
-    .afterDelay = DELAY_LONG,
-    .lightDelay = DEFAULT_LIGHT_DELAY,
-    .color = COLOR_RED
-  },
-  {
-    .afterDelay = DELAY_LONG,
-    .lightDelay = DEFAULT_LIGHT_DELAY,
-    .color = COLOR_RED
-  }
-};
-
 /**
    Audio FX.
 */
@@ -127,6 +102,125 @@ const unsigned long LED_FADEIN_STEP_MS = 10;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
 
+const uint32_t COLOR_SEQUENCE = Adafruit_NeoPixel::Color(0, 0, 255);
+const unsigned long DELAY_BEFORE_SEQUENCE = 3000;
+
+/**
+   Knock sensor functions.
+*/
+
+void setKnockPattern() {
+  for (int i = 0; i < KNOCK_PATTERN_SIZE; i++) {
+    float val = 0;
+
+    for (int j = 0; j < KNOCK_TRAINING_SIZE; j++) {
+      val = val + knockTrainingSet[j][i];
+    }
+
+    val = val / KNOCK_TRAINING_SIZE;
+    knockPattern[i] = val;
+  }
+
+  Serial.print(F(">> Knock pattern: "));
+
+  for (int i = 0; i < KNOCK_PATTERN_SIZE; i++) {
+    Serial.print(knockPattern[i]);
+    Serial.print(F(", "));
+  }
+
+  Serial.println(F(""));
+}
+
+void setMeanKnockPatternDiff() {
+  float val = 0;
+
+  for (int i = 1; i < KNOCK_PATTERN_SIZE; i++) {
+    val = val + (knockPattern[i] - knockPattern[i - 1]);
+  }
+
+  val = val / (KNOCK_PATTERN_SIZE - 1);
+
+  Serial.print(F(">> Avg. knock pattern wait (ms): "));
+  Serial.println(val);
+
+  meanKnockPatternDiff = val;
+}
+
+bool isValidKnockPattern() {
+  if (knockHistory.size() < KNOCK_PATTERN_SIZE) {
+    return false;
+  }
+
+  float tol = meanKnockPatternDiff * KNOCK_TOLERANCE;
+
+  int currIdx;
+  unsigned long baseTime;
+  unsigned long currTime;
+  float timeMin;
+  float timeMax;
+  bool isValid;
+
+  for (int i = 0; i <= knockHistory.size() - KNOCK_PATTERN_SIZE; i++) {
+    isValid = true;
+    baseTime = knockHistory[i];
+
+    for (int j = 0; j < KNOCK_PATTERN_SIZE; j++) {
+      currIdx = i + j;
+      currTime = knockHistory[currIdx] - baseTime;
+      timeMin = knockPattern[j] > tol ? knockPattern[j] - tol : 0;
+      timeMax = knockPattern[j] + tol;
+
+      if (currTime < timeMin || currTime > timeMax) {
+        isValid = false;
+        break;
+      }
+    }
+
+    if (isValid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void onKnock(int idx, int v, int up) {
+  if (!progState.isAudioPatternOk) {
+    return;
+  }
+
+  unsigned long now = millis();
+
+  if (now < progState.lastKnock) {
+    Serial.println(F("Millis overflow: History reset"));
+    progState.lastKnock = 0;
+    knockHistory.clear();
+    return;
+  }
+
+  unsigned long diff = now - progState.lastKnock;
+
+  if (progState.lastKnock == 0 || diff >= KNOCK_DELAY_MS) {
+    Serial.print(now);
+    Serial.println(F("::Knock"));
+    progState.lastKnock = now;
+    knockHistory.push(now);
+  }
+}
+
+void initKnockSensor() {
+  setKnockPattern();
+  setMeanKnockPatternDiff();
+
+  knockAnalog
+  .begin(KNOCK_PIN, KNOCK_SAMPLERATE);
+
+  knockController
+  .begin()
+  .IF(knockAnalog, '>', KNOCK_THRESHOLD)
+  .onChange(true, onKnock);
+}
+
 /**
    Microphone functions.
 */
@@ -137,7 +231,7 @@ void onMicroChange(int idx, int v, int up) {
   Serial.print(F(" :: "));
   Serial.println(v);
 
-  if (isTrackPlaying() || progState.isComplete) {
+  if (isTrackPlaying() || progState.isAudioPatternOk) {
     return;
   }
 
@@ -236,21 +330,7 @@ void ledFadeIn() {
 }
 
 void playLedSequence() {
-  for (int i = 0; i < SEQUENCE_SIZE; i++) {
-    clearLeds();
 
-    for (int j = 0; j < LED_NUM; j++) {
-      ledStrip.setPixelColor(j, ledSeqSteps[i].color);
-    }
-
-    ledStrip.show();
-
-    delay(ledSeqSteps[i].lightDelay);
-
-    clearLeds();
-
-    delay(ledSeqSteps[i].afterDelay);
-  }
 }
 
 /**
@@ -272,13 +352,13 @@ bool isPatternOk() {
 }
 
 void applyCompletionStatus() {
-  bool isComplete = isPatternOk() || progState.isComplete;
+  bool isAudioPatternOk = isPatternOk() || progState.isAudioPatternOk;
 
-  if (isTrackPlaying() || !isComplete) {
+  if (isTrackPlaying() || !isAudioPatternOk) {
     return;
   }
 
-  progState.isComplete = true;
+  progState.isAudioPatternOk = true;
 
   if (!progState.hasPlayedFinalAudio) {
     progState.hasPlayedFinalAudio = true;
@@ -301,6 +381,7 @@ void setup() {
   initLedStrip();
   initAudioPins();
   resetAudio();
+  initKnockSensor();
 
   Serial.println(F(">> Starting Palormonio program"));
   Serial.flush();
