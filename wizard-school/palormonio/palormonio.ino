@@ -4,20 +4,26 @@
 #include "limits.h"
 
 /**
-  Structs.
+  Program state.
 */
 
 typedef struct programState {
   bool isAudioPatternOk;
   bool hasPlayedFinalAudio;
   unsigned long lastKnock;
+  int nextLedSequenceStep;
 } ProgramState;
 
 ProgramState progState = {
   .isAudioPatternOk = false,
   .hasPlayedFinalAudio = false,
-  .lastKnock = 0
+  .lastKnock = 0,
+  .nextLedSequenceStep = -1
 };
+
+Atm_timer timerState;
+
+const int STATE_TIMER_MS = 300;
 
 /**
    Piezo knock sensor.
@@ -97,13 +103,13 @@ const byte PIN_AUDIO_FINAL = 10;
 const int LED_BRIGHTNESS = 170;
 const int LED_PIN = 11;
 const int LED_NUM = 30;
-
-const unsigned long LED_FADEIN_STEP_MS = 10;
+const uint32_t COLOR_SEQUENCE = Adafruit_NeoPixel::Color(0, 0, 255);
+const int SEQ_CLEAR_MS = 150;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
 
-const uint32_t COLOR_SEQUENCE = Adafruit_NeoPixel::Color(0, 0, 255);
-const unsigned long DELAY_BEFORE_SEQUENCE = 3000;
+Atm_timer timerLedSequence;
+Atm_timer timerLedClear;
 
 /**
    Knock sensor functions.
@@ -313,24 +319,70 @@ void clearLeds() {
   ledStrip.show();
 }
 
-void ledFadeIn() {
-  clearLeds();
-
-  for (int i = 0; i < 200; i++) {
-    for (int j = 0; j < LED_NUM; j++) {
-      ledStrip.setPixelColor(j, i, i, i);
-    }
-
-    ledStrip.show();
-
-    delay(LED_FADEIN_STEP_MS);
+void startLedSequence() {
+  if (progState.nextLedSequenceStep != -1) {
+    Serial.println(F("WARN :: Ongoing LED sequence"));
+    return;
   }
 
-  clearLeds();
+  progState.nextLedSequenceStep = 0;
+  onLedSequenceStep();
 }
 
-void playLedSequence() {
+void onLedSequenceStep(int idx, int v, int up) {
+  onLedSequenceStep();
+}
 
+void onLedSequenceStep() {
+  if (progState.nextLedSequenceStep == -1) {
+    Serial.println(F("WARN :: Next LED sequence step is undefined"));
+    return;
+  }
+
+  Serial.print(F("# LED step: "));
+  Serial.println(progState.nextLedSequenceStep);
+
+  clearLeds();
+
+  for (int i = 0; i < LED_NUM; i++) {
+    ledStrip.setPixelColor(i, COLOR_SEQUENCE);
+  }
+
+  ledStrip.show();
+
+  Serial.print(F("# Clearing LEDs in (ms): "));
+  Serial.println(SEQ_CLEAR_MS);
+
+  timerLedClear
+  .begin(SEQ_CLEAR_MS)
+  .repeat(1)
+  .onTimer(onLedClear)
+  .start();
+
+  int nextStep = progState.nextLedSequenceStep + 1;
+
+  if (nextStep >= KNOCK_PATTERN_SIZE) {
+    Serial.println(F("# LED sequence finished"));
+    progState.nextLedSequenceStep = -1;
+    return;
+  } else {
+    progState.nextLedSequenceStep = nextStep;
+  }
+
+  int diffMs = knockPattern[nextStep] - knockPattern[nextStep - 1];
+
+  Serial.print(F("# Next LED step in (ms): "));
+  Serial.println(diffMs);
+
+  timerLedSequence
+  .begin(diffMs)
+  .repeat(1)
+  .onTimer(onLedSequenceStep)
+  .start();
+}
+
+void onLedClear(int idx, int v, int up) {
+  clearLeds();
 }
 
 /**
@@ -351,7 +403,7 @@ bool isPatternOk() {
   return true;
 }
 
-void applyCompletionStatus() {
+void updateState() {
   bool isAudioPatternOk = isPatternOk() || progState.isAudioPatternOk;
 
   if (isTrackPlaying() || !isAudioPatternOk) {
@@ -363,11 +415,20 @@ void applyCompletionStatus() {
   if (!progState.hasPlayedFinalAudio) {
     progState.hasPlayedFinalAudio = true;
     playTrack(PIN_AUDIO_FINAL);
+    startLedSequence();
   }
+}
 
-  ledFadeIn();
-  delay(DELAY_BEFORE_SEQUENCE);
-  playLedSequence();
+void onStateTimer(int idx, int v, int up) {
+  updateState();
+}
+
+void initStateTimer() {
+  timerState
+  .begin(STATE_TIMER_MS)
+  .repeat(-1)
+  .onTimer(onStateTimer)
+  .start();
 }
 
 /**
@@ -382,6 +443,7 @@ void setup() {
   initAudioPins();
   resetAudio();
   initKnockSensor();
+  initStateTimer();
 
   Serial.println(F(">> Starting Palormonio program"));
   Serial.flush();
@@ -389,6 +451,4 @@ void setup() {
 
 void loop() {
   automaton.run();
-  clearLeds();
-  applyCompletionStatus();
 }
