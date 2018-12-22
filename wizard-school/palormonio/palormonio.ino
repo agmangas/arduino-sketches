@@ -12,18 +12,28 @@ typedef struct programState {
   bool hasPlayedFinalAudio;
   unsigned long lastKnock;
   int nextLedSequenceStep;
+  bool isRelayOpen;
+  bool isLedSequenceRunning;
 } ProgramState;
 
 ProgramState progState = {
   .isAudioPatternOk = false,
   .hasPlayedFinalAudio = false,
   .lastKnock = 0,
-  .nextLedSequenceStep = -1
+  .nextLedSequenceStep = -1,
+  .isRelayOpen = false,
+  .isLedSequenceRunning = false
 };
 
 Atm_timer timerState;
 
 const int STATE_TIMER_MS = 300;
+
+/**
+   Relay.
+*/
+
+const byte RELAY_PIN = 12;
 
 /**
    Piezo knock sensor.
@@ -105,9 +115,11 @@ const int LED_PIN = 11;
 const int LED_NUM = 30;
 const uint32_t COLOR_SEQUENCE = Adafruit_NeoPixel::Color(0, 0, 255);
 const int SEQ_CLEAR_MS = 150;
+const int LED_SEQ_DELAY_START = 2000;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
 
+Atm_timer timerStartSequence;
 Atm_timer timerLedSequence;
 Atm_timer timerLedClear;
 
@@ -127,7 +139,7 @@ void setKnockPattern() {
     knockPattern[i] = val;
   }
 
-  Serial.print(F(">> Knock pattern: "));
+  Serial.print(F("Knock pattern: "));
 
   for (int i = 0; i < KNOCK_PATTERN_SIZE; i++) {
     Serial.print(knockPattern[i]);
@@ -146,7 +158,7 @@ void setMeanKnockPatternDiff() {
 
   val = val / (KNOCK_PATTERN_SIZE - 1);
 
-  Serial.print(F(">> Avg. knock pattern wait (ms): "));
+  Serial.print(F("Avg. knock pattern wait (ms): "));
   Serial.println(val);
 
   meanKnockPatternDiff = val;
@@ -231,8 +243,22 @@ void initKnockSensor() {
    Microphone functions.
 */
 
+bool isAudioPatternOk() {
+  if (triggerHistory.size() < SOLUTION_SIZE) {
+    return false;
+  }
+
+  for (int i = 0; i < SOLUTION_SIZE; i++) {
+    if (triggerHistory[i] != SOLUTION_KEY[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 void onMicroChange(int idx, int v, int up) {
-  Serial.print(F("# Micro :: "));
+  Serial.print(F("Micro :: "));
   Serial.print(idx);
   Serial.print(F(" :: "));
   Serial.println(v);
@@ -242,7 +268,7 @@ void onMicroChange(int idx, int v, int up) {
   }
 
   if (v >= MICROS_THRESHOLD) {
-    Serial.println(F("# Micro active: Playing audio"));
+    Serial.println(F("Micro active: Playing audio"));
     triggerHistory.push(idx);
     playTrack(AUDIO_PINS[idx]);
   }
@@ -264,11 +290,11 @@ void initMicros() {
 
 void playTrack(byte trackPin) {
   if (isTrackPlaying()) {
-    Serial.println(F("# Skipping: Audio still playing"));
+    Serial.println(F("Skipping: Audio still playing"));
     return;
   }
 
-  Serial.print(F("# Playing track on pin: "));
+  Serial.print(F("Playing track on pin: "));
   Serial.println(trackPin);
 
   digitalWrite(trackPin, LOW);
@@ -291,14 +317,14 @@ bool isTrackPlaying() {
 }
 
 void resetAudio() {
-  Serial.println(F("# Audio FX reset"));
+  Serial.println(F("Audio FX reset"));
 
   digitalWrite(PIN_AUDIO_RST, LOW);
   pinMode(PIN_AUDIO_RST, OUTPUT);
   delay(10);
   pinMode(PIN_AUDIO_RST, INPUT);
 
-  Serial.println(F("# Waiting for Audio FX startup"));
+  Serial.println(F("Waiting for Audio FX startup"));
 
   delay(2000);
 }
@@ -319,8 +345,12 @@ void clearLeds() {
   ledStrip.show();
 }
 
+void startLedSequence(int idx, int v, int up) {
+  startLedSequence();
+}
+
 void startLedSequence() {
-  if (progState.nextLedSequenceStep != -1) {
+  if (progState.nextLedSequenceStep > -1) {
     Serial.println(F("WARN :: Ongoing LED sequence"));
     return;
   }
@@ -334,12 +364,12 @@ void onLedSequenceStep(int idx, int v, int up) {
 }
 
 void onLedSequenceStep() {
-  if (progState.nextLedSequenceStep == -1) {
+  if (progState.nextLedSequenceStep < 0) {
     Serial.println(F("WARN :: Next LED sequence step is undefined"));
     return;
   }
 
-  Serial.print(F("# LED step: "));
+  Serial.print(F("LED step: "));
   Serial.println(progState.nextLedSequenceStep);
 
   clearLeds();
@@ -350,7 +380,7 @@ void onLedSequenceStep() {
 
   ledStrip.show();
 
-  Serial.print(F("# Clearing LEDs in (ms): "));
+  Serial.print(F("Clearing LEDs in (ms): "));
   Serial.println(SEQ_CLEAR_MS);
 
   timerLedClear
@@ -362,8 +392,9 @@ void onLedSequenceStep() {
   int nextStep = progState.nextLedSequenceStep + 1;
 
   if (nextStep >= KNOCK_PATTERN_SIZE) {
-    Serial.println(F("# LED sequence finished"));
+    Serial.println(F("LED sequence finished"));
     progState.nextLedSequenceStep = -1;
+    progState.isLedSequenceRunning = false;
     return;
   } else {
     progState.nextLedSequenceStep = nextStep;
@@ -371,7 +402,7 @@ void onLedSequenceStep() {
 
   int diffMs = knockPattern[nextStep] - knockPattern[nextStep - 1];
 
-  Serial.print(F("# Next LED step in (ms): "));
+  Serial.print(F("Next LED step in (ms): "));
   Serial.println(diffMs);
 
   timerLedSequence
@@ -389,33 +420,34 @@ void onLedClear(int idx, int v, int up) {
    Program state functions.
 */
 
-bool isPatternOk() {
-  if (triggerHistory.size() < SOLUTION_SIZE) {
-    return false;
-  }
-
-  for (int i = 0; i < SOLUTION_SIZE; i++) {
-    if (triggerHistory[i] != SOLUTION_KEY[i]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 void updateState() {
-  bool isAudioPatternOk = isPatternOk() || progState.isAudioPatternOk;
-
-  if (isTrackPlaying() || !isAudioPatternOk) {
+  if (!progState.isAudioPatternOk && !isAudioPatternOk()) {
     return;
   }
 
   progState.isAudioPatternOk = true;
 
-  if (!progState.hasPlayedFinalAudio) {
+  if (!isTrackPlaying() && !progState.hasPlayedFinalAudio) {
+    Serial.println(F("Playing final audio"));
     progState.hasPlayedFinalAudio = true;
     playTrack(PIN_AUDIO_FINAL);
-    startLedSequence();
+  }
+
+  if (!progState.isLedSequenceRunning) {
+    Serial.print(F("Scheduling LED sequence in (ms): "));
+    Serial.println(LED_SEQ_DELAY_START);
+
+    progState.isLedSequenceRunning = true;
+
+    timerStartSequence
+    .begin(LED_SEQ_DELAY_START)
+    .repeat(1)
+    .onTimer(startLedSequence)
+    .start();
+  }
+
+  if (!progState.isRelayOpen && isValidKnockPattern()) {
+    openRelay();
   }
 }
 
@@ -432,12 +464,34 @@ void initStateTimer() {
 }
 
 /**
+   Relay functions.
+*/
+
+void lockRelay() {
+  Serial.println(F("Locking relay"));
+  digitalWrite(RELAY_PIN, LOW);
+  progState.isRelayOpen = false;
+}
+
+void openRelay() {
+  Serial.println(F("Opening relay"));
+  digitalWrite(RELAY_PIN, HIGH);
+  progState.isRelayOpen = true;
+}
+
+void initRelay() {
+  pinMode(RELAY_PIN, OUTPUT);
+  lockRelay();
+}
+
+/**
    Entrypoint.
 */
 
 void setup() {
   Serial.begin(9600);
 
+  initRelay();
   initMicros();
   initLedStrip();
   initAudioPins();
