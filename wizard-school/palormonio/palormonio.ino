@@ -12,9 +12,10 @@ typedef struct programState {
   bool hasPlayedFinalAudio;
   unsigned long lastKnock;
   bool isRelayOpen;
-  bool isLedSequenceRunning;
-  unsigned long ledSeqStartMillis;
-  unsigned long lastLedSeqMillis;
+  bool isLedPatternRunning;
+  unsigned long ledPatternStartMillis;
+  unsigned long lastLedPatternMillis;
+  unsigned int ledKnockClearCountdown;
 } ProgramState;
 
 ProgramState progState = {
@@ -22,9 +23,10 @@ ProgramState progState = {
   .hasPlayedFinalAudio = false,
   .lastKnock = 0,
   .isRelayOpen = false,
-  .isLedSequenceRunning = false,
-  .ledSeqStartMillis = 0,
-  .lastLedSeqMillis = 0
+  .isLedPatternRunning = false,
+  .ledPatternStartMillis = 0,
+  .lastLedPatternMillis = 0,
+  .ledKnockClearCountdown = 0
 };
 
 Atm_timer timerState;
@@ -41,12 +43,14 @@ const byte RELAY_PIN = 12;
    Piezo knock sensor.
 */
 
-const byte KNOCK_PIN = A5;
-const byte KNOCK_THRESHOLD = 30;
-const byte KNOCK_SAMPLERATE = 50;
-const byte KNOCK_BUF_SIZE = 30;
-const byte KNOCK_TRAINING_SIZE = 5;
-const byte KNOCK_PATTERN_SIZE = 5;
+const int KNOCK_PIN = A5;
+const int KNOCK_RANGE_MIN = 0;
+const int KNOCK_RANGE_MAX = 100;
+const int KNOCK_THRESHOLD = 20;
+const int KNOCK_SAMPLERATE = 50;
+const int KNOCK_BUF_SIZE = 30;
+const int KNOCK_TRAINING_SIZE = 5;
+const int KNOCK_PATTERN_SIZE = 5;
 const float KNOCK_TOLERANCE = 0.4;
 const unsigned int KNOCK_DELAY_MS = 150;
 
@@ -115,9 +119,13 @@ const byte PIN_AUDIO_FINAL = 10;
 const int LED_BRIGHTNESS = 150;
 const int LED_PIN = 11;
 const int LED_NUM = 30;
-const uint32_t COLOR_SEQUENCE = Adafruit_NeoPixel::Color(100, 255, 0);
-const int LED_SEQ_CLEAR_MS = 200;
-const int LED_SEQ_DELAY_MS = 5000;
+const int LED_DIVISION_SIZE = 15;
+const int LED_PATTERN_CLEAR_MS = 200;
+const int LED_PATTERN_DELAY_MS = 5000;
+const int LED_KNOCK_SHOW_ITERS = 2;
+
+const uint32_t LED_PATTERN_COLOR = Adafruit_NeoPixel::Color(100, 255, 0);
+const uint32_t LED_KNOCK_COLOR = Adafruit_NeoPixel::Color(255, 105, 97);
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -221,8 +229,11 @@ void onKnock(int idx, int v, int up) {
   if (progState.lastKnock == 0 || diff >= KNOCK_DELAY_MS) {
     Serial.print(now);
     Serial.println(F("::K"));
+
     progState.lastKnock = now;
     knockHistory.push(now);
+    showLedsKnock();
+    progState.ledKnockClearCountdown = LED_KNOCK_SHOW_ITERS;
   }
 }
 
@@ -231,7 +242,8 @@ void initKnockSensor() {
   setMeanKnockPatternDiff();
 
   knockAnalog
-  .begin(KNOCK_PIN, KNOCK_SAMPLERATE);
+  .begin(KNOCK_PIN, KNOCK_SAMPLERATE)
+  .range(KNOCK_RANGE_MIN, KNOCK_RANGE_MAX);
 
   knockController
   .begin()
@@ -336,10 +348,8 @@ void resetAudio() {
 void initLedStrip() {
   ledStrip.begin();
   ledStrip.setBrightness(LED_BRIGHTNESS);
-  ledStrip.clear();
   ledStrip.show();
-
-  resetLedSequence();
+  clearLeds();
 }
 
 void clearLeds() {
@@ -347,69 +357,94 @@ void clearLeds() {
   ledStrip.show();
 }
 
-void startLedSequence(int idx, int v, int up) {
-  startLedSequence();
-}
-
-void startLedSequence() {
-  if (progState.isLedSequenceRunning) {
-    Serial.println(F("WARN :: LED sequence ongoing"));
-    return;
-  }
-
-  Serial.println(F("Starting LED sequence"));
-  progState.isLedSequenceRunning = true;
-  progState.lastLedSeqMillis = millis();
-}
-
-void resetLedSequence() {
-  clearLeds();
-  progState.ledSeqStartMillis = 0;
-  progState.isLedSequenceRunning = false;
-}
-
-void showLedSequence() {
-  for (int i = 0; i < LED_NUM; i++) {
-    ledStrip.setPixelColor(i, COLOR_SEQUENCE);
+void clearLedsPattern() {
+  for (int i = 0; i < LED_DIVISION_SIZE; i++) {
+    ledStrip.setPixelColor(i, 0);
   }
 
   ledStrip.show();
 }
 
-void updateLedSequence(int idx, int v, int up) {
-  updateLedSequence();
+void clearLedsKnock() {
+  for (int i = LED_DIVISION_SIZE; i < LED_NUM; i++) {
+    ledStrip.setPixelColor(i, 0);
+  }
+
+  ledStrip.show();
 }
 
-void updateLedSequence() {
+void startLedPattern(int idx, int v, int up) {
+  startLedPattern();
+}
+
+void startLedPattern() {
+  if (progState.isLedPatternRunning) {
+    Serial.println(F("WARN :: LED sequence ongoing"));
+    return;
+  }
+
+  Serial.println(F("Starting LED sequence"));
+
+  progState.isLedPatternRunning = true;
+  progState.lastLedPatternMillis = millis();
+}
+
+void resetLedPattern() {
+  clearLedsPattern();
+  progState.ledPatternStartMillis = 0;
+  progState.isLedPatternRunning = false;
+}
+
+void showLedsPattern() {
+  for (int i = 0; i < LED_DIVISION_SIZE; i++) {
+    ledStrip.setPixelColor(i, LED_PATTERN_COLOR);
+  }
+
+  ledStrip.show();
+}
+
+void showLedsKnock() {
+  for (int i = LED_DIVISION_SIZE; i < LED_NUM; i++) {
+    ledStrip.setPixelColor(i, LED_KNOCK_COLOR);
+  }
+
+  ledStrip.show();
+}
+
+void updateLedPattern(int idx, int v, int up) {
+  updateLedPattern();
+}
+
+void updateLedPattern() {
   if (!progState.isAudioPatternOk ||
-      !progState.isLedSequenceRunning) {
-    clearLeds();
+      !progState.isLedPatternRunning) {
+    clearLedsPattern();
     return;
   }
 
   unsigned long now = millis();
 
-  if (progState.ledSeqStartMillis == 0) {
+  if (progState.ledPatternStartMillis == 0) {
     Serial.println(F("Updating LED sequence start stamp"));
-    progState.ledSeqStartMillis = now;
+    progState.ledPatternStartMillis = now;
   }
 
-  if (now < progState.ledSeqStartMillis) {
+  if (now < progState.ledPatternStartMillis) {
     Serial.println(F("Millis overflow on LED sequence loop"));
-    resetLedSequence();
+    resetLedPattern();
     return;
   }
 
-  unsigned long diff = now - progState.ledSeqStartMillis;
+  unsigned long diff = now - progState.ledPatternStartMillis;
 
   float limitMillisSoft = knockPattern[KNOCK_PATTERN_SIZE - 1];
-  float limitMillisHard = limitMillisSoft + LED_SEQ_CLEAR_MS;
+  float limitMillisHard = limitMillisSoft + LED_PATTERN_CLEAR_MS;
 
   if (diff >= limitMillisSoft) {
     if (diff < limitMillisHard) {
-      showLedSequence();
+      showLedsPattern();
     } else {
-      resetLedSequence();
+      resetLedPattern();
     }
 
     return;
@@ -427,38 +462,41 @@ void updateLedSequence() {
 
   if (currIdx == -1) {
     Serial.println(F("WARN :: Unable to find LED sequence index"));
-    resetLedSequence();
+    resetLedPattern();
     return;
   }
 
-  float limitMillisShow = knockPattern[currIdx] + LED_SEQ_CLEAR_MS;
+  float limitMillisShow = knockPattern[currIdx] + LED_PATTERN_CLEAR_MS;
 
   if (diff < limitMillisShow) {
-    showLedSequence();
+    showLedsPattern();
   } else {
-    clearLeds();
+    clearLedsPattern();
   }
 }
 
-bool isLedSequenceStartAllowed() {
-  if (progState.isLedSequenceRunning) {
+bool isLedPatternStartAllowed() {
+  if (progState.isLedPatternRunning || progState.isRelayOpen) {
     return false;
   }
 
-  if (progState.lastLedSeqMillis == 0) {
+  if (progState.lastLedPatternMillis == 0) {
     return true;
   }
 
   unsigned long now = millis();
 
-  if (now < progState.lastLedSeqMillis) {
+  if (now < progState.lastLedPatternMillis) {
     Serial.println(F("Overflow checking LED schedule"));
-    progState.lastLedSeqMillis = 0;
+    progState.lastLedPatternMillis = 0;
     return false;
   }
 
-  unsigned long diff = now - progState.lastLedSeqMillis;
-  unsigned long minDiff = LED_SEQ_DELAY_MS + knockPattern[KNOCK_PATTERN_SIZE - 1];
+  unsigned long diff = now - progState.lastLedPatternMillis;
+
+  unsigned long minDiff = LED_PATTERN_DELAY_MS +
+                          LED_PATTERN_CLEAR_MS +
+                          knockPattern[KNOCK_PATTERN_SIZE - 1];
 
   return diff >= minDiff;
 }
@@ -480,14 +518,20 @@ void updateState() {
     playTrack(PIN_AUDIO_FINAL);
   }
 
-  if (isLedSequenceStartAllowed()) {
-    startLedSequence();
+  if (isLedPatternStartAllowed()) {
+    startLedPattern();
   }
 
-  updateLedSequence();
+  updateLedPattern();
 
   if (!progState.isRelayOpen && isValidKnockPattern()) {
     openRelay();
+  }
+
+  if (progState.ledKnockClearCountdown > 0) {
+    progState.ledKnockClearCountdown--;
+  } else {
+    clearLedsKnock();
   }
 }
 
