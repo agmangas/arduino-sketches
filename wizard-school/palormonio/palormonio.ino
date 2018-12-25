@@ -51,7 +51,7 @@ const int KNOCK_SAMPLERATE = 50;
 const int KNOCK_BUF_SIZE = 30;
 const int KNOCK_TRAINING_SIZE = 5;
 const int KNOCK_PATTERN_SIZE = 5;
-const float KNOCK_TOLERANCE = 0.4;
+const float KNOCK_TOLERANCE = 0.6;
 const unsigned int KNOCK_DELAY_MS = 150;
 
 unsigned int knockTrainingSet[KNOCK_TRAINING_SIZE][KNOCK_PATTERN_SIZE] = {
