@@ -1,4 +1,4 @@
-const byte WATER_SENSOR_PIN = 0;
+const byte WATER_SENSOR_PIN = A0;
 const byte RELAY_PIN = 10;
 const int LEVEL_THRESHOLD = 185;
 const unsigned long LOOP_DELAY_MS = 700;
@@ -47,11 +47,23 @@ int detectWaterLevelSignalEdge() {
   return 0;
 }
 
+void lockRelay() {
+  digitalWrite(RELAY_PIN, LOW);
+}
+
+void openRelay() {
+  digitalWrite(RELAY_PIN, HIGH);
+}
+
+void initRelay() {
+  pinMode(RELAY_PIN, OUTPUT);
+  lockRelay();
+}
+
 void setup() {
   Serial.begin(9600);
 
-  pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH);
+  initRelay();
 
   Serial.println(">>> Starting water level program");
   Serial.flush();
@@ -61,13 +73,11 @@ void loop() {
   int edge = detectWaterLevelSignalEdge();
 
   if (edge == 1) {
-    Serial.println("### Opening relay");
-    Serial.flush();
-    digitalWrite(RELAY_PIN, LOW);
+    Serial.println(F("Opening relay"));
+    openRelay();
   } else if (edge == -1) {
-    Serial.println("### Closing relay");
-    Serial.flush();
-    digitalWrite(RELAY_PIN, HIGH);
+    Serial.println(F("Closing relay"));
+    lockRelay();
   }
 
   delay(LOOP_DELAY_MS);
