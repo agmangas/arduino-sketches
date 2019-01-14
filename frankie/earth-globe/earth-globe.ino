@@ -11,22 +11,29 @@ const byte RELAY_PIN_3 = 9;
 SoftwareSerial sSerial(RX_PIN, TX_PIN);
 SerialRFID rfid(sSerial);
 
-char matchTag1[SIZE_TAG_ID] = "5C00CAC9633C";
-char matchTag2[SIZE_TAG_ID] = "5C00CB17C444";
-char matchTag3[SIZE_TAG_ID] = "5C00CB17DC5C";
+char tag[SIZE_TAG_ID];
 
-void openFirstRelay(char *tag) {
-  Serial.println("Opening relay 01");
+char tagBoiler01[SIZE_TAG_ID] = "5C00CAC9633C";
+char tagBoiler02[SIZE_TAG_ID] = "15002E953F91";
+
+char tagGate01[SIZE_TAG_ID] = "5C00CB17C444";
+char tagGate02[SIZE_TAG_ID] = "10001B96A73A";
+
+char tagStorm01[SIZE_TAG_ID] = "5C00CB17DC5C";
+char tagStorm02[SIZE_TAG_ID] = "10001B02ABA2";
+
+void openBoiler() {
+  Serial.println("Opening boiler room");
   digitalWrite(RELAY_PIN_1, HIGH);
 }
 
-void openSecondRelay(char *tag) {
-  Serial.println("Opening relay 02");
+void openGate() {
+  Serial.println("Opening gate");
   digitalWrite(RELAY_PIN_2, HIGH);
 }
 
-void openThirdRelay(char *tag) {
-  Serial.println("Opening relay 03 (Room of Storms)");
+void openStormRoom() {
+  Serial.println("Opening storm room");
   digitalWrite(RELAY_PIN_3, LOW);
 }
 
@@ -40,22 +47,29 @@ void initRelays() {
   digitalWrite(RELAY_PIN_3, HIGH);
 }
 
-void initRFID() {
-  rfid.onTag(openFirstRelay, matchTag1);
-  rfid.onTag(openSecondRelay, matchTag2);
-  rfid.onTag(openThirdRelay, matchTag3);
-}
-
 void setup() {
   Serial.begin(9600);
   sSerial.begin(9600);
 
   initRelays();
-  initRFID();
 
   Serial.println(">> Starting Earth Globe program");
 }
 
 void loop() {
-  rfid.run();
+  if (rfid.readTag(tag, sizeof(tag))) {
+    Serial.print("Tag: ");
+    Serial.println(tag);
+
+    if (SerialRFID::isEqualTag(tag, tagBoiler01) ||
+        SerialRFID::isEqualTag(tag, tagBoiler02)) {
+      openBoiler();
+    } else if (SerialRFID::isEqualTag(tag, tagGate01) ||
+               SerialRFID::isEqualTag(tag, tagGate02)) {
+      openGate();
+    } else if (SerialRFID::isEqualTag(tag, tagStorm01) ||
+               SerialRFID::isEqualTag(tag, tagStorm02)) {
+      openStormRoom();
+    }
+  }
 }
