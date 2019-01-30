@@ -1,7 +1,16 @@
-#include <limits.h>
+#include <Automaton.h>
 
 /**
   Shortest paths in the LED matrix.
+  [
+    {00, 01, 02, 03, 04, 05, 06},
+    {07, 08, 09, 10, 11, 12, 13},
+    {14, 15, 16, 17, 18, 19, 20},
+    {21, 22, 23, 24, 25, 26, 27},
+    {28, 29, 30, 31, 32, 33, 34},
+    {35, 36, 37, 38, 39, 40, 41},
+    {42, 43, 44, 45, 46, 47, 48}
+  ]
 */
 
 const byte PATHS_SIZE = 18;
@@ -46,6 +55,49 @@ const byte LED_MAP[MATRIX_SIZE][MATRIX_SIZE] = {
   {53, 52, 51, 50, 49, 48, 47},
   {57, 58, 59, 60, 61, 62, 63}
 };
+
+/**
+   Proximity sensors.
+*/
+
+const int PROX_SENSORS_NUM = 9;
+const int PROX_SENSORS_SAMPLERATE = 50;
+const int PROX_SENSORS_RANGE_MIN = 0;
+const int PROX_SENSORS_RANGE_MAX = 1000;
+const int PROX_SENSORS_THRESHOLD = 800;
+
+const int PROX_SENSORS_INDEX[PROX_SENSORS_NUM] = {
+  0, 3, 6, 21, 24, 27, 42, 45, 48
+};
+
+const int PROX_SENSORS_PINS[PROX_SENSORS_NUM] = {
+  A0, A1, A2, A3, A4, A5, A6, A7, A8
+};
+
+Atm_analog proxSensorsAnalog[PROX_SENSORS_NUM];
+Atm_controller proxSensorsControl[PROX_SENSORS_NUM];
+
+/**
+   Proximity sensors functions.
+*/
+
+void onProxSensor(int idx, int v, int up) {
+  Serial.print(F("Proximity sensor activated: "));
+  Serial.println(idx);
+}
+
+void initProximitySensors() {
+  for (int i = 0; i < PROX_SENSORS_NUM; i++) {
+    proxSensorsAnalog[i]
+    .begin(PROX_SENSORS_PINS[i], PROX_SENSORS_SAMPLERATE)
+    .range(PROX_SENSORS_RANGE_MIN, PROX_SENSORS_RANGE_MAX);
+
+    proxSensorsControl[i]
+    .begin()
+    .IF(proxSensorsAnalog[i], '<', PROX_SENSORS_THRESHOLD)
+    .onChange(true, onProxSensor, i);
+  }
+}
 
 /**
   Function to reverse order of items in array.
@@ -130,8 +182,12 @@ void updatePathBuffers(int start, int finish) {
 */
 
 void setup() {
+  Serial.begin(9600);
   emptyPathBuffers();
+  initProximitySensors();
+  Serial.println(F(">> Starting Runebook program"));
 }
 
 void loop() {
+  automaton.run();
 }
