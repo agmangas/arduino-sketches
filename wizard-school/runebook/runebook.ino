@@ -66,6 +66,7 @@ const int PROX_SENSORS_SAMPLERATE = 50;
 const int PROX_SENSORS_RANGE_MIN = 0;
 const int PROX_SENSORS_RANGE_MAX = 1000;
 const int PROX_SENSORS_THRESHOLD = 930;
+const unsigned long PROX_SENSORS_CONFIRMATION_MS = 10000;
 
 const int PROX_SENSORS_INDEX[PROX_SENSORS_NUM] = {
   0, 3, 6, 21, 24, 27, 42, 45, 48
@@ -77,6 +78,7 @@ const int PROX_SENSORS_PINS[PROX_SENSORS_NUM] = {
 
 Atm_analog proxSensorsAnalog[PROX_SENSORS_NUM];
 Atm_controller proxSensorsControl[PROX_SENSORS_NUM];
+Atm_controller proxSensorsConfirmControl;
 
 /**
    LED strip.
@@ -104,21 +106,51 @@ typedef struct programState {
   int* historySensor;
   int* historyPath;
   int* historyPathLed;
+  unsigned long lastSensorActivation;
 } ProgramState;
 
 ProgramState progState = {
   .historySensor = historySensor,
   .historyPath = historyPath,
-  .historyPathLed = historyPathLed
+  .historyPathLed = historyPathLed,
+  .lastSensorActivation = 0
 };
 
 /**
    Proximity sensors functions.
 */
 
+bool isSensorPatternConfirmed() {
+  if (progState.lastSensorActivation == 0) {
+    return false;
+  }
+
+  if (progState.historySensor[0] == -1 ||
+      progState.historySensor[1] == -1) {
+    return false;
+  }
+
+  unsigned long now = millis();
+
+  if (now < progState.lastSensorActivation) {
+    Serial.println(F("Millis overflow in sensor pattern confirmation"));
+    return true;
+  }
+
+  unsigned long diff = now - progState.lastSensorActivation;
+
+  return diff > PROX_SENSORS_CONFIRMATION_MS;
+}
+
+void onSensorPatternConfirmed() {
+  Serial.println(F("Sensor pattern confirmed"));
+}
+
 void onProxSensor(int idx, int v, int up) {
   Serial.print(F("Proximity sensor activated: "));
   Serial.println(idx);
+
+  progState.lastSensorActivation = millis();
 
   addHistorySensor(idx);
   refreshHistoryPath();
@@ -135,6 +167,11 @@ void initProximitySensors() {
     .IF(proxSensorsAnalog[i], '<', PROX_SENSORS_THRESHOLD)
     .onChange(true, onProxSensor, i);
   }
+
+  proxSensorsConfirmControl
+  .begin()
+  .IF(isSensorPatternConfirmed)
+  .onChange(true, onSensorPatternConfirmed);
 }
 
 /**
