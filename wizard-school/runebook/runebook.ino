@@ -82,12 +82,12 @@ Atm_controller proxSensorsControl[PROX_SENSORS_NUM];
    LED strip.
 */
 
-const int LED_BRIGHTNESS = 150;
-const int LED_PIN = 10;
-const int LED_NUM = 120;
-const uint32_t LED_COLOR = Adafruit_NeoPixel::Color(255, 105, 97);
+const int LED_BOOK_BRIGHTNESS = 150;
+const int LED_BOOK_PIN = 10;
+const int LED_BOOK_NUM = 64;
+const uint32_t LED_BOOK_COLOR = Adafruit_NeoPixel::Color(255, 105, 97);
 
-Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledBook = Adafruit_NeoPixel(LED_BOOK_NUM, LED_BOOK_PIN, NEO_GRB + NEO_KHZ800);
 
 /**
   Program state.
@@ -172,6 +172,25 @@ void emptyHistoryPath() {
   }
 }
 
+bool isSensorAdjacent(int idxOne, int idxOther) {
+  bool isMatchAsc;
+  bool isMatchDesc;
+
+  for (int i = 0; i < PATHS_SIZE; i++) {
+    isMatchAsc = PATHS[i][0] == idxOne &&
+                 PATHS[i][PATHS_ITEM_LEN - 1] == idxOther;
+
+    isMatchDesc = PATHS[i][0] == idxOther &&
+                  PATHS[i][PATHS_ITEM_LEN - 1] == idxOne;
+
+    if (isMatchAsc || isMatchDesc) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void addHistorySensor(int sensorIdx) {
   if (sensorIdx < 0 || sensorIdx >= PROX_SENSORS_NUM) {
     Serial.println(F("Sensor index is out of range"));
@@ -189,6 +208,15 @@ void addHistorySensor(int sensorIdx) {
 
   if (nextIdx == -1) {
     Serial.println(F("Full sensor history"));
+    return;
+  }
+
+  if (nextIdx > 0 &&
+      !isSensorAdjacent(progState.historySensor[nextIdx - 1], sensorIdx)) {
+    Serial.print(F("Sensor "));
+    Serial.print(sensorIdx);
+    Serial.print(F(" is not adjacent to the previous: "));
+    Serial.println(progState.historySensor[nextIdx - 1]);
     return;
   }
 
@@ -286,6 +314,7 @@ void updatePathBuffers(int init, int finish) {
   }
 
   if (matchIdx == -1) {
+    Serial.println(F("No shortest path could be found"));
     return;
   }
 
@@ -311,30 +340,31 @@ void updatePathBuffers(int init, int finish) {
    LED functions.
 */
 
-void initLedStrip() {
-  ledStrip.begin();
-  ledStrip.setBrightness(LED_BRIGHTNESS);
-  ledStrip.show();
-  clearLeds();
+void initLeds() {
+  ledBook.begin();
+  ledBook.setBrightness(LED_BOOK_BRIGHTNESS);
+  ledBook.show();
+
+  clearLedsBook();
 }
 
-void clearLeds() {
-  ledStrip.clear();
-  ledStrip.show();
+void clearLedsBook() {
+  ledBook.clear();
+  ledBook.show();
 }
 
-void showPathHistoryLeds() {
-  clearLeds();
+void refreshLedsBook() {
+  clearLedsBook();
 
   for (int i = 0; i < HISTORY_PATH_SIZE; i++) {
     if (progState.historyPathLed[i] == -1) {
       break;
     }
 
-    ledStrip.setPixelColor(progState.historyPathLed[i], LED_COLOR);
+    ledBook.setPixelColor(progState.historyPathLed[i], LED_BOOK_COLOR);
   }
 
-  ledStrip.show();
+  ledBook.show();
 }
 
 /**
@@ -348,12 +378,12 @@ void setup() {
   emptyHistorySensor();
   emptyHistoryPath();
   initProximitySensors();
-  initLedStrip();
+  initLeds();
 
   Serial.println(F(">> Starting Runebook program"));
 }
 
 void loop() {
   automaton.run();
-  showPathHistoryLeds();
+  refreshLedsBook();
 }
