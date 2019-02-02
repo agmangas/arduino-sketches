@@ -1,4 +1,5 @@
 #include <Automaton.h>
+#include <Adafruit_NeoPixel.h>
 
 /**
   Shortest paths in the LED matrix.
@@ -64,7 +65,7 @@ const int PROX_SENSORS_NUM = 9;
 const int PROX_SENSORS_SAMPLERATE = 50;
 const int PROX_SENSORS_RANGE_MIN = 0;
 const int PROX_SENSORS_RANGE_MAX = 1000;
-const int PROX_SENSORS_THRESHOLD = 800;
+const int PROX_SENSORS_THRESHOLD = 930;
 
 const int PROX_SENSORS_INDEX[PROX_SENSORS_NUM] = {
   0, 3, 6, 21, 24, 27, 42, 45, 48
@@ -78,12 +79,49 @@ Atm_analog proxSensorsAnalog[PROX_SENSORS_NUM];
 Atm_controller proxSensorsControl[PROX_SENSORS_NUM];
 
 /**
+   LED strip.
+*/
+
+const int LED_BRIGHTNESS = 150;
+const int LED_PIN = 10;
+const int LED_NUM = 120;
+const uint32_t LED_COLOR = Adafruit_NeoPixel::Color(255, 105, 97);
+
+Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+/**
+  Program state.
+*/
+
+const int HISTORY_SENSOR_SIZE = PROX_SENSORS_NUM * 3;
+const int HISTORY_PATH_SIZE = HISTORY_SENSOR_SIZE * (PATHS_ITEM_LEN + 1);
+
+int historySensor[HISTORY_SENSOR_SIZE];
+int historyPath[HISTORY_PATH_SIZE];
+int historyPathLed[HISTORY_PATH_SIZE];
+
+typedef struct programState {
+  int* historySensor;
+  int* historyPath;
+  int* historyPathLed;
+} ProgramState;
+
+ProgramState progState = {
+  .historySensor = historySensor,
+  .historyPath = historyPath,
+  .historyPathLed = historyPathLed
+};
+
+/**
    Proximity sensors functions.
 */
 
 void onProxSensor(int idx, int v, int up) {
   Serial.print(F("Proximity sensor activated: "));
   Serial.println(idx);
+
+  addHistorySensor(idx);
+  refreshHistoryPath();
 }
 
 void initProximitySensors() {
@@ -114,10 +152,97 @@ void reverseRange(int* arr, int lft, int rgt) {
 }
 
 /**
+   Functions to handle path history.
+*/
+
+void emptyHistorySensor() {
+  Serial.println(F("Emptying sensor history"));
+
+  for (int i = 0; i < HISTORY_SENSOR_SIZE; i++) {
+    progState.historySensor[i] = -1;
+  }
+}
+
+void emptyHistoryPath() {
+  Serial.println(F("Emptying path history"));
+
+  for (int i = 0; i < HISTORY_PATH_SIZE; i++) {
+    progState.historyPath[i] = -1;
+    progState.historyPathLed[i] = -1;
+  }
+}
+
+void addHistorySensor(int sensorIdx) {
+  if (sensorIdx < 0 || sensorIdx >= PROX_SENSORS_NUM) {
+    Serial.println(F("Sensor index is out of range"));
+    return;
+  }
+
+  int nextIdx = -1;
+
+  for (int i = 0 ; i < HISTORY_SENSOR_SIZE; i++) {
+    if (progState.historySensor[i] == -1) {
+      nextIdx = i;
+      break;
+    }
+  }
+
+  if (nextIdx == -1) {
+    Serial.println(F("Full sensor history"));
+    return;
+  }
+
+  Serial.print(F("Adding sensor to history: "));
+  Serial.println(sensorIdx);
+
+  progState.historySensor[nextIdx] = sensorIdx;
+}
+
+void refreshHistoryPath() {
+  emptyHistoryPath();
+
+  int init;
+  int finish;
+  int pathPivot = 0;
+
+  for (int i = 1; i < HISTORY_SENSOR_SIZE; i++) {
+    if (progState.historySensor[i] == -1) {
+      Serial.println(F("No more items in sensor history"));
+      return;
+    }
+
+    init = progState.historySensor[i - 1];
+    finish = progState.historySensor[i];
+
+    updatePathBuffers(init, finish);
+
+    if (isEmptyPathBuffers()) {
+      Serial.println(F("Unexpected empty path buffers"));
+      return;
+    }
+
+    for (int j = 0; j < PATHS_ITEM_LEN; j++) {
+      Serial.print(F("Adding item to path history: "));
+      Serial.println(pathBuf[j]);
+
+      Serial.print(F("Adding item to LED path history: "));
+      Serial.println(ledPathBuf[j]);
+
+      progState.historyPath[pathPivot] = pathBuf[j];
+      progState.historyPathLed[pathPivot] = ledPathBuf[j];
+
+      pathPivot++;
+    }
+  }
+}
+
+/**
   Functions to update the path buffer with the shortest path.
 */
 
 void emptyPathBuffers() {
+  Serial.println(F("Emptying path buffers"));
+
   for (int i = 0; i < PATHS_ITEM_LEN; i++) {
     pathBuf[i] = -1;
     ledPathBuf[i] = -1;
@@ -134,7 +259,12 @@ bool isEmptyPathBuffers() {
   return false;
 }
 
-void updatePathBuffers(int start, int finish) {
+void updatePathBuffers(int init, int finish) {
+  Serial.print(F("Getting shortest path from "));
+  Serial.print(init);
+  Serial.print(F(" to "));
+  Serial.println(finish);
+
   emptyPathBuffers();
 
   int matchIdx = -1;
@@ -143,11 +273,11 @@ void updatePathBuffers(int start, int finish) {
   bool isMatchDesc;
 
   for (int i = 0; i < PATHS_SIZE; i++) {
-    isMatchAsc = PATHS[i][0] == start &&
+    isMatchAsc = PATHS[i][0] == init &&
                  PATHS[i][PATHS_ITEM_LEN - 1] == finish;
 
     isMatchDesc = PATHS[i][0] == finish &&
-                  PATHS[i][PATHS_ITEM_LEN - 1] == start;
+                  PATHS[i][PATHS_ITEM_LEN - 1] == init;
 
     if (isMatchAsc || isMatchDesc) {
       matchIdx = i;
@@ -178,16 +308,52 @@ void updatePathBuffers(int start, int finish) {
 }
 
 /**
+   LED functions.
+*/
+
+void initLedStrip() {
+  ledStrip.begin();
+  ledStrip.setBrightness(LED_BRIGHTNESS);
+  ledStrip.show();
+  clearLeds();
+}
+
+void clearLeds() {
+  ledStrip.clear();
+  ledStrip.show();
+}
+
+void showPathHistoryLeds() {
+  clearLeds();
+
+  for (int i = 0; i < HISTORY_PATH_SIZE; i++) {
+    if (progState.historyPathLed[i] == -1) {
+      break;
+    }
+
+    ledStrip.setPixelColor(progState.historyPathLed[i], LED_COLOR);
+  }
+
+  ledStrip.show();
+}
+
+/**
    Entrypoint.
 */
 
 void setup() {
   Serial.begin(9600);
+
   emptyPathBuffers();
+  emptyHistorySensor();
+  emptyHistoryPath();
   initProximitySensors();
+  initLedStrip();
+
   Serial.println(F(">> Starting Runebook program"));
 }
 
 void loop() {
   automaton.run();
+  showPathHistoryLeds();
 }
