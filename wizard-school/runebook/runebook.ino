@@ -14,7 +14,7 @@
   ]
 */
 
-const byte PATHS_SIZE = 18;
+const byte PATHS_SIZE = 20;
 const byte PATHS_ITEM_LEN = 4;
 
 int pathBuf[PATHS_ITEM_LEN];
@@ -32,13 +32,15 @@ const byte PATHS[PATHS_SIZE][PATHS_ITEM_LEN] = {
   {6, 13, 20, 27},
   {21, 22, 23, 24},
   {21, 28, 35, 42},
+  {21, 29, 37, 45},
   {24, 25, 26, 27},
   {24, 30, 36, 42},
   {24, 31, 38, 45},
   {24, 32, 40, 48},
   {27, 33, 39, 45},
   {27, 34, 41, 48},
-  {42, 43, 44, 45}
+  {42, 43, 44, 45},
+  {45, 46, 47, 48}
 };
 
 /**
@@ -62,32 +64,29 @@ const byte LED_MAP[MATRIX_SIZE][MATRIX_SIZE] = {
 */
 
 const int PROX_SENSORS_NUM = 9;
-const int PROX_SENSORS_SAMPLERATE = 50;
-const int PROX_SENSORS_RANGE_MIN = 0;
-const int PROX_SENSORS_RANGE_MAX = 1000;
-const int PROX_SENSORS_THRESHOLD = 930;
-const unsigned long PROX_SENSORS_CONFIRMATION_MS = 10000;
+const unsigned long PROX_SENSORS_CONFIRMATION_MS = 3000;
 
 const int PROX_SENSORS_INDEX[PROX_SENSORS_NUM] = {
   0, 3, 6, 21, 24, 27, 42, 45, 48
 };
 
 const int PROX_SENSORS_PINS[PROX_SENSORS_NUM] = {
-  A0, A1, A2, A3, A4, A5, A6, A7, A8
+  3, 4, 5, 6, 7, 8, 9, 10, 11
 };
 
-Atm_analog proxSensorsAnalog[PROX_SENSORS_NUM];
-Atm_controller proxSensorsControl[PROX_SENSORS_NUM];
+Atm_button proxSensorsBtn[PROX_SENSORS_NUM];
 Atm_controller proxSensorsConfirmControl;
 
 /**
-   LED strip.
+   LED strip (book)
 */
 
 const int LED_BOOK_BRIGHTNESS = 150;
-const int LED_BOOK_PIN = 10;
+const int LED_BOOK_PIN = 20;
 const int LED_BOOK_NUM = 64;
-const uint32_t LED_BOOK_COLOR = Adafruit_NeoPixel::Color(255, 105, 97);
+const int LED_BOOK_PATTERN_DELAY_MS = 30;
+const int LED_BOOK_PATTERN_TAIL_SIZE = 5;
+const uint32_t LED_BOOK_COLOR = Adafruit_NeoPixel::Color(250, 120, 0);
 
 Adafruit_NeoPixel ledBook = Adafruit_NeoPixel(LED_BOOK_NUM, LED_BOOK_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -144,6 +143,13 @@ bool isSensorPatternConfirmed() {
 
 void onSensorPatternConfirmed() {
   Serial.println(F("Sensor pattern confirmed"));
+
+  playBookPattern();
+
+  clearLedsBook();
+  emptyPathBuffers();
+  emptyHistorySensor();
+  emptyHistoryPath();
 }
 
 void onProxSensor(int idx, int v, int up) {
@@ -158,14 +164,9 @@ void onProxSensor(int idx, int v, int up) {
 
 void initProximitySensors() {
   for (int i = 0; i < PROX_SENSORS_NUM; i++) {
-    proxSensorsAnalog[i]
-    .begin(PROX_SENSORS_PINS[i], PROX_SENSORS_SAMPLERATE)
-    .range(PROX_SENSORS_RANGE_MIN, PROX_SENSORS_RANGE_MAX);
-
-    proxSensorsControl[i]
-    .begin()
-    .IF(proxSensorsAnalog[i], '<', PROX_SENSORS_THRESHOLD)
-    .onChange(true, onProxSensor, i);
+    proxSensorsBtn[i]
+    .begin(PROX_SENSORS_PINS[i])
+    .onPress(onProxSensor, i);
   }
 
   proxSensorsConfirmControl
@@ -210,6 +211,11 @@ void emptyHistoryPath() {
 }
 
 bool isSensorAdjacent(int idxOne, int idxOther) {
+  Serial.print("Checking adjacency: ");
+  Serial.print(idxOne);
+  Serial.print(" - ");
+  Serial.println(idxOther);
+
   bool isMatchAsc;
   bool isMatchDesc;
 
@@ -234,6 +240,7 @@ void addHistorySensor(int sensorIdx) {
     return;
   }
 
+  int sensorMatrixIdx = PROX_SENSORS_INDEX[sensorIdx];
   int nextIdx = -1;
 
   for (int i = 0 ; i < HISTORY_SENSOR_SIZE; i++) {
@@ -248,19 +255,20 @@ void addHistorySensor(int sensorIdx) {
     return;
   }
 
-  if (nextIdx > 0 &&
-      !isSensorAdjacent(progState.historySensor[nextIdx - 1], sensorIdx)) {
+  int prevSensorMatrixIdx = progState.historySensor[nextIdx - 1];
+
+  if (nextIdx > 0 && !isSensorAdjacent(prevSensorMatrixIdx, sensorMatrixIdx)) {
     Serial.print(F("Sensor "));
-    Serial.print(sensorIdx);
+    Serial.print(sensorMatrixIdx);
     Serial.print(F(" is not adjacent to the previous: "));
-    Serial.println(progState.historySensor[nextIdx - 1]);
+    Serial.println(prevSensorMatrixIdx);
     return;
   }
 
   Serial.print(F("Adding sensor to history: "));
-  Serial.println(sensorIdx);
+  Serial.println(sensorMatrixIdx);
 
-  progState.historySensor[nextIdx] = sensorIdx;
+  progState.historySensor[nextIdx] = sensorMatrixIdx;
 }
 
 void refreshHistoryPath() {
@@ -287,11 +295,11 @@ void refreshHistoryPath() {
     }
 
     for (int j = 0; j < PATHS_ITEM_LEN; j++) {
-      Serial.print(F("Adding item to path history: "));
-      Serial.println(pathBuf[j]);
+      //Serial.print(F("Adding item to path history: "));
+      //Serial.println(pathBuf[j]);
 
-      Serial.print(F("Adding item to LED path history: "));
-      Serial.println(ledPathBuf[j]);
+      //Serial.print(F("Adding item to LED path history: "));
+      //Serial.println(ledPathBuf[j]);
 
       progState.historyPath[pathPivot] = pathBuf[j];
       progState.historyPathLed[pathPivot] = ledPathBuf[j];
@@ -306,7 +314,7 @@ void refreshHistoryPath() {
 */
 
 void emptyPathBuffers() {
-  Serial.println(F("Emptying path buffers"));
+  //Serial.println(F("Emptying path buffers"));
 
   for (int i = 0; i < PATHS_ITEM_LEN; i++) {
     pathBuf[i] = -1;
@@ -325,10 +333,10 @@ bool isEmptyPathBuffers() {
 }
 
 void updatePathBuffers(int init, int finish) {
-  Serial.print(F("Getting shortest path from "));
-  Serial.print(init);
-  Serial.print(F(" to "));
-  Serial.println(finish);
+  //Serial.print(F("Getting shortest path from "));
+  //Serial.print(init);
+  //Serial.print(F(" to "));
+  //Serial.println(finish);
 
   emptyPathBuffers();
 
@@ -388,6 +396,34 @@ void initLeds() {
 void clearLedsBook() {
   ledBook.clear();
   ledBook.show();
+}
+
+void playBookPattern() {
+  int pivotIdx;
+
+  for (int i = 0; i < HISTORY_PATH_SIZE; i++) {
+    clearLedsBook();
+
+    if (progState.historyPathLed[i] == -1) {
+      break;
+    }
+
+    for (int j = 0; j < LED_BOOK_PATTERN_TAIL_SIZE; j++) {
+      pivotIdx = i + j;
+
+      if (progState.historyPathLed[pivotIdx] == -1) {
+        break;
+      }
+
+      ledBook.setPixelColor(progState.historyPathLed[pivotIdx], LED_BOOK_COLOR);
+    }
+
+    ledBook.show();
+
+    delay(LED_BOOK_PATTERN_DELAY_MS);
+  }
+
+  clearLedsBook();
 }
 
 void refreshLedsBook() {
