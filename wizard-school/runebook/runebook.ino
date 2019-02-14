@@ -84,9 +84,10 @@ Atm_controller proxSensorsConfirmControl;
 const int LED_BOOK_BRIGHTNESS = 150;
 const int LED_BOOK_PIN = 20;
 const int LED_BOOK_NUM = 64;
-const int LED_BOOK_PATTERN_DELAY_MS = 30;
+const int LED_BOOK_PATTERN_ANIMATE_MS = 30;
 const int LED_BOOK_PATTERN_TAIL_SIZE = 5;
-const uint32_t LED_BOOK_COLOR = Adafruit_NeoPixel::Color(250, 120, 0);
+const int LED_BOOK_FADE_MS = 15;
+const uint32_t LED_BOOK_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 
 Adafruit_NeoPixel ledBook = Adafruit_NeoPixel(LED_BOOK_NUM, LED_BOOK_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -144,12 +145,13 @@ bool isSensorPatternConfirmed() {
 void onSensorPatternConfirmed() {
   Serial.println(F("Sensor pattern confirmed"));
 
-  playBookPattern();
+  animateBookLedPattern();
+  fadeBookLedPattern();
 
-  clearLedsBook();
   emptyPathBuffers();
   emptyHistorySensor();
   emptyHistoryPath();
+  progState.lastSensorActivation = 0;
 }
 
 void onProxSensor(int idx, int v, int up) {
@@ -295,11 +297,11 @@ void refreshHistoryPath() {
     }
 
     for (int j = 0; j < PATHS_ITEM_LEN; j++) {
-      //Serial.print(F("Adding item to path history: "));
-      //Serial.println(pathBuf[j]);
+      // Serial.print(F("Adding item to path history: "));
+      // Serial.println(pathBuf[j]);
 
-      //Serial.print(F("Adding item to LED path history: "));
-      //Serial.println(ledPathBuf[j]);
+      // Serial.print(F("Adding item to LED path history: "));
+      // Serial.println(ledPathBuf[j]);
 
       progState.historyPath[pathPivot] = pathBuf[j];
       progState.historyPathLed[pathPivot] = ledPathBuf[j];
@@ -314,8 +316,6 @@ void refreshHistoryPath() {
 */
 
 void emptyPathBuffers() {
-  //Serial.println(F("Emptying path buffers"));
-
   for (int i = 0; i < PATHS_ITEM_LEN; i++) {
     pathBuf[i] = -1;
     ledPathBuf[i] = -1;
@@ -333,10 +333,10 @@ bool isEmptyPathBuffers() {
 }
 
 void updatePathBuffers(int init, int finish) {
-  //Serial.print(F("Getting shortest path from "));
-  //Serial.print(init);
-  //Serial.print(F(" to "));
-  //Serial.println(finish);
+  // Serial.print(F("Getting shortest path from "));
+  // Serial.print(init);
+  // Serial.print(F(" to "));
+  // Serial.println(finish);
 
   emptyPathBuffers();
 
@@ -398,7 +398,28 @@ void clearLedsBook() {
   ledBook.show();
 }
 
-void playBookPattern() {
+void fadeBookLedPattern() {
+  clearLedsBook();
+
+  const int iniVal = 0;
+  const int endVal = 250;
+
+  for (int k = iniVal; k < endVal; k++) {
+    for (int i = 0; i < HISTORY_PATH_SIZE; i++) {
+      if (progState.historyPathLed[i] == -1) {
+        break;
+      }
+
+      ledBook.setPixelColor(progState.historyPathLed[i], 0, 0, k);
+    }
+
+    ledBook.show();
+
+    delay(LED_BOOK_FADE_MS);
+  }
+}
+
+void animateBookLedPattern() {
   int pivotIdx;
 
   for (int i = 0; i < HISTORY_PATH_SIZE; i++) {
@@ -420,7 +441,7 @@ void playBookPattern() {
 
     ledBook.show();
 
-    delay(LED_BOOK_PATTERN_DELAY_MS);
+    delay(LED_BOOK_PATTERN_ANIMATE_MS);
   }
 
   clearLedsBook();
