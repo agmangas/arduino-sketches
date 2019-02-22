@@ -64,7 +64,7 @@ const byte LED_MAP[MATRIX_SIZE][MATRIX_SIZE] = {
 */
 
 const int PROX_SENSORS_NUM = 9;
-const unsigned long PROX_SENSORS_CONFIRMATION_MS = 3000;
+const unsigned long PROX_SENSORS_CONFIRMATION_MS = 1500;
 
 const int PROX_SENSORS_INDEX[PROX_SENSORS_NUM] = {
   0, 3, 6, 21, 24, 27, 42, 45, 48
@@ -90,6 +90,55 @@ const int LED_BOOK_FADE_MS = 15;
 const uint32_t LED_BOOK_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 
 Adafruit_NeoPixel ledBook = Adafruit_NeoPixel(LED_BOOK_NUM, LED_BOOK_PIN, NEO_GRB + NEO_KHZ800);
+
+
+/**
+   LED strip (pipes)
+*/
+
+const int LED_PIPES_BRIGHTNESS = 150;
+const int LED_PIPES_PIN = 22;
+const int LED_PIPES_NUM = 300;
+
+Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(LED_PIPES_NUM, LED_PIPES_PIN, NEO_GRB + NEO_KHZ800);
+
+/**
+   0: Rabano Vivaz
+   1: Aliento Troll
+   2: Baba Escarbato
+   3: Pluma Fenix
+   4: Pelo Canguingo
+   5: Bono Loto
+   6: Lazo Diablo
+   7: Patas Acromantula
+   8: Pezuña Thestral
+   9: Seta Dose
+   10: Culo Kraken
+   11: Morros Nutria
+*/
+
+const int RUNES_NUM = 12;
+
+const int RUNES_PIN[RUNES_NUM] = {
+  0,
+  4,
+  8,
+  14,
+  18,
+  22,
+  40,
+  44,
+  48,
+  54,
+  58,
+  62
+};
+
+const int COIL_LED_INI = 65;
+const int COIL_LED_END = 110;
+
+const int COIL_LOOP_LED_INI = 77;
+const int COIL_LOOP_LED_END = 102;
 
 /**
   Program state.
@@ -391,11 +440,22 @@ void initLeds() {
   ledBook.show();
 
   clearLedsBook();
+
+  ledPipes.begin();
+  ledPipes.setBrightness(LED_PIPES_BRIGHTNESS);
+  ledPipes.show();
+
+  clearLedsPipes();
 }
 
 void clearLedsBook() {
   ledBook.clear();
   ledBook.show();
+}
+
+void clearLedsPipes() {
+  ledPipes.clear();
+  ledPipes.show();
 }
 
 void fadeBookLedPattern() {
