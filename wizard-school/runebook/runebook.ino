@@ -123,6 +123,10 @@ Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(LED_PIPES_NUM, LED_PIPES_PIN, NEO
 */
 
 const int RUNES_NUM = 12;
+const int RUNES_KEY_NUM = 4;
+
+const int RUNES_VALID_KEY[RUNES_KEY_NUM] = {
+    0, 2, 4, 6};
 
 const int RUNES_LED_INDEX[RUNES_NUM] = {
     0,
@@ -215,12 +219,14 @@ const int HISTORY_PATH_SIZE = HISTORY_SENSOR_SIZE * (PATHS_ITEM_LEN + 1);
 int historySensor[HISTORY_SENSOR_SIZE];
 int historyPath[HISTORY_PATH_SIZE];
 int historyPathLed[HISTORY_PATH_SIZE];
+int historyRunes[RUNES_KEY_NUM];
 
 typedef struct programState
 {
   int *historySensor;
   int *historyPath;
   int *historyPathLed;
+  int *historyRunes;
   unsigned long lastSensorActivation;
 } ProgramState;
 
@@ -228,14 +234,84 @@ ProgramState progState = {
     .historySensor = historySensor,
     .historyPath = historyPath,
     .historyPathLed = historyPathLed,
+    .historyRunes = historyRunes,
     .lastSensorActivation = 0};
 
-void cleanState()
+/**
+   Runes history functions.
+*/
+
+void emptyHistoryRunes()
 {
-  emptyPathBuffers();
-  emptyHistorySensor();
-  emptyHistoryPath();
-  progState.lastSensorActivation = 0;
+  for (int i = 0; i < RUNES_KEY_NUM; i++)
+  {
+    progState.historyRunes[i] = -1;
+  }
+}
+
+bool isHistoryRunesComplete()
+{
+  return getHistoryPathSize() == RUNES_KEY_NUM;
+}
+
+bool isValidRunesCombination()
+{
+  if (!isHistoryRunesComplete())
+  {
+    return false;
+  }
+
+  for (int i = 0; i < RUNES_KEY_NUM; i++)
+  {
+    if (progState.historyRunes[i] != RUNES_VALID_KEY[i])
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+int getHistoryRunesSize()
+{
+  int size = 0;
+
+  for (int i = 0; i < RUNES_KEY_NUM; i++)
+  {
+    if (progState.historyRunes[i] == -1)
+    {
+      break;
+    }
+
+    size++;
+  }
+
+  return size;
+}
+
+void addRuneToHistory(int runeIdx)
+{
+  if (isHistoryRunesComplete())
+  {
+    return;
+  }
+
+  int nextIdx = -1;
+
+  for (int i = 0; i < RUNES_KEY_NUM; i++)
+  {
+    if (progState.historyRunes[i] == -1)
+    {
+      nextIdx = i;
+    }
+  }
+
+  if (nextIdx == -1)
+  {
+    return;
+  }
+
+  progState.historyRunes[nextIdx] = runeIdx;
 }
 
 /**
@@ -287,9 +363,13 @@ void onSensorPatternConfirmed()
 
     fadeBookLedPattern();
     animateRunePipeBlob(runeMatch);
+    addRuneToHistory(runeMatch);
   }
 
-  cleanState();
+  emptyPathBuffers();
+  emptyHistorySensor();
+  emptyHistoryPath();
+  progState.lastSensorActivation = 0;
 }
 
 void onProxSensor(int idx, int v, int up)
@@ -518,7 +598,7 @@ void refreshHistoryPath()
 }
 
 /**
-  Functions to update the path buffer with the shortest path.
+  Shortest path and path buffer functions.
 */
 
 void emptyPathBuffers()
@@ -739,6 +819,7 @@ void setup()
 {
   Serial.begin(9600);
 
+  emptyHistoryRunes();
   emptyPathBuffers();
   emptyHistorySensor();
   emptyHistoryPath();
