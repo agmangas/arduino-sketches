@@ -65,7 +65,7 @@ const byte LED_MAP[MATRIX_SIZE][MATRIX_SIZE] = {
 */
 
 const int PROX_SENSORS_NUM = 9;
-const unsigned long PROX_SENSORS_CONFIRMATION_MS = 1500;
+const unsigned long PROX_SENSORS_CONFIRMATION_MS = 800;
 
 const int PROX_SENSORS_INDEX[PROX_SENSORS_NUM] = {
     0, 3, 6, 21, 24, 27, 42, 45, 48};
@@ -80,7 +80,7 @@ Atm_controller proxSensorsConfirmControl;
    LED strip (book)
 */
 
-const int LED_BOOK_BRIGHTNESS = 150;
+const int LED_BOOK_BRIGHTNESS = 240;
 const int LED_BOOK_PIN = 20;
 const int LED_BOOK_NUM = 64;
 const int LED_BOOK_PATTERN_ANIMATE_MS = 30;
@@ -94,7 +94,7 @@ Adafruit_NeoPixel ledBook = Adafruit_NeoPixel(LED_BOOK_NUM, LED_BOOK_PIN, NEO_GR
    LED strip (pipes)
 */
 
-const int LED_PIPES_BRIGHTNESS = 150;
+const int LED_PIPES_BRIGHTNESS = 240;
 const int LED_PIPES_PIN = 22;
 const int LED_PIPES_NUM = 300;
 const int LED_PIPES_BLOB_SIZE = 2;
@@ -102,7 +102,8 @@ const int LED_PIPES_COIL_INI = 65;
 const int LED_PIPES_COIL_END = 110;
 const int LED_PIPES_COIL_LOOP_INI = 77;
 const int LED_PIPES_COIL_LOOP_END = 102;
-const int LED_PIPES_ANIMATE_BLOB_DELAY_MS = 20;
+const int LED_PIPES_ANIMATE_BLOB_DELAY_MS = 15;
+const int LED_PIPES_COIL_FILL_DELAY_MS = 100;
 const uint32_t LED_PIPES_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 
 Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(LED_PIPES_NUM, LED_PIPES_PIN, NEO_GRB + NEO_KHZ800);
@@ -126,7 +127,7 @@ const int RUNES_NUM = 12;
 const int RUNES_KEY_NUM = 4;
 
 const int RUNES_VALID_KEY[RUNES_KEY_NUM] = {
-    0, 2, 4, 6};
+    0, 6, 4, 8};
 
 const int RUNES_LED_INDEX[RUNES_NUM] = {
     0,
@@ -303,6 +304,7 @@ void addRuneToHistory(int runeIdx)
     if (progState.historyRunes[i] == -1)
     {
       nextIdx = i;
+      break;
     }
   }
 
@@ -350,20 +352,20 @@ void onSensorPatternConfirmed()
 
   animateBookLedPattern();
 
-  int runeMatch = getHistoryPathRune();
+  int runeIdx = getHistoryPathRune();
 
-  if (runeMatch == -1)
+  if (runeIdx == -1)
   {
     Serial.println("No rune match found");
   }
   else
   {
     Serial.print("History path match on rune: ");
-    Serial.println(runeMatch);
+    Serial.println(runeIdx);
 
+    addRuneToHistory(runeIdx);
     fadeBookLedPattern();
-    animateRunePipeBlob(runeMatch);
-    addRuneToHistory(runeMatch);
+    animateRunePipeBlob(runeIdx);
   }
 
   emptyPathBuffers();
@@ -705,16 +707,6 @@ void clearLedsPipes()
   ledPipes.show();
 }
 
-void clearLedsRunePipes()
-{
-  for (int i = 0; i < LED_PIPES_COIL_INI; i++)
-  {
-    ledPipes.setPixelColor(i, 0);
-  }
-
-  ledPipes.show();
-}
-
 void fadeBookLedPattern()
 {
   clearLedsBook();
@@ -773,17 +765,41 @@ void animateBookLedPattern()
   clearLedsBook();
 }
 
+int getLedCoilLoopSize(int runesHistoryLen)
+{
+  float coilProgress = (float)runesHistoryLen / RUNES_KEY_NUM;
+  return (LED_PIPES_COIL_END - LED_PIPES_COIL_INI) * coilProgress;
+}
+
+int getLedCoilLoopSize()
+{
+  return getLedCoilLoopSize(getHistoryRunesSize());
+}
+
+uint32_t getPipeColor()
+{
+  return Adafruit_NeoPixel::Color(random(150, 250), 0, random(150, 250));
+}
+
 void animateRunePipeBlob(int runeIdx)
 {
+  int prevRunesLen = getHistoryRunesSize();
+  prevRunesLen = prevRunesLen > 0 ? prevRunesLen - 1 : 0;
+  int prevCoilSize = getLedCoilLoopSize(prevRunesLen);
+
+  int blobEnd = LED_PIPES_COIL_END - prevCoilSize;
   int pivotIdx = RUNES_LED_INDEX[runeIdx];
 
-  while (pivotIdx < LED_PIPES_COIL_INI)
+  while (pivotIdx < blobEnd)
   {
-    clearLedsRunePipes();
+    for (int i = 0; i < blobEnd; i++)
+    {
+      ledPipes.setPixelColor(i, 0);
+    }
 
     for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
     {
-      ledPipes.setPixelColor(pivotIdx + i, LED_PIPES_COLOR);
+      ledPipes.setPixelColor(pivotIdx + i, getPipeColor());
     }
 
     pivotIdx++;
@@ -791,12 +807,28 @@ void animateRunePipeBlob(int runeIdx)
     delay(LED_PIPES_ANIMATE_BLOB_DELAY_MS);
   }
 
-  clearLedsRunePipes();
+  for (int i = 0; i < blobEnd; i++)
+  {
+    ledPipes.setPixelColor(i, 0);
+  }
+
+  ledPipes.show();
+
+  int coilIni = LED_PIPES_COIL_END - getLedCoilLoopSize();
+
+  for (int i = blobEnd; i >= coilIni; i--)
+  {
+    ledPipes.setPixelColor(i, getPipeColor());
+    ledPipes.show();
+    delay(LED_PIPES_COIL_FILL_DELAY_MS);
+  }
+
+  clearLedsPipes();
 }
 
 void refreshLedsBook()
 {
-  clearLedsBook();
+  ledBook.clear();
 
   for (int i = 0; i < HISTORY_PATH_SIZE; i++)
   {
@@ -809,6 +841,37 @@ void refreshLedsBook()
   }
 
   ledBook.show();
+}
+
+void refreshLedsPipes()
+{
+  ledPipes.clear();
+
+  int currRuneIdx;
+
+  for (int i = 0; i < RUNES_KEY_NUM; i++)
+  {
+    if (progState.historyRunes[i] == -1)
+    {
+      break;
+    }
+
+    currRuneIdx = RUNES_LED_INDEX[progState.historyRunes[i]];
+
+    for (int j = 0; j < LED_PIPES_BLOB_SIZE; j++)
+    {
+      ledPipes.setPixelColor(currRuneIdx + j, getPipeColor());
+    }
+  }
+
+  int coilSize = getLedCoilLoopSize();
+
+  for (int i = 0; i < coilSize; i++)
+  {
+    ledPipes.setPixelColor(LED_PIPES_COIL_END - i, getPipeColor());
+  }
+
+  ledPipes.show();
 }
 
 /**
@@ -833,4 +896,5 @@ void loop()
 {
   automaton.run();
   refreshLedsBook();
+  refreshLedsPipes();
 }
