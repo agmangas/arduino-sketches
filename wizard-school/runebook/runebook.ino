@@ -104,6 +104,8 @@ const int LED_PIPES_COIL_LOOP_INI = 77;
 const int LED_PIPES_COIL_LOOP_END = 102;
 const int LED_PIPES_ANIMATE_BLOB_DELAY_MS = 15;
 const int LED_PIPES_COIL_FILL_DELAY_MS = 100;
+const int LED_PIPES_BLOB_NUM_PULSES = 12;
+const int LED_PIPES_BLOB_PULSE_DELAY = 50;
 const uint32_t LED_PIPES_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 
 Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(LED_PIPES_NUM, LED_PIPES_PIN, NEO_GRB + NEO_KHZ800);
@@ -229,6 +231,7 @@ typedef struct programState
   int *historyPathLed;
   int *historyRunes;
   unsigned long lastSensorActivation;
+  bool runesOk;
 } ProgramState;
 
 ProgramState progState = {
@@ -236,11 +239,25 @@ ProgramState progState = {
     .historyPath = historyPath,
     .historyPathLed = historyPathLed,
     .historyRunes = historyRunes,
-    .lastSensorActivation = 0};
+    .lastSensorActivation = 0,
+    .runesOk = false};
 
 /**
    Runes history functions.
 */
+
+bool isRuneInHistory(int runeIdx)
+{
+  for (int i = 0; i < RUNES_KEY_NUM; i++)
+  {
+    if (progState.historyRunes[i] == runeIdx)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 void emptyHistoryRunes()
 {
@@ -252,7 +269,7 @@ void emptyHistoryRunes()
 
 bool isHistoryRunesComplete()
 {
-  return getHistoryPathSize() == RUNES_KEY_NUM;
+  return getHistoryRunesSize() == RUNES_KEY_NUM;
 }
 
 bool isValidRunesCombination()
@@ -363,15 +380,32 @@ void onSensorPatternConfirmed()
     Serial.print("History path match on rune: ");
     Serial.println(runeIdx);
 
-    addRuneToHistory(runeIdx);
-    fadeBookLedPattern();
-    animateRunePipeBlob(runeIdx);
+    if (!isHistoryRunesComplete() && !isRuneInHistory(runeIdx))
+    {
+      addRuneToHistory(runeIdx);
+      fadeBookLedPattern();
+      animateRunePipeBlob(runeIdx);
+    }
   }
 
   emptyPathBuffers();
   emptyHistorySensor();
   emptyHistoryPath();
   progState.lastSensorActivation = 0;
+
+  bool runesComplete = isHistoryRunesComplete();
+  bool validRunes = isValidRunesCombination();
+
+  if (runesComplete && validRunes && !progState.runesOk)
+  {
+    Serial.println("Valid runes combination");
+    progState.runesOk = true;
+  }
+  else if (runesComplete && !validRunes)
+  {
+    Serial.println("Invalid runes combination");
+    emptyHistoryRunes();
+  }
 }
 
 void onProxSensor(int idx, int v, int up)
@@ -778,7 +812,7 @@ int getLedCoilLoopSize()
 
 uint32_t getPipeColor()
 {
-  return Adafruit_NeoPixel::Color(random(150, 250), 0, random(150, 250));
+  return Adafruit_NeoPixel::Color(0, random(150, 250), random(150, 250));
 }
 
 void animateRunePipeBlob(int runeIdx)
@@ -789,6 +823,32 @@ void animateRunePipeBlob(int runeIdx)
 
   int blobEnd = LED_PIPES_COIL_END - prevCoilSize;
   int pivotIdx = RUNES_LED_INDEX[runeIdx];
+
+  for (int i = 0; i < blobEnd; i++)
+  {
+    ledPipes.setPixelColor(i, 0);
+  }
+
+  ledPipes.show();
+
+  for (int k = 0; k < LED_PIPES_BLOB_NUM_PULSES; k++)
+  {
+    for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
+    {
+      ledPipes.setPixelColor(pivotIdx + i, getPipeColor());
+    }
+
+    ledPipes.show();
+    delay(LED_PIPES_BLOB_PULSE_DELAY);
+
+    for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
+    {
+      ledPipes.setPixelColor(pivotIdx + i, 0);
+    }
+
+    ledPipes.show();
+    delay(LED_PIPES_BLOB_PULSE_DELAY);
+  }
 
   while (pivotIdx < blobEnd)
   {
