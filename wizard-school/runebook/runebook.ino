@@ -106,6 +106,10 @@ const int LED_PIPES_ANIMATE_BLOB_DELAY_MS = 15;
 const int LED_PIPES_COIL_FILL_DELAY_MS = 100;
 const int LED_PIPES_BLOB_NUM_PULSES = 12;
 const int LED_PIPES_BLOB_PULSE_DELAY = 50;
+const int LED_PIPES_SUCCESS_ANIMATE_DELAY = 20;
+const int LED_PIPES_ERROR_DELAY_STEP = 5;
+const int LED_PIPES_ERROR_NUM_ITERS = 20;
+const int LED_PIPES_ERROR_INI_DELAY = 10;
 const uint32_t LED_PIPES_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 
 Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(LED_PIPES_NUM, LED_PIPES_PIN, NEO_GRB + NEO_KHZ800);
@@ -123,6 +127,7 @@ Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(LED_PIPES_NUM, LED_PIPES_PIN, NEO
    9: Seta Dose
    10: Culo Kraken
    11: Morros Nutria
+   12: RESET
 */
 
 const int RUNES_NUM = 12;
@@ -144,6 +149,12 @@ const int RUNES_LED_INDEX[RUNES_NUM] = {
     54,
     58,
     62};
+
+std::vector<byte> RUNE_RESET_PATH = {
+    0, 1, 2, 3, 4, 5, 6,
+    42, 43, 44, 45, 46, 47, 48,
+    0, 7, 14, 21, 28, 35, 42,
+    6, 13, 20, 27, 34, 41, 48};
 
 std::vector<byte> RUNES_PATHS[RUNES_NUM] = {
     {3, 4, 5, 6,
@@ -209,8 +220,7 @@ std::vector<byte> RUNES_PATHS[RUNES_NUM] = {
      21, 29, 37, 45},
     {21, 22, 23, 24, 25, 26, 27,
      3, 10, 17, 24, 31, 38, 45,
-     3, 11, 19, 27},
-};
+     3, 11, 19, 27}};
 
 /**
   Program state.
@@ -363,21 +373,35 @@ bool isSensorPatternConfirmed()
   return diff > PROX_SENSORS_CONFIRMATION_MS;
 }
 
+void cleanSensorState()
+{
+  emptyPathBuffers();
+  emptyHistorySensor();
+  emptyHistoryPath();
+  progState.lastSensorActivation = 0;
+}
+
 void onSensorPatternConfirmed()
 {
-  Serial.println(F("Sensor pattern confirmed"));
+  Serial.println(F("Pattern confirmed"));
 
   animateBookLedPattern();
 
   int runeIdx = getHistoryPathRune();
 
-  if (runeIdx == -1)
+  if (isHistoryPathResetRune())
+  {
+    Serial.println("Reset rune");
+    cleanSensorState();
+    emptyHistoryRunes();
+  }
+  else if (runeIdx == -1)
   {
     Serial.println("No rune match found");
   }
   else
   {
-    Serial.print("History path match on rune: ");
+    Serial.print("Match on rune: ");
     Serial.println(runeIdx);
 
     if (!isHistoryRunesComplete() && !isRuneInHistory(runeIdx))
@@ -388,10 +412,7 @@ void onSensorPatternConfirmed()
     }
   }
 
-  emptyPathBuffers();
-  emptyHistorySensor();
-  emptyHistoryPath();
-  progState.lastSensorActivation = 0;
+  cleanSensorState();
 
   bool runesComplete = isHistoryRunesComplete();
   bool validRunes = isValidRunesCombination();
@@ -400,17 +421,19 @@ void onSensorPatternConfirmed()
   {
     Serial.println("Valid runes combination");
     progState.runesOk = true;
+    animateLedPipesSuccess();
   }
   else if (runesComplete && !validRunes)
   {
     Serial.println("Invalid runes combination");
     emptyHistoryRunes();
+    animateLedPipesError();
   }
 }
 
 void onProxSensor(int idx, int v, int up)
 {
-  Serial.print(F("Proximity sensor activated: "));
+  Serial.print(F("Sensor activated: "));
   Serial.println(idx);
 
   progState.lastSensorActivation = millis();
@@ -453,6 +476,19 @@ void reverseRange(int *arr, int lft, int rgt)
 /**
    Functions to handle path history.
 */
+
+bool isHistoryPathResetRune()
+{
+  std::set<int> histPathSet(
+      progState.historyPath,
+      progState.historyPath + getHistoryPathSize());
+
+  std::set<int> resetRuneSet(
+      RUNE_RESET_PATH.begin(),
+      RUNE_RESET_PATH.end());
+
+  return histPathSet == resetRuneSet;
+}
 
 int getHistoryPathRune()
 {
@@ -503,8 +539,6 @@ int getHistoryPathSize()
 
 void emptyHistorySensor()
 {
-  Serial.println(F("Emptying sensor history"));
-
   for (int i = 0; i < HISTORY_SENSOR_SIZE; i++)
   {
     progState.historySensor[i] = -1;
@@ -513,8 +547,6 @@ void emptyHistorySensor()
 
 void emptyHistoryPath()
 {
-  Serial.println(F("Emptying path history"));
-
   for (int i = 0; i < HISTORY_PATH_SIZE; i++)
   {
     progState.historyPath[i] = -1;
@@ -524,11 +556,6 @@ void emptyHistoryPath()
 
 bool isSensorAdjacent(int idxOne, int idxOther)
 {
-  Serial.print("Checking adjacency: ");
-  Serial.print(idxOne);
-  Serial.print(" - ");
-  Serial.println(idxOther);
-
   bool isMatchAsc;
   bool isMatchDesc;
 
@@ -583,7 +610,7 @@ void addHistorySensor(int sensorIdx)
     {
       Serial.print(F("Sensor "));
       Serial.print(sensorMatrixIdx);
-      Serial.print(F(" is not adjacent to the previous: "));
+      Serial.print(F(" not adjacent to: "));
       Serial.println(prevSensorMatrixIdx);
 
       return;
@@ -608,7 +635,6 @@ void refreshHistoryPath()
   {
     if (progState.historySensor[i] == -1)
     {
-      Serial.println(F("No more items in sensor history"));
       return;
     }
 
@@ -882,8 +908,60 @@ void animateRunePipeBlob(int runeIdx)
     ledPipes.show();
     delay(LED_PIPES_COIL_FILL_DELAY_MS);
   }
+}
 
+void animateLedPipesSuccess()
+{
   clearLedsPipes();
+
+  int incPivotIdx = LED_PIPES_COIL_END;
+  int decPivotIdx = LED_PIPES_COIL_END;
+
+  while (incPivotIdx < LED_PIPES_NUM || decPivotIdx >= 0)
+  {
+    if (incPivotIdx < LED_PIPES_NUM)
+    {
+      ledPipes.setPixelColor(incPivotIdx, getPipeColor());
+      incPivotIdx++;
+    }
+
+    if (decPivotIdx >= 0)
+    {
+      ledPipes.setPixelColor(decPivotIdx, getPipeColor());
+      decPivotIdx--;
+    }
+
+    ledPipes.show();
+    delay(LED_PIPES_SUCCESS_ANIMATE_DELAY);
+  }
+}
+
+void animateLedPipesError()
+{
+  clearLedsPipes();
+
+  int delayMs = LED_PIPES_ERROR_INI_DELAY;
+
+  for (int k = 0; k < LED_PIPES_ERROR_NUM_ITERS; k++)
+  {
+    for (int i = 0; i < LED_PIPES_NUM; i++)
+    {
+      ledPipes.setPixelColor(i, random(150, 250), 0, 0);
+    }
+
+    ledPipes.show();
+    delay(delayMs);
+
+    for (int i = 0; i < LED_PIPES_NUM; i++)
+    {
+      ledPipes.setPixelColor(i, 0);
+    }
+
+    ledPipes.show();
+    delay(delayMs);
+
+    delayMs = delayMs + LED_PIPES_ERROR_DELAY_STEP;
+  }
 }
 
 void refreshLedsBook()
@@ -907,28 +985,38 @@ void refreshLedsPipes()
 {
   ledPipes.clear();
 
-  int currRuneIdx;
-
-  for (int i = 0; i < RUNES_KEY_NUM; i++)
+  if (progState.runesOk)
   {
-    if (progState.historyRunes[i] == -1)
+    for (int i = 0; i < LED_PIPES_NUM; i++)
     {
-      break;
-    }
-
-    currRuneIdx = RUNES_LED_INDEX[progState.historyRunes[i]];
-
-    for (int j = 0; j < LED_PIPES_BLOB_SIZE; j++)
-    {
-      ledPipes.setPixelColor(currRuneIdx + j, getPipeColor());
+      ledPipes.setPixelColor(i, getPipeColor());
     }
   }
-
-  int coilSize = getLedCoilLoopSize();
-
-  for (int i = 0; i < coilSize; i++)
+  else
   {
-    ledPipes.setPixelColor(LED_PIPES_COIL_END - i, getPipeColor());
+    int currRuneIdx;
+
+    for (int i = 0; i < RUNES_KEY_NUM; i++)
+    {
+      if (progState.historyRunes[i] == -1)
+      {
+        break;
+      }
+
+      currRuneIdx = RUNES_LED_INDEX[progState.historyRunes[i]];
+
+      for (int j = 0; j < LED_PIPES_BLOB_SIZE; j++)
+      {
+        ledPipes.setPixelColor(currRuneIdx + j, getPipeColor());
+      }
+    }
+
+    int coilSize = getLedCoilLoopSize();
+
+    for (int i = 0; i < coilSize; i++)
+    {
+      ledPipes.setPixelColor(LED_PIPES_COIL_END - i, getPipeColor());
+    }
   }
 
   ledPipes.show();
