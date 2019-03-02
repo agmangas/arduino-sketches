@@ -3,6 +3,7 @@
 #include <ArduinoSTL.h>
 #include <set>
 #include <vector>
+#include <Atm_servo.h>
 
 /**
   Shortest paths in the LED matrix.
@@ -223,6 +224,18 @@ std::vector<byte> RUNES_PATHS[RUNES_NUM] = {
      3, 11, 19, 27}};
 
 /**
+  Servo.
+*/
+
+const int SERVO_PIN = 12;
+const int SERVO_STEP_SIZE = 180;
+const int SERVO_STEP_TIME = 0;
+const int SERVO_TIMER_MS = 1500;
+
+Atm_servo servo;
+Atm_timer timerServo;
+
+/**
   Program state.
 */
 
@@ -241,7 +254,7 @@ typedef struct programState
   int *historyPathLed;
   int *historyRunes;
   unsigned long lastSensorActivation;
-  bool runesOk;
+  bool isRunePhaseComplete;
 } ProgramState;
 
 ProgramState progState = {
@@ -250,7 +263,30 @@ ProgramState progState = {
     .historyPathLed = historyPathLed,
     .historyRunes = historyRunes,
     .lastSensorActivation = 0,
-    .runesOk = false};
+    .isRunePhaseComplete = false};
+
+/**
+   Servo functions.
+*/
+
+void onServoTimer(int idx, int v, int up)
+{
+  int servoPos = random(0, 181);
+  Serial.print("Moving servo to: ");
+  Serial.println(servoPos);
+  servo.position(servoPos);
+}
+
+void initServo()
+{
+  servo
+      .begin(SERVO_PIN)
+      .step(SERVO_STEP_SIZE, SERVO_STEP_TIME);
+
+  timerServo.begin(SERVO_TIMER_MS)
+      .repeat(-1)
+      .onTimer(onServoTimer);
+}
 
 /**
    Runes history functions.
@@ -417,11 +453,13 @@ void onSensorPatternConfirmed()
   bool runesComplete = isHistoryRunesComplete();
   bool validRunes = isValidRunesCombination();
 
-  if (runesComplete && validRunes && !progState.runesOk)
+  if (runesComplete && validRunes && !progState.isRunePhaseComplete)
   {
     Serial.println("Valid runes combination");
-    progState.runesOk = true;
+    progState.isRunePhaseComplete = true;
     animateLedPipesSuccess();
+    Serial.println("Starting servo timer");
+    timerServo.start();
   }
   else if (runesComplete && !validRunes)
   {
@@ -985,7 +1023,7 @@ void refreshLedsPipes()
 {
   ledPipes.clear();
 
-  if (progState.runesOk)
+  if (progState.isRunePhaseComplete)
   {
     for (int i = 0; i < LED_PIPES_NUM; i++)
     {
@@ -1036,6 +1074,7 @@ void setup()
   emptyHistoryPath();
   initProximitySensors();
   initLeds();
+  initServo();
 
   Serial.println(F(">> Starting Runebook program"));
 }
