@@ -11,9 +11,15 @@ const int POTS_PINS[POTS_NUM] = {
     A7, A6, A5, A4};
 
 Atm_analog pots[POTS_NUM];
+Atm_controller potsControl;
 
 const byte POTS_RANGE_LO = 1;
 const byte POTS_RANGE_HI = 20;
+
+const int POTS_KEY[POTS_NUM] = {
+    5, 10, 15, 20};
+
+const int POTS_BOUNCE_MS = 1000;
 
 /**
  * LED strip.
@@ -39,17 +45,64 @@ int currPotValues[POTS_NUM];
 
 typedef struct programState
 {
-    bool isSecondPhaseUnlocked;
+    bool potsUnlocked;
     int *currPotValues;
+    unsigned long millisValidPots;
 } ProgramState;
 
 ProgramState progState = {
-    .isSecondPhaseUnlocked = false,
-    .currPotValues = currPotValues};
+    .potsUnlocked = false,
+    .currPotValues = currPotValues,
+    .millisValidPots = 0};
 
 /**
  * Potentiometer functions.
  */
+
+bool isValidPotsCombination()
+{
+    for (int i = 0; i < POTS_NUM; i++)
+    {
+        if (progState.currPotValues[i] != POTS_KEY[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool isPotsUnlocked()
+{
+    if (progState.potsUnlocked)
+    {
+        return true;
+    }
+
+    if (!isValidPotsCombination())
+    {
+        progState.millisValidPots = 0;
+        return false;
+    }
+
+    unsigned long now = millis();
+
+    if (progState.millisValidPots == 0 ||
+        progState.millisValidPots > now)
+    {
+        progState.millisValidPots = now;
+        return false;
+    }
+
+    return (now - progState.millisValidPots) > POTS_BOUNCE_MS;
+}
+
+void onUnlockedPots()
+{
+    Serial.println(F("Unlocked pots"));
+
+    progState.potsUnlocked = true;
+}
 
 void onPotChange(int idx, int v, int up)
 {
@@ -77,6 +130,11 @@ void initPots()
             .range(POTS_RANGE_LO, POTS_RANGE_HI)
             .onChange(onPotChange, i);
     }
+
+    potsControl
+        .begin()
+        .IF(isPotsUnlocked)
+        .onChange(true, onUnlockedPots);
 }
 
 /**
@@ -138,6 +196,28 @@ void clearLeds()
  * Configuration validation functions.
  */
 
+void validateConfig()
+{
+    validatePotsKey();
+    validateLedSegments();
+}
+
+void validatePotsKey()
+{
+    for (int i = 0; i < POTS_NUM; i++)
+    {
+        if (POTS_KEY[i] < POTS_RANGE_LO ||
+            POTS_KEY[i] > POTS_RANGE_HI)
+        {
+            Serial.println(F("#####"));
+            Serial.println(F("## WARNING: Invalid potentiometers key"));
+            Serial.println(F("#####"));
+
+            signalProgramError();
+        }
+    }
+}
+
 void validateLedSegments()
 {
     const int DIFF_EXPECTED = POTS_RANGE_HI - POTS_RANGE_LO;
@@ -197,7 +277,7 @@ void setup()
 
     initPots();
     initLeds();
-    validateLedSegments();
+    validateConfig();
 
     Serial.println(F(">> Starting incubator program"));
 }
