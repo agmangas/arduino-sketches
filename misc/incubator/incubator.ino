@@ -31,6 +31,22 @@ const int PIN_AUDIO_ACT = 11;
 const int PIN_AUDIO_RST = 10;
 
 /**
+ * Microphone.
+ */
+
+const int MICRO_PIN = A1;
+const int MICRO_SAMPLERATE = 50;
+const int MICRO_BUF_SIZE = 4;
+const int MICRO_MAX_LEVEL = 20;
+const int MICRO_TIMER_MS = 1000;
+const int MICRO_THRESHOLDS_NUM = 1;
+const uint16_t MICRO_THRESHOLDS[MICRO_THRESHOLDS_NUM] = {600};
+
+Atm_comparator microComp;
+Atm_timer microTimer;
+uint16_t microBuf[MICRO_BUF_SIZE];
+
+/**
  * LED strip.
  */
 
@@ -57,12 +73,14 @@ typedef struct programState
     bool potsUnlocked;
     int *currPotValues;
     unsigned long millisValidPots;
+    int microLevel;
 } ProgramState;
 
 ProgramState progState = {
     .potsUnlocked = false,
     .currPotValues = currPotValues,
-    .millisValidPots = 0};
+    .millisValidPots = 0,
+    .microLevel = 0};
 
 /**
  * Potentiometer functions.
@@ -144,6 +162,51 @@ void initPots()
         .begin()
         .IF(isPotsUnlocked)
         .onChange(true, onUnlockedPots);
+}
+
+/**
+ * Microphone functions.
+ */
+
+void onMicroThreshold(int idx, int v, int up)
+{
+    // v: The index of the threshold that was crossed
+    // up: The direction in which the threshold was crossed (1 = up, 0 = down)
+
+    Serial.println(F("onMicroThreshold idx="));
+    Serial.println(v);
+    Serial.println(F(" dir="));
+    Serial.println(up);
+
+    if (up == 1 && progState.microLevel < MICRO_MAX_LEVEL)
+    {
+        Serial.println(F("Micro++"));
+        progState.microLevel++;
+    }
+}
+
+void onMicroTimer(int idx, int v, int up)
+{
+    if (progState.microLevel > 0)
+    {
+        Serial.println(F("Micro--"));
+        progState.microLevel--;
+    }
+}
+
+void initMicro()
+{
+    microComp
+        .begin(MICRO_PIN, MICRO_SAMPLERATE)
+        .threshold(MICRO_THRESHOLDS, MICRO_THRESHOLDS_NUM)
+        .average(microBuf, MICRO_BUF_SIZE)
+        .onChange(onMicroThreshold);
+
+    microTimer
+        .begin(MICRO_TIMER_MS)
+        .repeat(-1)
+        .onTimer(onMicroTimer)
+        .start();
 }
 
 /**
@@ -339,6 +402,7 @@ void setup()
     initLeds();
     initAudioPins();
     resetAudio();
+    initMicro();
     validateConfig();
 
     Serial.println(F(">> Starting incubator program"));
