@@ -22,6 +22,15 @@ const int POTS_KEY[POTS_NUM] = {
 const int POTS_BOUNCE_MS = 1000;
 
 /**
+ * Audio FX.
+ */
+
+const int NUM_TRACKS = 2;
+const int AUDIO_TRACK_PINS[NUM_TRACKS] = {A3, A2};
+const int PIN_AUDIO_ACT = 11;
+const int PIN_AUDIO_RST = 10;
+
+/**
  * LED strip.
  */
 
@@ -135,6 +144,57 @@ void initPots()
         .begin()
         .IF(isPotsUnlocked)
         .onChange(true, onUnlockedPots);
+}
+
+/**
+   Audio FX functions.
+*/
+
+void playTrack(byte trackPin)
+{
+    if (isTrackPlaying())
+    {
+        Serial.println(F("Skipping: Audio still playing"));
+        return;
+    }
+
+    Serial.print(F("Playing track on pin: "));
+    Serial.println(trackPin);
+
+    digitalWrite(trackPin, LOW);
+    pinMode(trackPin, OUTPUT);
+    delay(300);
+    pinMode(trackPin, INPUT);
+}
+
+void initAudioPins()
+{
+    for (int i = 0; i < NUM_TRACKS; i++)
+    {
+        pinMode(AUDIO_TRACK_PINS[i], INPUT);
+    }
+
+    pinMode(PIN_AUDIO_ACT, INPUT);
+    pinMode(PIN_AUDIO_RST, INPUT);
+}
+
+bool isTrackPlaying()
+{
+    return digitalRead(PIN_AUDIO_ACT) == LOW;
+}
+
+void resetAudio()
+{
+    Serial.println(F("Audio FX reset"));
+
+    digitalWrite(PIN_AUDIO_RST, LOW);
+    pinMode(PIN_AUDIO_RST, OUTPUT);
+    delay(10);
+    pinMode(PIN_AUDIO_RST, INPUT);
+
+    Serial.println(F("Waiting for Audio FX startup"));
+
+    delay(2000);
 }
 
 /**
@@ -277,6 +337,8 @@ void setup()
 
     initPots();
     initLeds();
+    initAudioPins();
+    resetAudio();
     validateConfig();
 
     Serial.println(F(">> Starting incubator program"));
