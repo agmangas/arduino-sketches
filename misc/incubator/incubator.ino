@@ -192,6 +192,10 @@ void onMicroTimer(int idx, int v, int up)
         Serial.println(F("Micro--"));
         progState.microLevel--;
     }
+    else if (progState.microLevel < 0)
+    {
+        progState.microLevel = 0;
+    }
 }
 
 void initMicro()
