@@ -22,6 +22,31 @@ const int POTS_KEY[POTS_NUM] = {
 const int POTS_BOUNCE_MS = 1000;
 
 /**
+ * Relays.
+ */
+
+// 1st lock: On valid LED combination
+const int PIN_RELAY_LEDS = 7;
+
+// 2nd lock: On valid digital switches combination
+const int PIN_RELAY_DSWITCHES = 8;
+
+// 3nd lock: On microphone max level
+const int PIN_RELAY_MICRO = 9;
+
+/**
+ * Digital switch locks.
+ */
+
+const int DSWITCH_NUM = 3;
+const int DSWITCH_DEBOUNCE_MS = 1000;
+const int DSWITCH_PINS[DSWITCH_NUM] = {5, 12, A0};
+const int DSWITCH_LED_PINS[DSWITCH_NUM] = {2, 3, 4};
+
+Atm_button dswitchButtons[DSWITCH_NUM];
+Atm_led dswitchLeds[DSWITCH_NUM];
+
+/**
  * Audio FX.
  */
 
@@ -165,6 +190,41 @@ void initPots()
 }
 
 /**
+ * Digital switch functions.
+ */
+
+void refreshDswitches()
+{
+    for (int i = 0; i < DSWITCH_NUM; i++)
+    {
+        if (dswitchButtons[i].state() == Atm_button::PRESSED)
+        {
+            dswitchLeds[i].trigger(Atm_led::EVT_ON);
+        }
+        else
+        {
+            dswitchLeds[i].trigger(Atm_led::EVT_OFF);
+        }
+    }
+}
+
+void initDswitch()
+{
+    for (int i = 0; i < DSWITCH_NUM; i++)
+    {
+        dswitchLeds[i]
+            .begin(DSWITCH_LED_PINS[i])
+            .trigger(Atm_led::EVT_OFF);
+
+        dswitchButtons[i]
+            .begin(DSWITCH_PINS[i])
+            .debounce(DSWITCH_DEBOUNCE_MS)
+            .onPress(refreshDswitches)
+            .onRelease(refreshDswitches);
+    }
+}
+
+/**
  * Microphone functions.
  */
 
@@ -211,6 +271,45 @@ void initMicro()
         .repeat(-1)
         .onTimer(onMicroTimer)
         .start();
+}
+
+/**
+ * Relay functions.
+ */
+
+void lockRelay(int pin)
+{
+    if (digitalRead(pin) == HIGH)
+    {
+        Serial.print(F("Relay:"));
+        Serial.print(pin);
+        Serial.println(F(":Lock"));
+    }
+
+    digitalWrite(pin, LOW);
+}
+
+void openRelay(int pin)
+{
+    if (digitalRead(pin) == LOW)
+    {
+        Serial.print(F("Relay:"));
+        Serial.print(pin);
+        Serial.println(F(":Open"));
+    }
+
+    digitalWrite(pin, HIGH);
+}
+
+void initRelays()
+{
+    pinMode(PIN_RELAY_LEDS, OUTPUT);
+    pinMode(PIN_RELAY_DSWITCHES, OUTPUT);
+    pinMode(PIN_RELAY_MICRO, OUTPUT);
+
+    lockRelay(PIN_RELAY_LEDS);
+    lockRelay(PIN_RELAY_DSWITCHES);
+    lockRelay(PIN_RELAY_MICRO);
 }
 
 /**
@@ -407,6 +506,8 @@ void setup()
     initAudioPins();
     resetAudio();
     initMicro();
+    initRelays();
+    initDswitch();
     validateConfig();
 
     Serial.println(F(">> Starting incubator program"));
