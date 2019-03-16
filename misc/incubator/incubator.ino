@@ -23,14 +23,14 @@ const int POTS_BOUNCE_MS = 1000;
 
 /**
  * Relays.
- * LEDs relay: Open on valid LED combination.
+ * Pots relay: Open on valid potentiometers combination.
  * Digital switches relay: Open on valid digital switches combination.
  * Microphone relay: Open on microphone max level.
  */
 
-const int PIN_RELAY_LEDS = 7;
+const int PIN_RELAY_POTS = 7;
 const int PIN_RELAY_DSWITCHES = 8;
-const int PIN_RELAY_MICRO = 9;
+const int PIN_RELAY_TAP = 9;
 
 /**
  * Digital switch locks.
@@ -43,6 +43,7 @@ const int DSWITCH_LED_PINS[DSWITCH_NUM] = {2, 3, 4};
 
 Atm_button dswitchButtons[DSWITCH_NUM];
 Atm_led dswitchLeds[DSWITCH_NUM];
+Atm_controller dswitchControl;
 
 /**
  * Audio FX.
@@ -107,6 +108,8 @@ int currPotValues[POTS_NUM];
 typedef struct programState
 {
     bool potsUnlocked;
+    bool dswitchesUnlocked;
+    bool tapUnlocked;
     int *currPotValues;
     unsigned long millisValidPots;
     int microLevel;
@@ -114,6 +117,8 @@ typedef struct programState
 
 ProgramState progState = {
     .potsUnlocked = false,
+    .dswitchesUnlocked = false,
+    .tapUnlocked = false,
     .currPotValues = currPotValues,
     .millisValidPots = 0,
     .microLevel = 0};
@@ -163,8 +168,9 @@ bool isPotsUnlocked()
 void onUnlockedPots()
 {
     Serial.println(F("Unlocked pots"));
-
     progState.potsUnlocked = true;
+    fillLedSegment(LEDS_BLOCK2_SEGMENT[0], LEDS_BLOCK2_SEGMENT[1]);
+    openRelay(PIN_RELAY_POTS);
 }
 
 void onPotChange(int idx, int v, int up)
@@ -219,6 +225,27 @@ void refreshDswitches()
     }
 }
 
+bool allDswitchesPressed()
+{
+    for (int i = 0; i < DSWITCH_NUM; i++)
+    {
+        if (dswitchButtons[i].state() != Atm_button::PRESSED)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void onUnlockedDswitches()
+{
+    Serial.println(F("Unlocked dswitches"));
+    progState.dswitchesUnlocked = true;
+    fillLedSegment(LEDS_BLOCK3_SEGMENT[0], LEDS_BLOCK3_SEGMENT[1]);
+    openRelay(PIN_RELAY_DSWITCHES);
+}
+
 void initDswitch()
 {
     for (int i = 0; i < DSWITCH_NUM; i++)
@@ -233,6 +260,11 @@ void initDswitch()
             .onPress(refreshDswitches)
             .onRelease(refreshDswitches);
     }
+
+    dswitchControl
+        .begin()
+        .IF(allDswitchesPressed)
+        .onChange(true, onUnlockedDswitches);
 }
 
 /**
@@ -255,12 +287,19 @@ void onMicroThreshold(int idx, int v, int up)
         progState.microLevel++;
         blinkLedSegment(LEDS_BLOCK4_SEGMENT[0], LEDS_BLOCK4_SEGMENT[1]);
         refreshLedSegmentMicro();
+
+        if (progState.microLevel == MICRO_MAX_LEVEL)
+        {
+            Serial.println(F("Unlocked tap"));
+            progState.tapUnlocked = true;
+            openRelay(PIN_RELAY_TAP);
+        }
     }
 }
 
 void onMicroTimer(int idx, int v, int up)
 {
-    if (progState.microLevel > 0)
+    if (progState.microLevel > 0 && progState.microLevel < MICRO_MAX_LEVEL)
     {
         Serial.println(F("Micro--"));
         progState.microLevel--;
@@ -318,13 +357,13 @@ void openRelay(int pin)
 
 void initRelays()
 {
-    pinMode(PIN_RELAY_LEDS, OUTPUT);
+    pinMode(PIN_RELAY_POTS, OUTPUT);
     pinMode(PIN_RELAY_DSWITCHES, OUTPUT);
-    pinMode(PIN_RELAY_MICRO, OUTPUT);
+    pinMode(PIN_RELAY_TAP, OUTPUT);
 
-    lockRelay(PIN_RELAY_LEDS);
+    lockRelay(PIN_RELAY_POTS);
     lockRelay(PIN_RELAY_DSWITCHES);
-    lockRelay(PIN_RELAY_MICRO);
+    lockRelay(PIN_RELAY_TAP);
 }
 
 /**
