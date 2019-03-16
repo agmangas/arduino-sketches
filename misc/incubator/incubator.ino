@@ -60,7 +60,7 @@ const int PIN_AUDIO_RST = 10;
 const int MICRO_PIN = A1;
 const int MICRO_SAMPLERATE = 50;
 const int MICRO_BUF_SIZE = 4;
-const int MICRO_MAX_LEVEL = 20;
+const int MICRO_MAX_LEVEL = 24;
 const int MICRO_TIMER_MS = 1000;
 const int MICRO_THRESHOLDS_NUM = 1;
 const uint16_t MICRO_THRESHOLDS[MICRO_THRESHOLDS_NUM] = {600};
@@ -81,6 +81,8 @@ uint16_t microBuf[MICRO_BUF_SIZE];
 const uint16_t LEDS_NUM = 200;
 const uint8_t LEDS_PIN = 6;
 const int LEDS_BRIGHTNESS = 150;
+const int LEDS_FILL_MS = 80;
+const int LEDS_BLINK_MS = 150;
 
 // Lower value is always the lower limit (i.e. the inclusive index).
 
@@ -174,7 +176,7 @@ void onPotChange(int idx, int v, int up)
 
     progState.currPotValues[idx] = v;
 
-    refreshLedPotSegments();
+    refreshLedSegmentPots();
 }
 
 void initPots()
@@ -381,7 +383,75 @@ uint32_t randomColor()
     return Adafruit_NeoPixel::Color(random(100, 250), 0, 0);
 }
 
-void refreshLedPotSegments()
+void fillLedSegment(int iniIdx, int endIdx)
+{
+    for (int i = iniIdx; i < endIdx; i++)
+    {
+        pixelStrip.setPixelColor(i, 0);
+    }
+
+    pixelStrip.show();
+
+    for (int i = iniIdx; i < endIdx; i++)
+    {
+        pixelStrip.setPixelColor(i, randomColor());
+        pixelStrip.show();
+        delay(LEDS_FILL_MS);
+    }
+}
+
+void blinkLedSegment(int iniIdx, int endIdx)
+{
+    for (int i = iniIdx; i < endIdx; i++)
+    {
+        pixelStrip.setPixelColor(i, 0);
+    }
+
+    pixelStrip.show();
+    delay(LEDS_BLINK_MS);
+
+    for (int i = iniIdx; i < endIdx; i++)
+    {
+        pixelStrip.setPixelColor(i, randomColor());
+    }
+
+    pixelStrip.show();
+    delay(LEDS_BLINK_MS);
+
+    for (int i = iniIdx; i < endIdx; i++)
+    {
+        pixelStrip.setPixelColor(i, 0);
+    }
+
+    pixelStrip.show();
+}
+
+void refreshLedSegmentMicro()
+{
+    int size = LEDS_BLOCK4_SEGMENT[1] - LEDS_BLOCK4_SEGMENT[0];
+    int sizeStep = floor(((float)size) / MICRO_MAX_LEVEL);
+    int numLedsLit = sizeStep * progState.microLevel;
+    int endIdx = LEDS_BLOCK4_SEGMENT[0] + numLedsLit;
+
+    if (progState.microLevel >= MICRO_MAX_LEVEL)
+    {
+        endIdx = LEDS_BLOCK4_SEGMENT[1];
+    }
+
+    for (int i = LEDS_BLOCK4_SEGMENT[0]; i < LEDS_BLOCK4_SEGMENT[1]; i++)
+    {
+        pixelStrip.setPixelColor(i, 0);
+    }
+
+    for (int i = LEDS_BLOCK4_SEGMENT[0]; i < endIdx; i++)
+    {
+        pixelStrip.setPixelColor(i, randomColor());
+    }
+
+    pixelStrip.show();
+}
+
+void refreshLedSegmentPots()
 {
     const int SEGMENT_SIZE = POTS_RANGE_HI - POTS_RANGE_LO;
 
@@ -418,7 +488,7 @@ void initLeds()
     pixelStrip.show();
 
     clearLeds();
-    refreshLedPotSegments();
+    refreshLedSegmentPots();
 }
 
 void clearLeds()
