@@ -13,7 +13,7 @@ const int POTS_PINS[POTS_NUM] = {
 Atm_analog pots[POTS_NUM];
 Atm_controller potsControl;
 
-const byte POTS_RANGE_LO = 1;
+const byte POTS_RANGE_LO = 0;
 const byte POTS_RANGE_HI = 20;
 
 const int POTS_KEY[POTS_NUM] = {
@@ -23,15 +23,13 @@ const int POTS_BOUNCE_MS = 1000;
 
 /**
  * Relays.
+ * LEDs relay: Open on valid LED combination.
+ * Digital switches relay: Open on valid digital switches combination.
+ * Microphone relay: Open on microphone max level.
  */
 
-// 1st lock: On valid LED combination
 const int PIN_RELAY_LEDS = 7;
-
-// 2nd lock: On valid digital switches combination
 const int PIN_RELAY_DSWITCHES = 8;
-
-// 3nd lock: On microphone max level
 const int PIN_RELAY_MICRO = 9;
 
 /**
@@ -73,17 +71,28 @@ uint16_t microBuf[MICRO_BUF_SIZE];
 
 /**
  * LED strip.
+ * Segment limits are (inclusive, exclusive).
+ * Block 1: Potentiometers lock.
+ * Block 2: From potentiometers lock to digital switches.
+ * Block 3: From digital switches to microphone.
+ * Block 4: Microphone progress indicator.
  */
 
-const uint16_t LEDS_NUM = 300;
+const uint16_t LEDS_NUM = 200;
 const uint8_t LEDS_PIN = 6;
 const int LEDS_BRIGHTNESS = 150;
 
+// Lower value is always the lower limit (i.e. the inclusive index).
+
 const int LEDS_POTS_SEGMENTS[POTS_NUM][2] = {
-    {1, 20},
-    {40, 21},
-    {41, 60},
-    {80, 61}};
+    {0, 20},
+    {40, 20},
+    {40, 60},
+    {80, 60}};
+
+const int LEDS_BLOCK2_SEGMENT[2] = {80, 110};
+const int LEDS_BLOCK3_SEGMENT[2] = {110, 140};
+const int LEDS_BLOCK4_SEGMENT[2] = {140, 188};
 
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(LEDS_NUM, LEDS_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -374,7 +383,7 @@ uint32_t randomColor()
 
 void refreshLedPotSegments()
 {
-    const int SEGMENT_SIZE = POTS_RANGE_HI - POTS_RANGE_LO + 1;
+    const int SEGMENT_SIZE = POTS_RANGE_HI - POTS_RANGE_LO;
 
     bool isAsc;
     int iniLed;
