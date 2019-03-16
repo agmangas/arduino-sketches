@@ -253,6 +253,8 @@ void onMicroThreshold(int idx, int v, int up)
     {
         Serial.println(F("Micro++"));
         progState.microLevel++;
+        blinkLedSegment(LEDS_BLOCK4_SEGMENT[0], LEDS_BLOCK4_SEGMENT[1]);
+        refreshLedSegmentMicro();
     }
 }
 
@@ -262,10 +264,12 @@ void onMicroTimer(int idx, int v, int up)
     {
         Serial.println(F("Micro--"));
         progState.microLevel--;
+        refreshLedSegmentMicro();
     }
     else if (progState.microLevel < 0)
     {
         progState.microLevel = 0;
+        refreshLedSegmentMicro();
     }
 }
 
@@ -489,6 +493,7 @@ void initLeds()
 
     clearLeds();
     refreshLedSegmentPots();
+    refreshLedSegmentMicro();
 }
 
 void clearLeds()
