@@ -49,8 +49,8 @@ Atm_controller dswitchControl;
  * Audio FX.
  */
 
-const int NUM_TRACKS = 2;
-const int AUDIO_TRACK_PINS[NUM_TRACKS] = {A3, A2};
+const int PIN_AUDIO_TRACK_FILL = A3;
+const int PIN_AUDIO_TRACK_SUCCESS = A2;
 const int PIN_AUDIO_ACT = 11;
 const int PIN_AUDIO_RST = 10;
 
@@ -176,6 +176,11 @@ void onUnlockedPots()
 
 void onPotChange(int idx, int v, int up)
 {
+    if (progState.potsUnlocked)
+    {
+        return;
+    }
+
     Serial.print(F("Pot["));
     Serial.print(idx);
     Serial.print(F("]:"));
@@ -213,6 +218,11 @@ void initPots()
 
 void refreshDswitches()
 {
+    if (!progState.potsUnlocked)
+    {
+        return;
+    }
+
     for (int i = 0; i < DSWITCH_NUM; i++)
     {
         if (dswitchButtons[i].state() == Atm_button::PRESSED)
@@ -228,6 +238,11 @@ void refreshDswitches()
 
 bool allDswitchesPressed()
 {
+    if (!progState.potsUnlocked)
+    {
+        return false;
+    }
+
     for (int i = 0; i < DSWITCH_NUM; i++)
     {
         if (dswitchButtons[i].state() != Atm_button::PRESSED)
@@ -274,24 +289,29 @@ void initDswitch()
 
 void onMicroThreshold(int idx, int v, int up)
 {
+    if (!progState.dswitchesUnlocked)
+    {
+        return;
+    }
+
     // v: The index of the threshold that was crossed
     // up: The direction in which the threshold was crossed (1 = up, 0 = down)
 
-    Serial.println(F("onMicroThreshold idx="));
-    Serial.println(v);
-    Serial.println(F(" dir="));
+    Serial.print(F("Tap v="));
+    Serial.print(v);
+    Serial.print(F(" up="));
     Serial.println(up);
 
     if (up == 1 && progState.microLevel < MICRO_MAX_LEVEL)
     {
-        Serial.println(F("Micro++"));
+        Serial.println(F("Tap+"));
         progState.microLevel++;
         blinkLedSegment(LEDS_BLOCK4_SEGMENT[0], LEDS_BLOCK4_SEGMENT[1]);
         refreshLedSegmentMicro();
 
         if (progState.microLevel == MICRO_MAX_LEVEL)
         {
-            Serial.println(F("Unlocked tap"));
+            Serial.println(F("Tap unlock"));
             progState.tapUnlocked = true;
             openRelay(PIN_RELAY_TAP);
         }
@@ -300,9 +320,14 @@ void onMicroThreshold(int idx, int v, int up)
 
 void onMicroTimer(int idx, int v, int up)
 {
+    if (!progState.dswitchesUnlocked)
+    {
+        return;
+    }
+
     if (progState.microLevel > 0 && progState.microLevel < MICRO_MAX_LEVEL)
     {
-        Serial.println(F("Micro--"));
+        Serial.println(F("Tap-"));
         progState.microLevel--;
         refreshLedSegmentMicro();
     }
@@ -375,7 +400,7 @@ void playTrack(byte trackPin)
 {
     if (isTrackPlaying())
     {
-        Serial.println(F("Skipping: Audio still playing"));
+        Serial.println(F("Skipping: Audio playing"));
         return;
     }
 
@@ -390,11 +415,8 @@ void playTrack(byte trackPin)
 
 void initAudioPins()
 {
-    for (int i = 0; i < NUM_TRACKS; i++)
-    {
-        pinMode(AUDIO_TRACK_PINS[i], INPUT);
-    }
-
+    pinMode(PIN_AUDIO_TRACK_FILL, INPUT);
+    pinMode(PIN_AUDIO_TRACK_SUCCESS, INPUT);
     pinMode(PIN_AUDIO_ACT, INPUT);
     pinMode(PIN_AUDIO_RST, INPUT);
 }
@@ -429,6 +451,8 @@ uint32_t randomColor()
 
 void fillLedSegment(int iniIdx, int endIdx)
 {
+    playTrack(PIN_AUDIO_TRACK_FILL);
+
     for (int i = iniIdx; i < endIdx; i++)
     {
         pixelStrip.setPixelColor(i, 0);
