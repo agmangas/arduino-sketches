@@ -171,6 +171,7 @@ void onUnlockedPots()
     progState.potsUnlocked = true;
     fillLedSegment(LEDS_BLOCK2_SEGMENT[0], LEDS_BLOCK2_SEGMENT[1]);
     openRelay(PIN_RELAY_POTS);
+    refreshDswitches();
 }
 
 void onPotChange(int idx, int v, int up)
