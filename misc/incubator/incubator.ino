@@ -94,8 +94,8 @@ const int LEDS_POTS_SEGMENTS[POTS_NUM][2] = {
     {80, 60}};
 
 const int LEDS_BLOCK2_SEGMENT[2] = {80, 110};
-const int LEDS_BLOCK3_SEGMENT[2] = {110, 140};
-const int LEDS_BLOCK4_SEGMENT[2] = {140, 188};
+const int LEDS_BLOCK3_SEGMENT[2] = {158, 188};
+const int LEDS_BLOCK4_SEGMENT[2] = {110, 158};
 
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(LEDS_NUM, LEDS_PIN, NEO_GRB + NEO_KHZ800);
 
