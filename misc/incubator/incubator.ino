@@ -225,12 +225,18 @@ void refreshDswitches()
 
     for (int i = 0; i < DSWITCH_NUM; i++)
     {
+        Serial.print(F("Dswitch:"));
+        Serial.print(i);
+        Serial.print(F(":"));
+
         if (dswitchButtons[i].state() == Atm_button::PRESSED)
         {
+            Serial.println(F("ON"));
             dswitchLeds[i].trigger(Atm_led::EVT_ON);
         }
         else
         {
+            Serial.println(F("OFF"));
             dswitchLeds[i].trigger(Atm_led::EVT_OFF);
         }
     }
