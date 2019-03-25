@@ -17,7 +17,7 @@ const byte POTS_RANGE_LO = 0;
 const byte POTS_RANGE_HI = 20;
 
 const int POTS_KEY[POTS_NUM] = {
-    5, 10, 15, 20};
+    2, 2, 2, 2};
 
 const int POTS_BOUNCE_MS = 1000;
 
@@ -28,8 +28,8 @@ const int POTS_BOUNCE_MS = 1000;
  * Microphone relay: Open on microphone max level.
  */
 
-const int PIN_RELAY_POTS = 7;
-const int PIN_RELAY_DSWITCHES = 8;
+const int PIN_RELAY_POTS = 8;
+const int PIN_RELAY_DSWITCHES = 7;
 const int PIN_RELAY_TAP = 9;
 
 /**
@@ -60,15 +60,12 @@ const int PIN_AUDIO_RST = 10;
 
 const int MICRO_PIN = A1;
 const int MICRO_SAMPLERATE = 50;
-const int MICRO_BUF_SIZE = 4;
 const int MICRO_MAX_LEVEL = 24;
 const int MICRO_TIMER_MS = 1000;
-const int MICRO_THRESHOLDS_NUM = 1;
-const uint16_t MICRO_THRESHOLDS[MICRO_THRESHOLDS_NUM] = {600};
+const int MICRO_THRESHOLD = 90;
 
-Atm_comparator microComp;
+Atm_analog microAnalog;
 Atm_timer microTimer;
-uint16_t microBuf[MICRO_BUF_SIZE];
 
 /**
  * LED strip.
@@ -218,7 +215,7 @@ void initPots()
 
 void refreshDswitches()
 {
-    if (!progState.potsUnlocked)
+    if (!progState.potsUnlocked || progState.dswitchesUnlocked)
     {
         return;
     }
@@ -244,6 +241,11 @@ void refreshDswitches()
 
 bool allDswitchesPressed()
 {
+    if (progState.dswitchesUnlocked)
+    {
+        return true;
+    }
+  
     if (!progState.potsUnlocked)
     {
         return false;
@@ -300,15 +302,17 @@ void onMicroThreshold(int idx, int v, int up)
         return;
     }
 
-    // v: The index of the threshold that was crossed
-    // up: The direction in which the threshold was crossed (1 = up, 0 = down)
+    // v: the last measured value (or moving average)
+    // up: The direction in which the value changed (1 = up, 0 = down)
 
     Serial.print(F("Tap v="));
     Serial.print(v);
     Serial.print(F(" up="));
     Serial.println(up);
 
-    if (up == 1 && progState.microLevel < MICRO_MAX_LEVEL)
+    bool overThreshold = v > MICRO_THRESHOLD;
+
+    if (overThreshold && progState.microLevel < MICRO_MAX_LEVEL)
     {
         Serial.println(F("Tap+"));
         progState.microLevel++;
@@ -346,10 +350,8 @@ void onMicroTimer(int idx, int v, int up)
 
 void initMicro()
 {
-    microComp
+    microAnalog
         .begin(MICRO_PIN, MICRO_SAMPLERATE)
-        .threshold(MICRO_THRESHOLDS, MICRO_THRESHOLDS_NUM)
-        .average(microBuf, MICRO_BUF_SIZE)
         .onChange(onMicroThreshold);
 
     microTimer
@@ -502,10 +504,13 @@ void blinkLedSegment(int iniIdx, int endIdx)
 
 void refreshLedSegmentMicro()
 {
-    int size = LEDS_BLOCK4_SEGMENT[1] - LEDS_BLOCK4_SEGMENT[0];
-    int sizeStep = floor(((float)size) / MICRO_MAX_LEVEL);
+    int sizeSegment = LEDS_BLOCK4_SEGMENT[1] - LEDS_BLOCK4_SEGMENT[0];
+    int sizeStep = floor(((float)sizeSegment) / MICRO_MAX_LEVEL);
     int numLedsLit = sizeStep * progState.microLevel;
     int endIdx = LEDS_BLOCK4_SEGMENT[0] + numLedsLit;
+
+    Serial.print(F("Tap LED total="));
+    Serial.println(numLedsLit);
 
     if (progState.microLevel >= MICRO_MAX_LEVEL)
     {
