@@ -14,16 +14,14 @@ const int PIN_RELAY = 12;
 const int DSWITCH_NUM_OUTPUTS = 6;
 const int DSWITCH_DEBOUNCE_MS = 1000;
 const int DSWITCH_PINS[DSWITCH_NUM_OUTPUTS] = {3, 4, 5, 6, 7, 8};
-const int DSWITCH_VALID_IDX = 3;
+const int DSWITCH_VALID_IDX = 0;
 
 const int BUTTONS_NUM = 3;
 const int BUTTONS_DEBOUNCE_MS = 1000;
 const int BUTTONS_PINS[BUTTONS_NUM] = {9, 10, 11};
 
 Atm_button dswitchButtons[DSWITCH_NUM_OUTPUTS];
-Atm_controller dswitchControl;
 Atm_button buttons[BUTTONS_NUM];
-Atm_controller buttonsControl;
 Atm_controller validControl;
 
 /**
@@ -47,6 +45,7 @@ bool dswitchAndButtonsOk()
 void onDswitchAndButtonsOk()
 {
     Serial.println(F("Dswitch and buttons OK"));
+    openRelay();
 }
 
 int getDswitchPressedIdx()
@@ -67,11 +66,6 @@ bool isValidDswitch()
     return getDswitchPressedIdx() == DSWITCH_VALID_IDX;
 }
 
-void onValidDswitch()
-{
-    Serial.println(F("Valid dswitch"));
-}
-
 void initDswitch()
 {
     for (int i = 0; i < DSWITCH_NUM_OUTPUTS; i++)
@@ -83,14 +77,11 @@ void initDswitch()
             .onRelease(refreshLeds);
     }
 
-    dswitchControl
-        .begin()
-        .IF(isValidDswitch)
-        .onChange(true, onValidDswitch);
-
     validControl
-        .begin(dswitchAndButtonsOk)
-        .IF(onDswitchAndButtonsOk);
+        .begin()
+        .IF(dswitchAndButtonsOk)
+        .onChange(true, onDswitchAndButtonsOk)
+        .onChange(false, lockRelay);
 }
 
 bool allButtonsPressed()
@@ -111,19 +102,21 @@ void onButtonsPressed()
     Serial.println(F("All buttons pressed"));
 }
 
+void onButtonPressed(int idx, int v, int up)
+{
+    Serial.print(F("Button:"));
+    Serial.println(idx);
+}
+
 void initButtons()
 {
     for (int i = 0; i < BUTTONS_NUM; i++)
     {
         buttons[i]
             .begin(BUTTONS_PINS[i])
-            .debounce(BUTTONS_DEBOUNCE_MS);
+            .debounce(BUTTONS_DEBOUNCE_MS)
+            .onPress(onButtonPressed, i);
     }
-
-    buttonsControl
-        .begin()
-        .IF(allButtonsPressed)
-        .onChange(true, onButtonsPressed);
 }
 
 /**
@@ -162,7 +155,12 @@ void initRelays()
 
 uint32_t randomColor()
 {
-    return Adafruit_NeoPixel::Color(random(100, 250), 0, 0);
+    int randPivot = random(0, 3);
+    int r = randPivot == 0 ? 0 : random(20, 250);
+    int g = randPivot == 1 ? 0 : random(20, 250);
+    int b = randPivot == 2 ? 0 : random(20, 250);
+
+    return Adafruit_NeoPixel::Color(r, g, b);
 }
 
 void refreshLeds()
@@ -176,6 +174,8 @@ void refreshLeds()
     {
         if (dswitchButtons[i].state() == Atm_button::PRESSED)
         {
+            Serial.print(F("Dswitch:"));
+            Serial.println(i);
             pixelStrip.setPixelColor(i, randomColor());
             break;
         }
@@ -205,10 +205,14 @@ void clearLeds()
 
 void setup()
 {
+    Serial.begin(9600);
+
     initRelays();
     initLeds();
     initDswitch();
     initButtons();
+
+    Serial.println(F(">> Starting natural selector program"));
 }
 
 void loop()
