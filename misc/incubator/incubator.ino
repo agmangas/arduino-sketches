@@ -50,7 +50,7 @@ Atm_controller dswitchControl;
  */
 
 const int PIN_AUDIO_TRACK_FILL = A3;
-const int PIN_AUDIO_TRACK_SUCCESS = A2;
+const int PIN_AUDIO_TRACK_TAP = A2;
 const int PIN_AUDIO_ACT = 11;
 const int PIN_AUDIO_RST = 10;
 
@@ -59,9 +59,9 @@ const int PIN_AUDIO_RST = 10;
  */
 
 const int MICRO_PIN = A1;
-const int MICRO_SAMPLERATE = 50;
-const int MICRO_MAX_LEVEL = 24;
-const int MICRO_TIMER_MS = 1000;
+const int MICRO_SAMPLERATE = 40;
+const int MICRO_MAX_LEVEL = 15;
+const int MICRO_TIMER_MS = 5000;
 const int MICRO_THRESHOLD = 90;
 
 Atm_analog microAnalog;
@@ -93,6 +93,9 @@ const int LEDS_POTS_SEGMENTS[POTS_NUM][2] = {
 const int LEDS_BLOCK2_SEGMENT[2] = {80, 110};
 const int LEDS_BLOCK3_SEGMENT[2] = {158, 188};
 const int LEDS_BLOCK4_SEGMENT[2] = {110, 158};
+
+const uint32_t LEDS_COLOR_GREEN = Adafruit_NeoPixel::Color(57, 255, 20);
+const uint32_t LEDS_COLOR_ORANGE = Adafruit_NeoPixel::Color(255, 70, 0);
 
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(LEDS_NUM, LEDS_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -245,7 +248,7 @@ bool allDswitchesPressed()
     {
         return true;
     }
-  
+
     if (!progState.potsUnlocked)
     {
         return false;
@@ -315,6 +318,7 @@ void onMicroThreshold(int idx, int v, int up)
     if (overThreshold && progState.microLevel < MICRO_MAX_LEVEL)
     {
         Serial.println(F("Tap+"));
+        playTrack(PIN_AUDIO_TRACK_TAP);
         progState.microLevel++;
         blinkLedSegment(LEDS_BLOCK4_SEGMENT[0], LEDS_BLOCK4_SEGMENT[1]);
         refreshLedSegmentMicro();
@@ -424,7 +428,7 @@ void playTrack(byte trackPin)
 void initAudioPins()
 {
     pinMode(PIN_AUDIO_TRACK_FILL, INPUT);
-    pinMode(PIN_AUDIO_TRACK_SUCCESS, INPUT);
+    pinMode(PIN_AUDIO_TRACK_TAP, INPUT);
     pinMode(PIN_AUDIO_ACT, INPUT);
     pinMode(PIN_AUDIO_RST, INPUT);
 }
@@ -470,7 +474,7 @@ void fillLedSegment(int iniIdx, int endIdx)
 
     for (int i = iniIdx; i < endIdx; i++)
     {
-        pixelStrip.setPixelColor(i, randomColor());
+        pixelStrip.setPixelColor(i, LEDS_COLOR_GREEN);
         pixelStrip.show();
         delay(LEDS_FILL_MS);
     }
@@ -488,7 +492,7 @@ void blinkLedSegment(int iniIdx, int endIdx)
 
     for (int i = iniIdx; i < endIdx; i++)
     {
-        pixelStrip.setPixelColor(i, randomColor());
+        pixelStrip.setPixelColor(i, LEDS_COLOR_ORANGE);
     }
 
     pixelStrip.show();
@@ -524,7 +528,7 @@ void refreshLedSegmentMicro()
 
     for (int i = LEDS_BLOCK4_SEGMENT[0]; i < endIdx; i++)
     {
-        pixelStrip.setPixelColor(i, randomColor());
+        pixelStrip.setPixelColor(i, LEDS_COLOR_ORANGE);
     }
 
     pixelStrip.show();
