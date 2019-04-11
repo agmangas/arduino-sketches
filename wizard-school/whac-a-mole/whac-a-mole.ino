@@ -61,6 +61,14 @@ void onKnock(int idx, int v, int up)
     Serial.println(idx);
 
     knockBuf.push(idx);
+
+    ledStrip.setPixelColor(idx, LED_COLOR);
+    ledStrip.show();
+
+    delay(150);
+
+    ledStrip.setPixelColor(idx, 0);
+    ledStrip.show();
 }
 
 void initKnockSensors()
