@@ -10,7 +10,7 @@ const int KNOCK_NUM = 8;
 const int KNOCK_SAMPLERATE = 50;
 const int KNOCK_RANGE_MIN = 0;
 const int KNOCK_RANGE_MAX = 100;
-const int KNOCK_THRESHOLD = 10;
+const int KNOCK_THRESHOLD = 8;
 
 const int KNOCK_PINS[KNOCK_NUM] = {
     A0, A1, A2, A3, A4, A5, A6, A7};
@@ -25,7 +25,7 @@ CircularBuffer<byte, KNOCK_BUF_SIZE> knockBuf;
    LED strips.
 */
 
-const int LED_BRIGHTNESS = 150;
+const int LED_BRIGHTNESS = 200;
 const int LED_PIN = 2;
 const int LED_NUM = KNOCK_NUM;
 
@@ -50,7 +50,7 @@ typedef struct programState
 ProgramState progState = {
     .startMillis = 0,
     .maxSpanMillis = 0,
-    .targetKnocks = targetColors,
+    .targetKnocks = targetKnocks,
     .currPhase = 0};
 
 /**
@@ -138,7 +138,7 @@ void onKnock(int idx, int v, int up)
     ledStrip.setPixelColor(idx, LED_COLOR);
     ledStrip.show();
 
-    delay(150);
+    delay(5);
 
     ledStrip.setPixelColor(idx, 0);
     ledStrip.show();
