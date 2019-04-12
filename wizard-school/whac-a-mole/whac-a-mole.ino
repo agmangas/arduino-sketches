@@ -57,8 +57,30 @@ ProgramState progState = {
  * Knock state functions.
  */
 
+void randomizeTargets()
+{
+    int numParallel = (currPhase >= (KNOCK_NUM)) ? KNOCK_NUM : currPhase;
+}
+
 bool isKnockBufferValid()
 {
+    int targetSize = 0;
+
+    for (int i = 0; i < KNOCK_NUM; i++)
+    {
+        if (targetKnocks[i] == -1)
+        {
+            break;
+        }
+
+        targetSize++;
+    }
+
+    if (targetSize != knockBuf.size())
+    {
+        return false;
+    }
+
     bool bufHasTarget;
 
     for (int i = 0; i < KNOCK_NUM; i++)
@@ -90,6 +112,22 @@ bool isKnockBufferValid()
 
 bool isExpired()
 {
+    if (progState.startMillis == 0 || progState.maxSpanMillis == 0)
+    {
+        return false;
+    }
+
+    unsigned long now = millis();
+
+    if (now < progState.startMillis)
+    {
+        Serial.println(F("Timer overflow"));
+        return true;
+    }
+
+    unsigned long limit = progState.startMillis + progState.maxSpanMillis;
+
+    return now > limit;
 }
 
 /**
