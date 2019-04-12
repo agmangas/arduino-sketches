@@ -34,8 +34,67 @@ const uint32_t LED_COLOR = Adafruit_NeoPixel::Color(100, 255, 0);
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 /**
-   LED functions.
-*/
+ * Program state.
+ */
+
+int targetKnocks[KNOCK_NUM];
+
+typedef struct programState
+{
+    unsigned long startMillis;
+    unsigned long maxSpanMillis;
+    int *targetKnocks;
+    int currPhase;
+} ProgramState;
+
+ProgramState progState = {
+    .startMillis = 0,
+    .maxSpanMillis = 0,
+    .targetKnocks = targetColors,
+    .currPhase = 0};
+
+/**
+ * Knock state functions.
+ */
+
+bool isKnockBufferValid()
+{
+    bool bufHasTarget;
+
+    for (int i = 0; i < KNOCK_NUM; i++)
+    {
+        if (targetKnocks[i] == -1)
+        {
+            break;
+        }
+
+        bufHasTarget = false;
+
+        for (int j = 0; j < knockBuf.size(); j++)
+        {
+            if (knockBuf[j] == targetKnocks[i])
+            {
+                bufHasTarget = true;
+                break;
+            }
+        }
+
+        if (!bufHasTarget)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool isExpired()
+{
+}
+
+/**
+ * LED functions.
+ */
 
 void initLeds()
 {
@@ -60,7 +119,21 @@ void onKnock(int idx, int v, int up)
     Serial.print(F("Knock:"));
     Serial.println(idx);
 
-    knockBuf.push(idx);
+    bool isDup = false;
+
+    for (int i = 0; i < knockBuf.size(); i++)
+    {
+        if (knockBuf[i] == idx)
+        {
+            isDup = true;
+            break;
+        }
+    }
+
+    if (!isDup)
+    {
+        knockBuf.push(idx);
+    }
 
     ledStrip.setPixelColor(idx, LED_COLOR);
     ledStrip.show();
