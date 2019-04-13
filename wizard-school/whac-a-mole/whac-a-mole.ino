@@ -117,16 +117,15 @@ int pickRandomTarget()
     return isTarget(randPivot) ? -1 : randPivot;
 }
 
-void randomizeTargets()
+void randomizeTargets(int num)
 {
-    int phase = progState.currPhase;
-    int numParallel = (phase >= (TARGETS_SIZE)) ? TARGETS_SIZE : phase;
+    num = (num > (TARGETS_SIZE)) ? TARGETS_SIZE : num;
 
     emptyTargets();
 
     int randTarget;
 
-    for (int i = 0; i < numParallel; i++)
+    for (int i = 0; i < num; i++)
     {
         randTarget = pickRandomTarget();
 
