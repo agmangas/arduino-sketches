@@ -37,7 +37,9 @@ Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_K
  * Program state.
  */
 
-int targetKnocks[KNOCK_NUM];
+const int TARGETS_SIZE = KNOCK_NUM;
+
+int targetKnocks[TARGETS_SIZE];
 
 typedef struct programState
 {
@@ -57,16 +59,91 @@ ProgramState progState = {
  * Knock state functions.
  */
 
+bool isTarget(int idx)
+{
+    for (int i = 0; i < TARGETS_SIZE; i++)
+    {
+        if (targetKnocks[i] == -1)
+        {
+            return false;
+        }
+        else if (targetKnocks[i] == idx)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool addTarget(int idx)
+{
+    if (isTarget(idx))
+    {
+        return false;
+    }
+
+    for (int i = 0; i < TARGETS_SIZE; i++)
+    {
+        if (targetKnocks[i] == -1)
+        {
+            targetKnocks[i] = idx;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void emptyTargets()
+{
+    for (int i = 0; i < TARGETS_SIZE; i++)
+    {
+        progState.targetKnocks[i] = -1;
+    }
+}
+
+int pickRandomTarget()
+{
+    int randPivot = random(0, 100) % TARGETS_SIZE;
+    int counter = 0;
+
+    while (isTarget(randPivot) && counter <= TARGETS_SIZE)
+    {
+        randPivot = (randPivot + 1) % TARGETS_SIZE;
+        counter++;
+    }
+
+    return isTarget(randPivot) ? -1 : randPivot;
+}
+
 void randomizeTargets()
 {
-    int numParallel = (currPhase >= (KNOCK_NUM)) ? KNOCK_NUM : currPhase;
+    int phase = progState.currPhase;
+    int numParallel = (phase >= (TARGETS_SIZE)) ? TARGETS_SIZE : phase;
+
+    emptyTargets();
+
+    int randTarget;
+
+    for (int i = 0; i < numParallel; i++)
+    {
+        randTarget = pickRandomTarget();
+
+        if (randTarget == -1)
+        {
+            break;
+        }
+
+        addTarget(randTarget);
+    }
 }
 
 bool isKnockBufferValid()
 {
     int targetSize = 0;
 
-    for (int i = 0; i < KNOCK_NUM; i++)
+    for (int i = 0; i < TARGETS_SIZE; i++)
     {
         if (targetKnocks[i] == -1)
         {
@@ -83,13 +160,8 @@ bool isKnockBufferValid()
 
     bool bufHasTarget;
 
-    for (int i = 0; i < KNOCK_NUM; i++)
+    for (int i = 0; i < targetSize; i++)
     {
-        if (targetKnocks[i] == -1)
-        {
-            break;
-        }
-
         bufHasTarget = false;
 
         for (int j = 0; j < knockBuf.size(); j++)
