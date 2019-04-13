@@ -37,6 +37,10 @@ Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_K
  * Program state.
  */
 
+const unsigned long MILLIS_SPAN_LONG = 5000;
+const unsigned long MILLIS_SPAN_MEDIUM = 3000;
+const unsigned long MILLIS_SPAN_SHORT = 1500;
+
 const int TARGETS_SIZE = KNOCK_NUM;
 
 int targetKnocks[TARGETS_SIZE];
@@ -58,6 +62,22 @@ ProgramState progState = {
 /**
  * Knock state functions.
  */
+
+unsigned long getCurrentMaxSpanMillis()
+{
+    if (progState.currPhase == 0)
+    {
+        return MILLIS_SPAN_LONG;
+    }
+    else if (progState.currPhase == 1)
+    {
+        return MILLIS_SPAN_MEDIUM;
+    }
+    else
+    {
+        return MILLIS_SPAN_SHORT;
+    }
+}
 
 bool isTarget(int idx)
 {
