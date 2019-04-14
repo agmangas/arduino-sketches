@@ -28,14 +28,18 @@ CircularBuffer<byte, KNOCK_BUF_SIZE> knockBuf;
 const int LED_BRIGHTNESS = 200;
 const int LED_PIN = 2;
 const int LED_NUM = KNOCK_NUM;
-
-const uint32_t LED_COLOR = Adafruit_NeoPixel::Color(100, 255, 0);
+const int LED_ERROR_ITERS = 3;
+const int LED_ERROR_SLEEP_MS = 250;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 /**
  * Program state.
  */
+
+const int SUCCESS_STREAK_LONG = 12;
+const int SUCCESS_STREAK_MEDIUM = 8;
+const int SUCCESS_STREAK_SHORT = 5;
 
 const unsigned long MILLIS_SPAN_LONG = 5000;
 const unsigned long MILLIS_SPAN_MEDIUM = 3000;
@@ -48,28 +52,52 @@ int targetKnocks[TARGETS_SIZE];
 typedef struct programState
 {
     unsigned long startMillis;
-    unsigned long maxSpanMillis;
     int *targetKnocks;
     int currPhase;
+    int hitStreak;
 } ProgramState;
 
 ProgramState progState = {
     .startMillis = 0,
-    .maxSpanMillis = 0,
     .targetKnocks = targetKnocks,
-    .currPhase = 0};
+    .currPhase = 0,
+    .hitStreak = 0};
+
+void cleanState()
+{
+    emptyTargets();
+    progState.startMillis = 0;
+    progState.currPhase = 0;
+    progState.hitStreak = 0;
+}
 
 /**
- * Knock state functions.
+ * Functions to deal with game state progress.
  */
 
-unsigned long getCurrentMaxSpanMillis()
+int getPhaseHitStreak(int phase)
 {
-    if (progState.currPhase == 0)
+    if (phase == 0)
+    {
+        return SUCCESS_STREAK_LONG;
+    }
+    else if (phase == 1)
+    {
+        return SUCCESS_STREAK_MEDIUM;
+    }
+    else
+    {
+        return SUCCESS_STREAK_SHORT;
+    }
+}
+
+unsigned long getPhaseMaxSpanMillis(int phase)
+{
+    if (phase == 0)
     {
         return MILLIS_SPAN_LONG;
     }
-    else if (progState.currPhase == 1)
+    else if (phase == 1)
     {
         return MILLIS_SPAN_MEDIUM;
     }
@@ -77,6 +105,11 @@ unsigned long getCurrentMaxSpanMillis()
     {
         return MILLIS_SPAN_SHORT;
     }
+}
+
+int getPhaseNumTargets(int phase)
+{
+    return phase;
 }
 
 bool isTarget(int idx)
@@ -222,7 +255,7 @@ bool isKnockBufferMatch()
 
 bool isExpired()
 {
-    if (progState.startMillis == 0 || progState.maxSpanMillis == 0)
+    if (progState.startMillis == 0)
     {
         return false;
     }
@@ -235,9 +268,52 @@ bool isExpired()
         return true;
     }
 
-    unsigned long limit = progState.startMillis + progState.maxSpanMillis;
+    unsigned long maxSpan = getPhaseMaxSpanMillis(progState.currPhase);
+    unsigned long limit = progState.startMillis + maxSpan;
 
     return now > limit;
+}
+
+void updateTargets()
+{
+    int numTargets = getPhaseNumTargets(progState.currPhase);
+    randomizeTargets(numTargets);
+    showTargetLeds();
+    progState.startMillis = millis();
+}
+
+void advanceProgress()
+{
+    progState.hitStreak++;
+
+    int minHitStreak = getPhaseHitStreak(progState.currPhase);
+
+    if (progState.hitStreak >= minHitStreak)
+    {
+        progState.hitStreak = 0;
+        progState.currPhase++;
+        updateTargets();
+    }
+}
+
+void updateState()
+{
+    if (progState.startMillis == 0)
+    {
+        Serial.println(F("First target update"));
+        updateTargets();
+    }
+    else if (isKnockBufferError() || isExpired())
+    {
+        Serial.println(F("Restarting game: error or expired"));
+        cleanState();
+        showErrorLedsPattern();
+    }
+    else if (isKnockBufferMatch())
+    {
+        Serial.println(F("OK: advancing progress"));
+        advanceProgress();
+    }
 }
 
 /**
@@ -278,6 +354,26 @@ void showTargetLeds()
     }
 
     ledStrip.show();
+}
+
+void showErrorLedsPattern()
+{
+    for (int i = 0; i < LED_ERROR_ITERS; i++)
+    {
+        for (int j = 0; j < LED_NUM; j++)
+        {
+            ledStrip.setPixelColor(j, 255, 0, 0);
+        }
+
+        ledStrip.show();
+
+        delay(LED_ERROR_SLEEP_MS);
+
+        ledStrip.clear();
+        ledStrip.show();
+
+        delay(LED_ERROR_SLEEP_MS);
+    }
 }
 
 /**
@@ -338,4 +434,5 @@ void setup()
 void loop()
 {
     automaton.run();
+    updateState();
 }
