@@ -98,6 +98,12 @@ bool isTarget(int idx)
 
 bool addTarget(int idx)
 {
+    if (idx < 0 || idx >= LED_NUM)
+    {
+        Serial.println(F("Target should be in [0, numLeds)"));
+        return false;
+    }
+
     if (isTarget(idx))
     {
         return false;
@@ -158,7 +164,20 @@ void randomizeTargets(int num)
     }
 }
 
-bool isKnockBufferValid()
+bool isKnockBufferError()
+{
+    for (int i = 0; i < knockBuf.size(); i++)
+    {
+        if (!isTarget(knockBuf[i]))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool isKnockBufferMatch()
 {
     int targetSize = 0;
 
@@ -239,6 +258,28 @@ void clearLeds()
     ledStrip.show();
 }
 
+uint32_t randomColor()
+{
+    int randVal = random(0, 3);
+    int r = randVal == 0 ? 0 : random(25, 250);
+    int g = randVal == 1 ? 0 : random(25, 250);
+    int b = randVal == 2 ? 0 : random(25, 250);
+
+    return Adafruit_NeoPixel::Color(r, g, b);
+}
+
+void showTargetLeds()
+{
+    ledStrip.clear();
+
+    for (int i = 0; i < TARGETS_SIZE; i++)
+    {
+        ledStrip.setPixelColor(targetKnocks[i], randomColor());
+    }
+
+    ledStrip.show();
+}
+
 /**
  * Knock sensor functions.
  */
@@ -263,14 +304,6 @@ void onKnock(int idx, int v, int up)
     {
         knockBuf.push(idx);
     }
-
-    ledStrip.setPixelColor(idx, LED_COLOR);
-    ledStrip.show();
-
-    delay(5);
-
-    ledStrip.setPixelColor(idx, 0);
-    ledStrip.show();
 }
 
 void initKnockSensors()
