@@ -65,6 +65,7 @@ ProgramState progState = {
 
 void cleanState()
 {
+    knockBuf.clear();
     emptyTargets();
     progState.startMillis = 0;
     progState.currPhase = 0;
@@ -164,7 +165,7 @@ void emptyTargets()
 
 int pickRandomTarget()
 {
-    int randPivot = random(0, 100) % TARGETS_SIZE;
+    int randPivot = random(0, TARGETS_SIZE * 10) % TARGETS_SIZE;
     int counter = 0;
 
     while (isTarget(randPivot) && counter <= TARGETS_SIZE)
@@ -190,6 +191,7 @@ void randomizeTargets(int num)
 
         if (randTarget == -1)
         {
+            Serial.println(F("Warn: no more random targets to pick"));
             break;
         }
 
@@ -280,6 +282,7 @@ void updateTargets()
     randomizeTargets(numTargets);
     showTargetLeds();
     progState.startMillis = millis();
+    knockBuf.clear();
 }
 
 void advanceProgress()
@@ -292,8 +295,9 @@ void advanceProgress()
     {
         progState.hitStreak = 0;
         progState.currPhase++;
-        updateTargets();
     }
+
+    updateTargets();
 }
 
 void updateState()
@@ -303,9 +307,15 @@ void updateState()
         Serial.println(F("First target update"));
         updateTargets();
     }
-    else if (isKnockBufferError() || isExpired())
+    else if (isKnockBufferError())
     {
-        Serial.println(F("Restarting game: error or expired"));
+        Serial.println(F("Knock pattern error: restart"));
+        cleanState();
+        showErrorLedsPattern();
+    }
+    else if (isExpired())
+    {
+        Serial.println(F("Time expired: restart"));
         cleanState();
         showErrorLedsPattern();
     }
@@ -398,6 +408,9 @@ void onKnock(int idx, int v, int up)
 
     if (!isDup)
     {
+        Serial.print(F("Pushing:"));
+        Serial.println(idx);
+
         knockBuf.push(idx);
     }
 }
