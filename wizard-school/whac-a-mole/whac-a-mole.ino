@@ -33,7 +33,7 @@ const int LED_NUM = KNOCK_NUM;
 const int LED_ERROR_ITERS = 3;
 const int LED_ERROR_SLEEP_MS = 250;
 
-Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_RGB + NEO_KHZ800);
 
 /**
  * Program state.
