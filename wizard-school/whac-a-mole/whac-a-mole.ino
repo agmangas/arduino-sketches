@@ -21,6 +21,8 @@ Atm_controller knockControllers[KNOCK_NUM];
 const int KNOCK_BUF_SIZE = 10;
 CircularBuffer<byte, KNOCK_BUF_SIZE> knockBuf;
 
+const int KNOCK_BOUNCE_MS = 2000;
+
 /**
    LED strips.
 */
@@ -281,7 +283,7 @@ bool isExpired()
 void updateTargets()
 {
     clearLeds();
-    delay(2000);
+    delay(KNOCK_BOUNCE_MS);
     int numTargets = getPhaseNumTargets(progState.currPhase);
     randomizeTargets(numTargets);
     showTargetLeds();
