@@ -10,7 +10,7 @@ const int KNOCK_NUM = 8;
 const int KNOCK_SAMPLERATE = 50;
 const int KNOCK_RANGE_MIN = 0;
 const int KNOCK_RANGE_MAX = 100;
-const int KNOCK_THRESHOLD = 8;
+const int KNOCK_THRESHOLD = 20;
 
 const int KNOCK_PINS[KNOCK_NUM] = {
     A0, A1, A2, A3, A4, A5, A6, A7};
@@ -110,18 +110,18 @@ unsigned long getPhaseMaxSpanMillis(int phase)
 
 int getPhaseNumTargets(int phase)
 {
-    return phase;
+    return phase + 1;
 }
 
 bool isTarget(int idx)
 {
     for (int i = 0; i < TARGETS_SIZE; i++)
     {
-        if (targetKnocks[i] == -1)
+        if (progState.targetKnocks[i] == -1)
         {
             return false;
         }
-        else if (targetKnocks[i] == idx)
+        else if (progState.targetKnocks[i] == idx)
         {
             return true;
         }
@@ -145,9 +145,11 @@ bool addTarget(int idx)
 
     for (int i = 0; i < TARGETS_SIZE; i++)
     {
-        if (targetKnocks[i] == -1)
+        if (progState.targetKnocks[i] == -1)
         {
-            targetKnocks[i] = idx;
+            Serial.print(F("Adding target: "));
+            Serial.println(idx);
+            progState.targetKnocks[i] = idx;
             return true;
         }
     }
@@ -218,7 +220,7 @@ bool isKnockBufferMatch()
 
     for (int i = 0; i < TARGETS_SIZE; i++)
     {
-        if (targetKnocks[i] == -1)
+        if (progState.targetKnocks[i] == -1)
         {
             break;
         }
@@ -239,7 +241,7 @@ bool isKnockBufferMatch()
 
         for (int j = 0; j < knockBuf.size(); j++)
         {
-            if (knockBuf[j] == targetKnocks[i])
+            if (knockBuf[j] == progState.targetKnocks[i])
             {
                 bufHasTarget = true;
                 break;
@@ -278,6 +280,8 @@ bool isExpired()
 
 void updateTargets()
 {
+    clearLeds();
+    delay(2000);
     int numTargets = getPhaseNumTargets(progState.currPhase);
     randomizeTargets(numTargets);
     showTargetLeds();
@@ -360,7 +364,7 @@ void showTargetLeds()
 
     for (int i = 0; i < TARGETS_SIZE; i++)
     {
-        ledStrip.setPixelColor(targetKnocks[i], randomColor());
+        ledStrip.setPixelColor(progState.targetKnocks[i], randomColor());
     }
 
     ledStrip.show();
@@ -372,7 +376,7 @@ void showErrorLedsPattern()
     {
         for (int j = 0; j < LED_NUM; j++)
         {
-            ledStrip.setPixelColor(j, 255, 0, 0);
+            ledStrip.setPixelColor(j, 0, 255, 0);
         }
 
         ledStrip.show();
