@@ -6,14 +6,14 @@
  * Piezo knock sensors.
  */
 
-const int KNOCK_NUM = 8;
+const int KNOCK_NUM = 7;
 const int KNOCK_SAMPLERATE = 50;
 const int KNOCK_RANGE_MIN = 0;
 const int KNOCK_RANGE_MAX = 100;
 const int KNOCK_THRESHOLD = 15;
 
 const int KNOCK_PINS[KNOCK_NUM] = {
-    A0, A1, A2, A3, A4, A5, A6, A7};
+    A0, A1, A2, A3, A4, A5, A7};
 
 Atm_analog knockAnalogs[KNOCK_NUM];
 Atm_controller knockControllers[KNOCK_NUM];
@@ -50,9 +50,9 @@ Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_RGB + NEO_K
 
 const int FINAL_PHASE = 4;
 
-const int SUCCESS_STREAK_LONG = 8;
-const int SUCCESS_STREAK_MEDIUM = 6;
-const int SUCCESS_STREAK_SHORT = 4;
+const int SUCCESS_STREAK_LONG = 6;
+const int SUCCESS_STREAK_MEDIUM = 4;
+const int SUCCESS_STREAK_SHORT = 3;
 
 const unsigned long MILLIS_SPAN_LONG = 6000;
 const unsigned long MILLIS_SPAN_MEDIUM = 3000;
@@ -350,10 +350,7 @@ void updateState()
 {
     if (progState.isFinished)
     {
-        int fadeIdx = random(0, LED_NUM);
-        Serial.print(F("Fading LED: "));
-        Serial.println(fadeIdx);
-        fadeLed(fadeIdx);
+        fadeLeds();
         return;
     }
 
@@ -494,7 +491,7 @@ void setPixelColorChannel(int idx, int channel, int val)
     }
 }
 
-void fadeLed(int idx)
+void fadeLeds()
 {
     clearLeds();
 
@@ -502,14 +499,22 @@ void fadeLed(int idx)
 
     for (int i = 0; i < 255; i++)
     {
-        setPixelColorChannel(idx, channel, i);
+        for (int j = 0; j < LED_NUM; j++)
+        {
+            setPixelColorChannel(j, channel, i);
+        }
+
         ledStrip.show();
         delay(LED_FADE_MS);
     }
 
     for (int i = 255; i >= 0; i--)
     {
-        setPixelColorChannel(idx, channel, i);
+        for (int j = 0; j < LED_NUM; j++)
+        {
+            setPixelColorChannel(j, channel, i);
+        }
+
         ledStrip.show();
         delay(LED_FADE_MS);
     }
