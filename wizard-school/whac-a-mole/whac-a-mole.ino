@@ -10,7 +10,7 @@ const int KNOCK_NUM = 8;
 const int KNOCK_SAMPLERATE = 50;
 const int KNOCK_RANGE_MIN = 0;
 const int KNOCK_RANGE_MAX = 100;
-const int KNOCK_THRESHOLD = 20;
+const int KNOCK_THRESHOLD = 15;
 
 const int KNOCK_PINS[KNOCK_NUM] = {
     A0, A1, A2, A3, A4, A5, A6, A7};
@@ -21,17 +21,26 @@ Atm_controller knockControllers[KNOCK_NUM];
 const int KNOCK_BUF_SIZE = 10;
 CircularBuffer<byte, KNOCK_BUF_SIZE> knockBuf;
 
-const int KNOCK_BOUNCE_MS = 2000;
+const int KNOCK_BOUNCE_MS = 500;
 
 /**
-   LED strips.
-*/
+ * Relay.
+ */
 
-const int LED_BRIGHTNESS = 200;
+const int RELAY_PIN = 3;
+
+/**
+ * LED strips.
+ */
+
+const int LED_BRIGHTNESS = 230;
 const int LED_PIN = 2;
 const int LED_NUM = KNOCK_NUM;
 const int LED_ERROR_ITERS = 3;
 const int LED_ERROR_SLEEP_MS = 250;
+const int LED_SUCCESS_ITERS = 6;
+const int LED_SUCCESS_SLEEP_MS = 200;
+const int LED_FADE_MS = 10;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_RGB + NEO_KHZ800);
 
@@ -39,11 +48,13 @@ Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_RGB + NEO_K
  * Program state.
  */
 
-const int SUCCESS_STREAK_LONG = 12;
-const int SUCCESS_STREAK_MEDIUM = 8;
-const int SUCCESS_STREAK_SHORT = 5;
+const int FINAL_PHASE = 4;
 
-const unsigned long MILLIS_SPAN_LONG = 5000;
+const int SUCCESS_STREAK_LONG = 8;
+const int SUCCESS_STREAK_MEDIUM = 6;
+const int SUCCESS_STREAK_SHORT = 4;
+
+const unsigned long MILLIS_SPAN_LONG = 6000;
 const unsigned long MILLIS_SPAN_MEDIUM = 3000;
 const unsigned long MILLIS_SPAN_SHORT = 1500;
 
@@ -57,13 +68,15 @@ typedef struct programState
     int *targetKnocks;
     int currPhase;
     int hitStreak;
+    bool isFinished;
 } ProgramState;
 
 ProgramState progState = {
     .startMillis = 0,
     .targetKnocks = targetKnocks,
     .currPhase = 0,
-    .hitStreak = 0};
+    .hitStreak = 0,
+    .isFinished = false};
 
 void cleanState()
 {
@@ -72,6 +85,7 @@ void cleanState()
     progState.startMillis = 0;
     progState.currPhase = 0;
     progState.hitStreak = 0;
+    progState.isFinished = false;
 }
 
 /**
@@ -112,7 +126,23 @@ unsigned long getPhaseMaxSpanMillis(int phase)
 
 int getPhaseNumTargets(int phase)
 {
-    return phase + 1;
+    phase = phase + 1;
+
+    int maxNum = phase + 2;
+    int minNum = phase;
+
+    maxNum = maxNum > KNOCK_NUM ? KNOCK_NUM : maxNum;
+    maxNum = maxNum < 2 ? 2 : maxNum;
+
+    minNum = minNum < 1 ? 1 : minNum;
+    minNum = minNum > (KNOCK_NUM - 1) ? (KNOCK_NUM - 1) : minNum;
+
+    if (minNum > maxNum)
+    {
+        minNum = maxNum;
+    }
+
+    return random(minNum, maxNum);
 }
 
 bool isTarget(int idx)
@@ -306,8 +336,36 @@ void advanceProgress()
     updateTargets();
 }
 
+bool hasStarted()
+{
+    return progState.currPhase != 0 || progState.hitStreak != 0;
+}
+
+bool hasFinished()
+{
+    return progState.currPhase >= FINAL_PHASE;
+}
+
 void updateState()
 {
+    if (progState.isFinished)
+    {
+        int fadeIdx = random(0, LED_NUM);
+        Serial.print(F("Fading LED: "));
+        Serial.println(fadeIdx);
+        fadeLed(fadeIdx);
+        return;
+    }
+
+    if (hasFinished())
+    {
+        Serial.println(F("Game completed"));
+        progState.isFinished = true;
+        showSuccessLedPattern();
+        openRelay();
+        return;
+    }
+
     if (progState.startMillis == 0)
     {
         Serial.println(F("First target update"));
@@ -316,14 +374,24 @@ void updateState()
     else if (isKnockBufferError())
     {
         Serial.println(F("Knock pattern error: restart"));
+
+        if (hasStarted())
+        {
+            showErrorLedsPattern();
+        }
+
         cleanState();
-        showErrorLedsPattern();
     }
     else if (isExpired())
     {
         Serial.println(F("Time expired: restart"));
+
+        if (hasStarted())
+        {
+            showErrorLedsPattern();
+        }
+
         cleanState();
-        showErrorLedsPattern();
     }
     else if (isKnockBufferMatch())
     {
@@ -353,9 +421,9 @@ void clearLeds()
 uint32_t randomColor()
 {
     int randVal = random(0, 3);
-    int r = randVal == 0 ? 0 : random(25, 250);
-    int g = randVal == 1 ? 0 : random(25, 250);
-    int b = randVal == 2 ? 0 : random(25, 250);
+    int r = randVal == 0 ? 0 : random(100, 250);
+    int g = randVal == 1 ? 0 : random(100, 250);
+    int b = randVal == 2 ? 0 : random(100, 250);
 
     return Adafruit_NeoPixel::Color(r, g, b);
 }
@@ -378,7 +446,7 @@ void showErrorLedsPattern()
     {
         for (int j = 0; j < LED_NUM; j++)
         {
-            ledStrip.setPixelColor(j, 0, 255, 0);
+            ledStrip.setPixelColor(j, 255, 0, 0);
         }
 
         ledStrip.show();
@@ -390,6 +458,83 @@ void showErrorLedsPattern()
 
         delay(LED_ERROR_SLEEP_MS);
     }
+}
+
+void showSuccessLedPattern()
+{
+    clearLeds();
+
+    for (int i = 0; i < LED_SUCCESS_ITERS; i++)
+    {
+        for (int j = 0; j < LED_NUM; j++)
+        {
+            ledStrip.setPixelColor(j, randomColor());
+            ledStrip.show();
+            delay(LED_SUCCESS_SLEEP_MS);
+            clearLeds();
+        }
+    }
+
+    clearLeds();
+}
+
+void setPixelColorChannel(int idx, int channel, int val)
+{
+    if (channel == 0)
+    {
+        ledStrip.setPixelColor(idx, val, 0, 0);
+    }
+    else if (channel == 1)
+    {
+        ledStrip.setPixelColor(idx, 0, val, 0);
+    }
+    else
+    {
+        ledStrip.setPixelColor(idx, 0, 0, val);
+    }
+}
+
+void fadeLed(int idx)
+{
+    clearLeds();
+
+    int channel = random(0, 3);
+
+    for (int i = 0; i < 255; i++)
+    {
+        setPixelColorChannel(idx, channel, i);
+        ledStrip.show();
+        delay(LED_FADE_MS);
+    }
+
+    for (int i = 255; i >= 0; i--)
+    {
+        setPixelColorChannel(idx, channel, i);
+        ledStrip.show();
+        delay(LED_FADE_MS);
+    }
+
+    clearLeds();
+}
+
+/**
+ * Relay functions.
+ */
+
+void lockRelay()
+{
+    digitalWrite(RELAY_PIN, LOW);
+}
+
+void openRelay()
+{
+    digitalWrite(RELAY_PIN, HIGH);
+}
+
+void initRelay()
+{
+    pinMode(RELAY_PIN, OUTPUT);
+    lockRelay();
 }
 
 /**
@@ -446,6 +591,7 @@ void setup()
 
     initKnockSensors();
     initLeds();
+    initRelay();
 
     Serial.println(F(">> Starting whac-a-mole program"));
 }
