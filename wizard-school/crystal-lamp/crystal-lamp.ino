@@ -1,35 +1,25 @@
-#include <SerialRFID.h>
-#include <SoftwareSerial.h>
 #include <Adafruit_NeoPixel.h>
+#include "rdm630.h"
 
 /**
-   Misc.
-*/
+ * Program states.
+ */
 
 const byte NUM_STAGES = 3;
 
-/**
-  Structs.
-*/
-
-typedef struct programState {
-  bool isStageCompleted[NUM_STAGES];
-  bool isRelayOpen[NUM_STAGES];
-  short currentActiveStage;
+typedef struct programState
+{
+    bool isStageCompleted[NUM_STAGES];
+    bool isRelayOpen[NUM_STAGES];
 } ProgramState;
 
 ProgramState progState = {
-  .isStageCompleted = {false, false, false},
-  .isRelayOpen = {false, false, false},
-  .currentActiveStage = -1
-};
+    .isStageCompleted = {false, false, false},
+    .isRelayOpen = {false, false, false}};
 
 /**
-   Pins.
-*/
-
-const byte PIN_RFID_RX = 2;
-const byte PIN_RFID_TX = 12;
+ * Pins.
+ */
 
 const byte PIN_LEDS = 3;
 
@@ -39,287 +29,319 @@ const byte PIN_AUDIO_RST = 6;
 const byte PIN_AUDIO_ACT = 7;
 
 const byte RELAY_PINS[NUM_STAGES] = {
-  8, 9, 10
-};
+    8, 9, 10};
+
+// Arduino RX pin <--> RFID reader TX pin
+
+const byte PIN_RFID_01_RX = 2;
+const byte PIN_RFID_01_TX = A0;
+const byte PIN_RFID_02_RX = 11;
+const byte PIN_RFID_02_TX = A1;
+const byte PIN_RFID_03_RX = 12;
+const byte PIN_RFID_03_TX = A2;
 
 /**
-   LED strips.
-*/
+ * LED strip.
+ */
 
-const byte DEFAULT_BRIGHTNESS = 120;
+const byte DEFAULT_BRIGHTNESS = 150;
 
 const uint32_t LED_COLORS[NUM_STAGES] = {
-  Adafruit_NeoPixel::Color(255, 0, 0),
-  Adafruit_NeoPixel::Color(0, 255, 0),
-  Adafruit_NeoPixel::Color(0, 0, 255)
-};
+    Adafruit_NeoPixel::Color(255, 0, 0),
+    Adafruit_NeoPixel::Color(0, 255, 0),
+    Adafruit_NeoPixel::Color(0, 0, 255)};
 
-// LED_MAIN_PATCH_SIZE + sum(LED_STAGE_PATCH_SIZES) == NUM_LEDS
+// sum(LED_STAGE_PATCH_SIZES) == NUM_LEDS
 
-const byte NUM_LEDS = 11;
-
-const byte LED_MAIN_PATCH_SIZE = 2;
+const byte NUM_LEDS = 60;
 
 const byte LED_STAGE_PATCH_SIZES[NUM_STAGES] = {
-  3, 3, 3
-};
+    20, 20, 20};
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(NUM_LEDS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
 
 /**
-   RFID reader.
-*/
+ * RFID readers.
+ */
 
-SoftwareSerial rfidSerial(PIN_RFID_RX, PIN_RFID_TX);
-SerialRFID rfid(rfidSerial);
+RDM6300 rfid01(PIN_RFID_01_RX, PIN_RFID_01_TX);
+RDM6300 rfid02(PIN_RFID_02_RX, PIN_RFID_02_TX);
+RDM6300 rfid03(PIN_RFID_03_RX, PIN_RFID_03_TX);
 
-char validStageTags[NUM_STAGES][SIZE_TAG_ID] = {
-  "1D00277FBDF8",
-  "1D00278D53E4",
-  "1D0027B80A88"
-};
+RDM6300 rfidReaders[NUM_STAGES] = {
+    rfid01,
+    rfid02,
+    rfid03};
+
+String validStageTags[NUM_STAGES] = {
+    "1D00277FBDF8",
+    "1D00278D53E4",
+    "1D0027B80A88"};
 
 const byte NUM_RESET_TAGS = 1;
 
-const char resetTags[NUM_RESET_TAGS][SIZE_TAG_ID] = {
-  "112233445566"
-};
-
-char tagId[SIZE_TAG_ID];
-unsigned long tagIdMillis;
+String resetTags[NUM_RESET_TAGS] = {
+    "112233445566"};
 
 /**
-   LED functions.
-*/
+ * LED functions.
+ */
 
-void initLedStrip() {
-  ledStrip.begin();
-  ledStrip.setBrightness(DEFAULT_BRIGHTNESS);
-  ledStrip.clear();
-  ledStrip.show();
+void initLedStrip()
+{
+    ledStrip.begin();
+    ledStrip.setBrightness(DEFAULT_BRIGHTNESS);
+    ledStrip.clear();
+    ledStrip.show();
 }
 
-void showMainLeds() {
-  bool noStageActive = (progState.currentActiveStage < 0) ||
-                       (progState.currentActiveStage >= NUM_STAGES);
+void showStageLeds(int idx)
+{
+    if (idx >= NUM_STAGES)
+    {
+        return;
+    }
 
-  uint32_t color = noStageActive ?
-                   Adafruit_NeoPixel::Color(0, 0, 0) :
-                   LED_COLORS[progState.currentActiveStage];
+    int iniIdx = 0;
 
-  for (int i = 0; i < LED_MAIN_PATCH_SIZE; i++) {
-    ledStrip.setPixelColor(i, color);
-  }
+    for (int i = 0; i < idx; i++)
+    {
+        iniIdx += LED_STAGE_PATCH_SIZES[i];
+    }
 
-  ledStrip.show();
-}
+    int endIdx = iniIdx + LED_STAGE_PATCH_SIZES[idx];
 
-void showStageLeds(byte idxStage) {
-  int iniIdx = LED_MAIN_PATCH_SIZE;
+    uint32_t color = LED_COLORS[idx];
 
-  for (int i = 0; i < idxStage; i++) {
-    iniIdx += LED_STAGE_PATCH_SIZES[i];
-  }
+    for (int i = iniIdx; i < endIdx; i++)
+    {
+        ledStrip.setPixelColor(i, color);
+    }
 
-  int endIdx = iniIdx + LED_STAGE_PATCH_SIZES[idxStage];
-
-  uint32_t color = (progState.isStageCompleted[idxStage]) ?
-                   LED_COLORS[idxStage] :
-                   Adafruit_NeoPixel::Color(0, 0, 0);
-
-  for (int i = iniIdx; i < endIdx; i++) {
-    ledStrip.setPixelColor(i, color);
-  }
-
-  ledStrip.show();
-}
-
-void showLeds() {
-  showMainLeds();
-
-  for (int i = 0; i < NUM_STAGES; i++) {
-    showStageLeds(i);
-  }
+    ledStrip.show();
 }
 
 /**
-   Audio FX board functions
-*/
+ * Audio FX board functions.
+ */
 
-void playTrack(byte trackPin) {
-  digitalWrite(trackPin, LOW);
-  pinMode(trackPin, OUTPUT);
-  delay(200);
-  pinMode(trackPin, INPUT);
+void playTrack(byte trackPin)
+{
+    if (isTrackPlaying())
+    {
+        Serial.println(F("Skipping: Audio still playing"));
+        return;
+    }
+
+    Serial.print(F("Playing track on pin: "));
+    Serial.println(trackPin);
+
+    digitalWrite(trackPin, LOW);
+    pinMode(trackPin, OUTPUT);
+    delay(300);
+    pinMode(trackPin, INPUT);
 }
 
-void initAudioPins() {
-  pinMode(PIN_AUDIO_T0, INPUT);
-  pinMode(PIN_AUDIO_T1, INPUT);
-  pinMode(PIN_AUDIO_ACT, INPUT);
-  pinMode(PIN_AUDIO_RST, INPUT);
+void resetAudio()
+{
+    Serial.println(F("Audio FX reset"));
+
+    digitalWrite(PIN_AUDIO_RST, LOW);
+    pinMode(PIN_AUDIO_RST, OUTPUT);
+    delay(10);
+    pinMode(PIN_AUDIO_RST, INPUT);
+
+    Serial.println(F("Waiting for Audio FX startup"));
+
+    delay(2000);
 }
 
-bool isTrackPlaying() {
-  return digitalRead(PIN_AUDIO_ACT) == LOW;
+void initAudioPins()
+{
+    pinMode(PIN_AUDIO_T0, INPUT);
+    pinMode(PIN_AUDIO_T1, INPUT);
+    pinMode(PIN_AUDIO_ACT, INPUT);
+    pinMode(PIN_AUDIO_RST, INPUT);
 }
 
-void resetAudio() {
-  digitalWrite(PIN_AUDIO_RST, LOW);
-  pinMode(PIN_AUDIO_RST, OUTPUT);
-  delay(10);
-  pinMode(PIN_AUDIO_RST, INPUT);
-  delay(1000);
+bool isTrackPlaying()
+{
+    return digitalRead(PIN_AUDIO_ACT) == LOW;
 }
 
 /**
-   Relay functions.
-*/
+ * Relay functions.
+ */
 
-void lockRelay(byte idx) {
-  digitalWrite(RELAY_PINS[idx], LOW);
-  progState.isRelayOpen[idx] = false;
+void lockRelay(byte idx)
+{
+    digitalWrite(RELAY_PINS[idx], LOW);
+    progState.isRelayOpen[idx] = false;
 }
 
-void openRelay(byte idx) {
-  digitalWrite(RELAY_PINS[idx], HIGH);
-  progState.isRelayOpen[idx] = true;
+void openRelay(byte idx)
+{
+    digitalWrite(RELAY_PINS[idx], HIGH);
+    progState.isRelayOpen[idx] = true;
 }
 
-void initRelay(byte idx) {
-  pinMode(RELAY_PINS[idx], OUTPUT);
-  lockRelay(idx);
-}
-
-void initRelays() {
-  for (int i = 0; i < NUM_STAGES; i++) {
-    initRelay(i);
-  }
-}
-
-void updateRelay(byte idx) {
-  if (progState.isStageCompleted[idx] && !progState.isRelayOpen[idx]) {
-    openRelay(idx);
-  } else if (!progState.isStageCompleted[idx] && progState.isRelayOpen[idx]) {
+void initRelay(byte idx)
+{
+    pinMode(RELAY_PINS[idx], OUTPUT);
     lockRelay(idx);
-  }
 }
 
-void updateRelays() {
-  for (int i = 0; i < NUM_STAGES; i++) {
-    updateRelay(i);
-  }
+void initRelays()
+{
+    for (int i = 0; i < NUM_STAGES; i++)
+    {
+        initRelay(i);
+    }
+}
+
+void updateRelay(byte idx)
+{
+    if (progState.isStageCompleted[idx] &&
+        !progState.isRelayOpen[idx])
+    {
+        openRelay(idx);
+    }
+    else if (!progState.isStageCompleted[idx] &&
+             progState.isRelayOpen[idx])
+    {
+        lockRelay(idx);
+    }
+}
+
+void updateRelays()
+{
+    for (int i = 0; i < NUM_STAGES; i++)
+    {
+        updateRelay(i);
+    }
 }
 
 /**
-   RFID functions.
-*/
+ * RFID functions.
+ */
 
-void onValidStageTagId(int idx) {
-  if (progState.isStageCompleted[idx]) {
-    progState.currentActiveStage = idx;
-    Serial.print("Stage is already completed: ");
-    Serial.println(idx);
-    return;
-  }
+void onValidStage(int idx)
+{
+    const unsigned long OPEN_RELAY_SLEEP_MS = 1000;
+    const unsigned long AUDIO_WAIT_SLEEP_MS = 10;
+    const unsigned long MAX_AUDIO_WAIT_MS = 10000;
 
-  const unsigned long OPEN_RELAY_SLEEP_MS = 1000;
-  const unsigned long AUDIO_WAIT_SLEEP_MS = 10;
-  const unsigned long MAX_AUDIO_WAIT_MS = 10000;
+    unsigned long ini;
+    unsigned long now;
 
-  unsigned long ini;
-  unsigned long now;
+    progState.isStageCompleted[idx] = true;
 
-  progState.isStageCompleted[idx] = true;
-  progState.currentActiveStage = idx;
+    Serial.println(F("Showing LEDs & playing audio"));
 
-  Serial.println("Showing main LEDs & playing audio");
+    showStageLeds(idx);
+    playTrack(PIN_AUDIO_T0);
 
-  showMainLeds();
-  playTrack(PIN_AUDIO_T0);
+    Serial.println(F("Waiting for audio"));
 
-  Serial.println("Waiting for audio track to finish");
+    ini = millis();
 
-  ini = millis();
+    while (isTrackPlaying())
+    {
+        delay(AUDIO_WAIT_SLEEP_MS);
 
-  while (isTrackPlaying()) {
-    delay(AUDIO_WAIT_SLEEP_MS);
+        now = millis();
 
-    now = millis();
-
-    if ((now < ini) || ((now - ini) > MAX_AUDIO_WAIT_MS)) {
-      Serial.println("Max audio wait: Breaking loop");
-      break;
+        if ((now < ini) || ((now - ini) > MAX_AUDIO_WAIT_MS))
+        {
+            Serial.println(F("Max audio wait: Breaking"));
+            break;
+        }
     }
-  }
 
-  Serial.print("Sleeping for (ms): ");
-  Serial.println(OPEN_RELAY_SLEEP_MS);
+    Serial.print(F("Sleeping for (ms): "));
+    Serial.println(OPEN_RELAY_SLEEP_MS);
 
-  delay(OPEN_RELAY_SLEEP_MS);
+    delay(OPEN_RELAY_SLEEP_MS);
 
-  Serial.println("Updating relays and showing stage LEDs");
+    Serial.println(F("Opening relay"));
 
-  updateRelay(idx);
-  showStageLeds(idx);
+    updateRelay(idx);
 }
 
-void onResetTagId() {
-  ledStrip.clear();
-  ledStrip.show();
+void pollRfidReaders()
+{
+    String tagId;
 
-  for (int i = 0; i < NUM_STAGES; i++) {
-    lockRelay(i);
-    progState.isStageCompleted[i] = false;
-  }
+    for (int i = 0; i < NUM_STAGES; i++)
+    {
+        tagId = rfidReaders[i].getTagId();
 
-  progState.currentActiveStage = -1;
-}
+        if (!tagId.length())
+        {
+            continue;
+        }
 
-void readTagId() {
-  if (rfid.readTag(tagId, sizeof(tagId))) {
-    tagIdMillis = millis();
+        Serial.print(F("Tag #"));
+        Serial.print(i);
+        Serial.print(F(": "));
+        Serial.println(tagId);
 
-    Serial.print("Tag: ");
-    Serial.println(tagId);
+        if (validStageTags[i].compareTo(tagId) == 0 &&
+            !progState.isStageCompleted[i])
+        {
+            Serial.print(F("Valid tag on #"));
+            Serial.println(i);
 
-    for (int i = 0; i < NUM_STAGES; i++) {
-      if (SerialRFID::isEqualTag(tagId, validStageTags[i])) {
-        Serial.print("Stage tag match: ");
-        Serial.println(i);
-        onValidStageTagId(i);
-        return;
-      }
+            onValidStage(i);
+        }
+
+        for (int j = 0; j < NUM_RESET_TAGS; j++)
+        {
+            if (resetTags[j].compareTo(tagId) == 0)
+            {
+                Serial.println(F("Reset tag detected"));
+                resetGame();
+                break;
+            }
+        }
     }
-
-    for (int i = 0; i < NUM_RESET_TAGS; i++) {
-      if (SerialRFID::isEqualTag(tagId, resetTags[i])) {
-        Serial.println("Reset tag match");
-        onResetTagId();
-        return;
-      }
-    }
-  }
 }
 
 /**
-   Entrypoint.
-*/
+ * Utility functions.
+ */
 
-void setup() {
-  Serial.begin(9600);
+void resetGame()
+{
+    ledStrip.clear();
+    ledStrip.show();
 
-  initAudioPins();
-  initRelays();
-  initLedStrip();
-  resetAudio();
-
-  Serial.println(">> Starting crystal lamp program");
-  Serial.flush();
+    for (int i = 0; i < NUM_STAGES; i++)
+    {
+        lockRelay(i);
+        progState.isStageCompleted[i] = false;
+    }
 }
 
-void loop() {
-  readTagId();
-  showLeds();
-  updateRelays();
+/**
+ * Entrypoint.
+ */
+
+void setup()
+{
+    Serial.begin(9600);
+
+    initAudioPins();
+    initRelays();
+    initLedStrip();
+    resetAudio();
+
+    Serial.println(">> Starting crystal lamp program");
+    Serial.flush();
+}
+
+void loop()
+{
+    pollRfidReaders();
+    updateRelays();
 }
