@@ -18,18 +18,21 @@ Atm_button sensorButtons[SENSOR_NUM];
 
 const int LED_BRIGHTNESS = 200;
 
-const uint32_t LED_SENSOR_COLOR = Adafruit_NeoPixel::Color(220, 40, 0);
+const int LED_SENSOR_NUMS[SENSOR_NUM] = {
+    30, 30, 30};
 
 const int LED_SENSOR_PINS[SENSOR_NUM] = {
     7, 8, 9};
 
-const int LED_SENSOR_NUMS[SENSOR_NUM] = {
-    30, 30, 30};
-
-const int LED_RESULT_PIN = 10;
-const int LED_RESULT_NUM = 10;
-
 Adafruit_NeoPixel sensorLedStrips[SENSOR_NUM];
+
+const uint32_t LED_SENSOR_COLORS[SENSOR_NUM] = {
+    Adafruit_NeoPixel::Color(250, 0, 0),
+    Adafruit_NeoPixel::Color(0, 250, 0),
+    Adafruit_NeoPixel::Color(0, 0, 250)};
+
+const int LED_RESULT_NUM = 30;
+const int LED_RESULT_PIN = 10;
 
 Adafruit_NeoPixel resultLedStrip = Adafruit_NeoPixel(
     LED_RESULT_NUM,
@@ -40,23 +43,26 @@ Adafruit_NeoPixel resultLedStrip = Adafruit_NeoPixel(
  * Program state.
  */
 
-const unsigned long ACTIVE_MILLIS_LO = 5000;
-const unsigned long ACTIVE_MILLIS_MD = 15000;
-const unsigned long ACTIVE_MILLIS_HI = 30000;
+const unsigned long ACTIVE_MILLIS = 6000;
+const int RESULTS_SIZE = 10;
 
-const int TARGET_SCORE = 6;
+const int RESULTS_KEY[RESULTS_SIZE] = {
+    0, 1, 1, 2, 1, 0, 1, 0, 0, 2};
+
+int sensorsConfig[SENSOR_NUM];
+int results[RESULTS_SIZE];
 
 typedef struct programState
 {
-    int score;
-    int activeSensor;
-    unsigned long activeSensorMillis;
+    unsigned long updateMillis;
+    int *sensorsConfig;
+    int *results;
 } ProgramState;
 
 ProgramState progState = {
-    .score = 0,
-    .activeSensor = -1,
-    .activeSensorMillis = 0};
+    .updateMillis = 0,
+    .sensorsConfig = sensorsConfig,
+    .results = results};
 
 /**
  * Proximity sensor functions.
@@ -64,15 +70,28 @@ ProgramState progState = {
 
 void onSensorPress(int idx, int v, int up)
 {
-    Serial.print(F("S:"));
-    Serial.println(idx);
+    int result = progState.sensorsConfig[idx];
 
-    if (progState.activeSensor != idx)
+    Serial.print(F("Sensor:"));
+    Serial.print(idx);
+    Serial.print(F(" Result:"));
+    Serial.println(result);
+
+    addResult(result);
+
+    if (isResultsComplete())
     {
+        Serial.println(F("Complete"));
         return;
     }
 
-    Serial.println(F("Goal"));
+    if (isResultsError())
+    {
+        emptyResults();
+    }
+
+    showResults();
+    updateSensorsConfig();
 }
 
 void initSensorButtons()
@@ -110,21 +129,16 @@ void initLeds()
     resultLedStrip.show();
 }
 
-void showActiveSensorLeds()
+void showSensorsConfig()
 {
     for (int i = 0; i < SENSOR_NUM; i++)
     {
-        sensorLedStrips[i].clear();
-    }
+        int colorIdx = progState.sensorsConfig[i];
+        uint32_t color = LED_SENSOR_COLORS[colorIdx];
 
-    if (progState.activeSensor >= 0 &&
-        progState.activeSensor < SENSOR_NUM)
-    {
-        int numLeds = LED_SENSOR_NUMS[progState.activeSensor];
-
-        for (int i = 0; i < numLeds; i++)
+        for (int j = 0; j < LED_SENSOR_NUMS[i]; j++)
         {
-            sensorLedStrips[i].setPixelColor(i, LED_SENSOR_COLOR);
+            sensorLedStrips[i].setPixelColor(j, color);
         }
     }
 
@@ -134,74 +148,157 @@ void showActiveSensorLeds()
     }
 }
 
+int getResultLedsPerLevel()
+{
+    int num = floor(((float)LED_RESULT_NUM) / RESULTS_SIZE);
+    num = num < 1 ? 1 : num;
+
+    return num;
+}
+
+void showResults()
+{
+    int numPerLevel = getResultLedsPerLevel();
+    int currIdx = 0;
+
+    resultLedStrip.clear();
+    resultLedStrip.show();
+
+    for (int i = 0; i < RESULTS_SIZE; i++)
+    {
+        int result = progState.results[i];
+
+        if (result == -1)
+        {
+            return;
+        }
+
+        uint32_t color = LED_SENSOR_COLORS[result];
+
+        for (int j = 0; j < numPerLevel; j++)
+        {
+            resultLedStrip.setPixelColor(currIdx, color);
+            resultLedStrip.show();
+
+            currIdx++;
+        }
+    }
+}
+
 /**
  * Game state functions.
  */
 
-bool mustUpdateActiveSensor()
+bool mustUpdateSensorConfig()
 {
-    if (progState.activeSensor == -1)
+    if (progState.updateMillis == 0)
     {
+        Serial.println(F("Update: First"));
         return true;
     }
 
     unsigned long now = millis();
 
-    if (now < progState.activeSensorMillis)
+    if (now < progState.updateMillis)
     {
-        Serial.println(F("Active sensor clock overflow"));
+        Serial.println(F("Update: Overflow"));
         return true;
     }
 
-    unsigned long diff = now - progState.activeSensorMillis;
-    unsigned long maxDiff = getActiveMillisForScore(progState.score);
+    unsigned long diff = now - progState.updateMillis;
 
-    if (diff > maxDiff)
+    if (diff > ACTIVE_MILLIS)
     {
-        Serial.println(F("Expired"));
+        Serial.println(F("Update: Expired"));
         return true;
     }
 
     return false;
 }
 
-void updateActiveSensor()
+void updateSensorsConfig()
 {
-    if (!mustUpdateActiveSensor())
+    progState.updateMillis = millis();
+    randomSensorsConfig();
+    showSensorsConfig();
+}
+
+void checkSensorsConfig()
+{
+    if (!mustUpdateSensorConfig())
     {
         return;
     }
 
-    int randSensor = random(0, SENSOR_NUM);
-
-    Serial.print(F("Active: "));
-    Serial.println(randSensor);
-
-    progState.activeSensor = randSensor;
-    progState.activeSensorMillis = millis();
-
-    showActiveSensorLeds();
+    updateSensorsConfig();
 }
 
-unsigned long getActiveMillisForScore(int score)
+void randomSensorsConfig()
 {
-    const float RATIO_LO = 0.33;
-    const float RATIO_HI = 0.66;
+    int pivot = random(0, SENSOR_NUM);
 
-    float scoreRatio = ((float)score) / TARGET_SCORE;
+    for (int i = 0; i < SENSOR_NUM; i++)
+    {
+        progState.sensorsConfig[i] = (pivot + i) % SENSOR_NUM;
+    }
+}
 
-    if (scoreRatio <= RATIO_LO)
+void emptyResults()
+{
+    for (int i = 0; i < RESULTS_SIZE; i++)
     {
-        return ACTIVE_MILLIS_HI;
+        progState.results[i] = -1;
     }
-    else if (scoreRatio > RATIO_LO && scoreRatio <= RATIO_HI)
+}
+
+bool addResult(int val)
+{
+    if (val < 0 || val >= SENSOR_NUM)
     {
-        return ACTIVE_MILLIS_MD;
+        return false;
     }
-    else
+
+    for (int i = 0; i < RESULTS_SIZE; i++)
     {
-        return ACTIVE_MILLIS_LO;
+        if (progState.results[i] == -1)
+        {
+            progState.results[i] = val;
+            return true;
+        }
     }
+
+    return false;
+}
+
+bool isResultsError()
+{
+    for (int i = 0; i < RESULTS_SIZE; i++)
+    {
+        if (progState.results[i] == -1)
+        {
+            return false;
+        }
+        else if (progState.results[i] != RESULTS_KEY[i])
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool isResultsComplete()
+{
+    for (int i = 0; i < RESULTS_SIZE; i++)
+    {
+        if (progState.results[i] == -1 ||
+            progState.results[i] != RESULTS_KEY[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -214,6 +311,8 @@ void setup()
 
     initLeds();
     initSensorButtons();
+    updateSensorsConfig();
+    emptyResults();
 
     Serial.println(F(">> Starting quidditch program"));
 }
@@ -221,5 +320,5 @@ void setup()
 void loop()
 {
     automaton.run();
-    updateActiveSensor();
+    checkSensorsConfig();
 }
