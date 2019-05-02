@@ -14,7 +14,7 @@ const int PIN_RELAY = 12;
 const int DSWITCH_NUM_OUTPUTS = 6;
 const int DSWITCH_DEBOUNCE_MS = 1000;
 const int DSWITCH_PINS[DSWITCH_NUM_OUTPUTS] = {3, 4, 5, 6, 7, 8};
-const int DSWITCH_VALID_IDX = 0;
+const int DSWITCH_VALID_IDX = 5;
 
 const int BUTTONS_NUM = 3;
 const int BUTTONS_DEBOUNCE_MS = 1000;
@@ -153,21 +153,11 @@ void initRelays()
  * LED functions.
  */
 
-uint32_t randomColor()
-{
-    int randPivot = random(0, 3);
-    int r = randPivot == 0 ? 0 : random(20, 250);
-    int g = randPivot == 1 ? 0 : random(20, 250);
-    int b = randPivot == 2 ? 0 : random(20, 250);
-
-    return Adafruit_NeoPixel::Color(r, g, b);
-}
-
 void refreshLeds()
 {
     for (int i = 0; i < DSWITCH_NUM_OUTPUTS; i++)
     {
-        pixelStrip.setPixelColor(i, 0);
+        pixelStrip.setPixelColor(i, 0, 0, 50);
     }
 
     for (int i = 0; i < DSWITCH_NUM_OUTPUTS; i++)
@@ -176,7 +166,7 @@ void refreshLeds()
         {
             Serial.print(F("Dswitch:"));
             Serial.println(i);
-            pixelStrip.setPixelColor(i, randomColor());
+            pixelStrip.setPixelColor(i, 250, 250, 250);
             break;
         }
     }
