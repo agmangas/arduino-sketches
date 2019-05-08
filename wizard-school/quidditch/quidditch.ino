@@ -2,6 +2,22 @@
 #include <Adafruit_NeoPixel.h>
 
 /**
+ * Relay.
+ */
+
+const int RELAY_PIN = A3;
+
+/**
+ * Audio FX.
+ */
+
+const byte PIN_AUDIO_RST = 6;
+const byte PIN_AUDIO_ACT = 5;
+const byte PIN_TRACK_0 = A2;
+const byte PIN_TRACK_1 = A1;
+const byte PIN_TRACK_2 = A0;
+
+/**
  * Proximity sensors.
  */
 
@@ -19,12 +35,24 @@ Atm_button sensorButtons[SENSOR_NUM];
 const int LED_BRIGHTNESS = 200;
 
 const int LED_SENSOR_NUMS[SENSOR_NUM] = {
-    30, 30, 30};
+    20, 20, 20};
 
 const int LED_SENSOR_PINS[SENSOR_NUM] = {
     7, 8, 9};
 
-Adafruit_NeoPixel sensorLedStrips[SENSOR_NUM];
+Adafruit_NeoPixel sensorLedStrips[SENSOR_NUM] = {
+    Adafruit_NeoPixel(
+        LED_SENSOR_NUMS[0],
+        LED_SENSOR_PINS[0],
+        NEO_GRB + NEO_KHZ800),
+    Adafruit_NeoPixel(
+        LED_SENSOR_NUMS[1],
+        LED_SENSOR_PINS[1],
+        NEO_GRB + NEO_KHZ800),
+    Adafruit_NeoPixel(
+        LED_SENSOR_NUMS[2],
+        LED_SENSOR_PINS[2],
+        NEO_GRB + NEO_KHZ800)};
 
 const uint32_t LED_SENSOR_COLORS[SENSOR_NUM] = {
     Adafruit_NeoPixel::Color(250, 0, 0),
@@ -112,11 +140,6 @@ void initLeds()
 {
     for (int i = 0; i < SENSOR_NUM; i++)
     {
-        sensorLedStrips[i] = Adafruit_NeoPixel(
-            LED_SENSOR_NUMS[i],
-            LED_SENSOR_PINS[i],
-            NEO_GRB + NEO_KHZ800);
-
         sensorLedStrips[i].begin();
         sensorLedStrips[i].setBrightness(LED_BRIGHTNESS);
         sensorLedStrips[i].clear();
@@ -302,6 +325,75 @@ bool isResultsComplete()
 }
 
 /**
+ * Audio FX functions.
+ */
+
+void playTrack(byte trackPin)
+{
+    if (isTrackPlaying())
+    {
+        Serial.println(F("Skipping: Audio playing"));
+        return;
+    }
+
+    Serial.print(F("Playing track on pin: "));
+    Serial.println(trackPin);
+
+    digitalWrite(trackPin, LOW);
+    pinMode(trackPin, OUTPUT);
+    delay(300);
+    pinMode(trackPin, INPUT);
+}
+
+void initAudioPins()
+{
+    pinMode(PIN_TRACK_0, INPUT);
+    pinMode(PIN_TRACK_1, INPUT);
+    pinMode(PIN_TRACK_2, INPUT);
+    pinMode(PIN_AUDIO_ACT, INPUT);
+    pinMode(PIN_AUDIO_RST, INPUT);
+}
+
+bool isTrackPlaying()
+{
+    return digitalRead(PIN_AUDIO_ACT) == LOW;
+}
+
+void resetAudio()
+{
+    Serial.println(F("Audio FX reset"));
+
+    digitalWrite(PIN_AUDIO_RST, LOW);
+    pinMode(PIN_AUDIO_RST, OUTPUT);
+    delay(10);
+    pinMode(PIN_AUDIO_RST, INPUT);
+
+    Serial.println(F("Waiting for Audio FX startup"));
+
+    delay(2000);
+}
+
+/**
+ * Relay functions.
+ */
+
+void lockRelay()
+{
+    digitalWrite(RELAY_PIN, LOW);
+}
+
+void openRelay()
+{
+    digitalWrite(RELAY_PIN, HIGH);
+}
+
+void initRelay()
+{
+    pinMode(RELAY_PIN, OUTPUT);
+    lockRelay();
+}
+
+/**
  * Entrypoint.
  */
 
@@ -313,6 +405,9 @@ void setup()
     initSensorButtons();
     updateSensorsConfig();
     emptyResults();
+    initRelay();
+    initAudioPins();
+    resetAudio();
 
     Serial.println(F(">> Starting quidditch program"));
 }
