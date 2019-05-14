@@ -22,6 +22,7 @@ const byte PIN_TRACK_2 = A0;
  */
 
 const int SENSOR_NUM = 3;
+const int SENSOR_DEBOUNCE_MS = 1000;
 
 const int SENSOR_PINS[SENSOR_NUM] = {
     2, 3, 4};
@@ -59,6 +60,9 @@ const uint32_t LED_SENSOR_COLORS[SENSOR_NUM] = {
     Adafruit_NeoPixel::Color(0, 250, 0),
     Adafruit_NeoPixel::Color(0, 0, 250)};
 
+const int LED_SENSOR_ERROR_DELAY_MS = 100;
+const int LED_SENSOR_ERROR_ITERS = 10;
+
 const int LED_RESULT_NUM = 30;
 const int LED_RESULT_PIN = 10;
 
@@ -85,12 +89,14 @@ typedef struct programState
     unsigned long updateMillis;
     int *sensorsConfig;
     int *results;
+    bool isCompleted;
 } ProgramState;
 
 ProgramState progState = {
     .updateMillis = 0,
     .sensorsConfig = sensorsConfig,
-    .results = results};
+    .results = results,
+    .isCompleted = false};
 
 /**
  * Proximity sensor functions.
@@ -98,6 +104,11 @@ ProgramState progState = {
 
 void onSensorPress(int idx, int v, int up)
 {
+    if (progState.isCompleted)
+    {
+        return;
+    }
+
     int result = progState.sensorsConfig[idx];
 
     Serial.print(F("Sensor:"));
@@ -107,15 +118,22 @@ void onSensorPress(int idx, int v, int up)
 
     addResult(result);
 
-    if (isResultsComplete())
+    if (isResultsValid())
     {
-        Serial.println(F("Complete"));
+        progState.isCompleted = true;
+        Serial.println(F("Completed"));
         return;
     }
 
     if (isResultsError())
     {
         emptyResults();
+        showErrorSensorLedsPattern();
+    }
+    else
+    {
+        clearSensorLeds();
+        delay(SENSOR_DEBOUNCE_MS);
     }
 
     showResults();
@@ -128,6 +146,7 @@ void initSensorButtons()
     {
         sensorButtons[i]
             .begin(SENSOR_PINS[i])
+            .debounce(SENSOR_DEBOUNCE_MS)
             .onPress(onSensorPress, i);
     }
 }
@@ -150,6 +169,15 @@ void initLeds()
     resultLedStrip.setBrightness(LED_BRIGHTNESS);
     resultLedStrip.clear();
     resultLedStrip.show();
+}
+
+void clearSensorLeds()
+{
+    for (int i = 0; i < SENSOR_NUM; i++)
+    {
+        sensorLedStrips[i].clear();
+        sensorLedStrips[i].show();
+    }
 }
 
 void showSensorsConfig()
@@ -206,6 +234,37 @@ void showResults()
             currIdx++;
         }
     }
+}
+
+void showRedSensorLeds()
+{
+    const uint32_t red = Adafruit_NeoPixel::Color(255, 0, 0);
+
+    for (int i = 0; i < SENSOR_NUM; i++)
+    {
+        for (int j = 0; j < sensorLedStrips[i].numPixels(); j++)
+        {
+            sensorLedStrips[i].setPixelColor(j, red);
+        }
+    }
+
+    for (int i = 0; i < SENSOR_NUM; i++)
+    {
+        sensorLedStrips[i].show();
+    }
+}
+
+void showErrorSensorLedsPattern()
+{
+    for (int i = 0; i < LED_SENSOR_ERROR_ITERS; i++)
+    {
+        clearSensorLeds();
+        delay(LED_SENSOR_ERROR_DELAY_MS);
+        showRedSensorLeds();
+        delay(LED_SENSOR_ERROR_DELAY_MS);
+    }
+
+    clearSensorLeds();
 }
 
 /**
@@ -310,7 +369,7 @@ bool isResultsError()
     return false;
 }
 
-bool isResultsComplete()
+bool isResultsValid()
 {
     for (int i = 0; i < RESULTS_SIZE; i++)
     {
