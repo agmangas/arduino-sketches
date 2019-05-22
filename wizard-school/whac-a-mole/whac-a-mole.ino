@@ -10,7 +10,7 @@ const int KNOCK_NUM = 7;
 const int KNOCK_SAMPLERATE = 50;
 const int KNOCK_RANGE_MIN = 0;
 const int KNOCK_RANGE_MAX = 100;
-const int KNOCK_THRESHOLD = 15;
+const int KNOCK_THRESHOLD = 10;
 
 const int KNOCK_PINS[KNOCK_NUM] = {
     A0, A1, A2, A3, A4, A5, A7};
@@ -22,6 +22,13 @@ const int KNOCK_BUF_SIZE = 10;
 CircularBuffer<byte, KNOCK_BUF_SIZE> knockBuf;
 
 const int KNOCK_BOUNCE_MS = 500;
+
+/**
+ * This knock sensor does not seem to work properly.
+ * We'll ignore it for the time being.
+ */
+
+const int KNOCK_IGNORED_IDX = 3;
 
 /**
  * Relay.
@@ -199,16 +206,17 @@ void emptyTargets()
 
 int pickRandomTarget()
 {
-    int randPivot = random(0, TARGETS_SIZE * 10) % TARGETS_SIZE;
+    int pivot = random(0, TARGETS_SIZE * 10) % TARGETS_SIZE;
     int counter = 0;
 
-    while (isTarget(randPivot) && counter <= TARGETS_SIZE)
+    while ((isTarget(pivot) || pivot == KNOCK_IGNORED_IDX) &&
+           counter <= TARGETS_SIZE)
     {
-        randPivot = (randPivot + 1) % TARGETS_SIZE;
+        pivot = (pivot + 1) % TARGETS_SIZE;
         counter++;
     }
 
-    return isTarget(randPivot) ? -1 : randPivot;
+    return (isTarget(pivot) || pivot == KNOCK_IGNORED_IDX) ? -1 : pivot;
 }
 
 void randomizeTargets(int num)
@@ -374,7 +382,7 @@ void updateState()
 
         if (hasStarted())
         {
-            showErrorLedsPattern();
+            showErrorLedsBlink();
         }
 
         cleanState();
@@ -385,7 +393,8 @@ void updateState()
 
         if (hasStarted())
         {
-            showErrorLedsPattern();
+            uint32_t blinkColor = Adafruit_NeoPixel::Color(255, 255, 0);
+            showErrorLedsBlink(blinkColor);
         }
 
         cleanState();
@@ -437,13 +446,18 @@ void showTargetLeds()
     ledStrip.show();
 }
 
-void showErrorLedsPattern()
+void showErrorLedsBlink()
+{
+    showErrorLedsBlink(Adafruit_NeoPixel::Color(255, 0, 0));
+}
+
+void showErrorLedsBlink(uint32_t color)
 {
     for (int i = 0; i < LED_ERROR_ITERS; i++)
     {
         for (int j = 0; j < LED_NUM; j++)
         {
-            ledStrip.setPixelColor(j, 255, 0, 0);
+            ledStrip.setPixelColor(j, color);
         }
 
         ledStrip.show();
@@ -548,8 +562,17 @@ void initRelay()
 
 void onKnock(int idx, int v, int up)
 {
-    Serial.print(F("Knock:"));
-    Serial.println(idx);
+    if (idx == KNOCK_IGNORED_IDX)
+    {
+        Serial.print(F("Ignored knock"));
+    }
+
+    int analogVal = knockAnalogs[idx].state();
+
+    Serial.print(F("## Knock:"));
+    Serial.print(idx);
+    Serial.print(":");
+    Serial.println(analogVal);
 
     bool isDup = false;
 
