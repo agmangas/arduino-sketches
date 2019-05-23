@@ -13,16 +13,16 @@ const int RELAY_PIN = A3;
 
 const byte PIN_AUDIO_RST = 6;
 const byte PIN_AUDIO_ACT = 5;
-const byte PIN_TRACK_0 = A2;
-const byte PIN_TRACK_1 = A1;
-const byte PIN_TRACK_2 = A0;
+const byte PIN_TRACK_GOAL = A2;
+const byte PIN_TRACK_FAIL = A1;
+const byte PIN_TRACK_VICTORY = A0;
 
 /**
  * Proximity sensors.
  */
 
 const int SENSOR_NUM = 3;
-const int SENSOR_DEBOUNCE_MS = 1000;
+const int SENSOR_UPDATE_DELAY_MS = 1000;
 
 const int SENSOR_PINS[SENSOR_NUM] = {
     2, 3, 4};
@@ -36,7 +36,7 @@ Atm_button sensorButtons[SENSOR_NUM];
 const int LED_BRIGHTNESS = 200;
 
 const int LED_SENSOR_NUMS[SENSOR_NUM] = {
-    20, 20, 20};
+    60, 60, 60};
 
 const int LED_SENSOR_PINS[SENSOR_NUM] = {
     7, 8, 9};
@@ -62,6 +62,8 @@ const uint32_t LED_SENSOR_COLORS[SENSOR_NUM] = {
 
 const int LED_SENSOR_ERROR_DELAY_MS = 100;
 const int LED_SENSOR_ERROR_ITERS = 10;
+const int LED_SENSOR_GOAL_DELAY_MS = 1000;
+const uint32_t LED_SENSOR_GOAL_COLOR = Adafruit_NeoPixel::Color(255, 255, 0);
 
 const int LED_RESULT_NUM = 30;
 const int LED_RESULT_PIN = 10;
@@ -79,7 +81,7 @@ const unsigned long ACTIVE_MILLIS = 6000;
 const int RESULTS_SIZE = 10;
 
 const int RESULTS_KEY[RESULTS_SIZE] = {
-    0, 1, 1, 2, 1, 0, 1, 0, 0, 2};
+    0, 1, 2, 0, 1, 2, 0, 1, 2, 0};
 
 int sensorsConfig[SENSOR_NUM];
 int results[RESULTS_SIZE];
@@ -89,22 +91,30 @@ typedef struct programState
     unsigned long updateMillis;
     int *sensorsConfig;
     int *results;
-    bool isCompleted;
+    bool isVictory;
 } ProgramState;
 
 ProgramState progState = {
     .updateMillis = 0,
     .sensorsConfig = sensorsConfig,
     .results = results,
-    .isCompleted = false};
+    .isVictory = false};
 
 /**
  * Proximity sensor functions.
  */
 
+void onVictory()
+{
+    playTrack(PIN_TRACK_VICTORY);
+    progState.isVictory = true;
+    openRelay();
+    Serial.println(F("Victory"));
+}
+
 void onSensorPress(int idx, int v, int up)
 {
-    if (progState.isCompleted)
+    if (progState.isVictory)
     {
         return;
     }
@@ -120,20 +130,20 @@ void onSensorPress(int idx, int v, int up)
 
     if (isResultsValid())
     {
-        progState.isCompleted = true;
-        Serial.println(F("Completed"));
+        onVictory();
         return;
     }
 
     if (isResultsError())
     {
+        playTrack(PIN_TRACK_FAIL);
         emptyResults();
         showErrorSensorLedsPattern();
     }
     else
     {
-        clearSensorLeds();
-        delay(SENSOR_DEBOUNCE_MS);
+        playTrack(PIN_TRACK_GOAL);
+        showGoalLeds(idx);
     }
 
     showResults();
@@ -146,7 +156,6 @@ void initSensorButtons()
     {
         sensorButtons[i]
             .begin(SENSOR_PINS[i])
-            .debounce(SENSOR_DEBOUNCE_MS)
             .onPress(onSensorPress, i);
     }
 }
@@ -267,6 +276,49 @@ void showErrorSensorLedsPattern()
     clearSensorLeds();
 }
 
+void showVictoryLedsPattern()
+{
+    const int delayMs = 20;
+    const int referenceIdx = 0;
+    const uint32_t color = Adafruit_NeoPixel::Color(200, 200, 200);
+
+    clearSensorLeds();
+
+    for (int j = 0; j < sensorLedStrips[referenceIdx].numPixels(); j++)
+    {
+        for (int i = 0; i < SENSOR_NUM; i++)
+        {
+            sensorLedStrips[i].setPixelColor(j, color);
+            sensorLedStrips[i].show();
+        }
+
+        delay(delayMs);
+    }
+}
+
+void showGoalLeds(int goalIdx)
+{
+    uint32_t color;
+
+    for (int i = 0; i < SENSOR_NUM; i++)
+    {
+        color = i == goalIdx ? LED_SENSOR_GOAL_COLOR : 0;
+
+        for (int j = 0; j < sensorLedStrips[i].numPixels(); j++)
+        {
+            sensorLedStrips[i].setPixelColor(j, color);
+        }
+    }
+
+    for (int i = 0; i < SENSOR_NUM; i++)
+    {
+        sensorLedStrips[i].show();
+    }
+
+    delay(LED_SENSOR_GOAL_DELAY_MS);
+    clearSensorLeds();
+}
+
 /**
  * Game state functions.
  */
@@ -300,6 +352,8 @@ bool mustUpdateSensorConfig()
 
 void updateSensorsConfig()
 {
+    clearSensorLeds();
+    delay(SENSOR_UPDATE_DELAY_MS);
     progState.updateMillis = millis();
     randomSensorsConfig();
     showSensorsConfig();
@@ -406,9 +460,9 @@ void playTrack(byte trackPin)
 
 void initAudioPins()
 {
-    pinMode(PIN_TRACK_0, INPUT);
-    pinMode(PIN_TRACK_1, INPUT);
-    pinMode(PIN_TRACK_2, INPUT);
+    pinMode(PIN_TRACK_GOAL, INPUT);
+    pinMode(PIN_TRACK_FAIL, INPUT);
+    pinMode(PIN_TRACK_VICTORY, INPUT);
     pinMode(PIN_AUDIO_ACT, INPUT);
     pinMode(PIN_AUDIO_RST, INPUT);
 }
@@ -474,5 +528,13 @@ void setup()
 void loop()
 {
     automaton.run();
-    checkSensorsConfig();
+
+    if (progState.isVictory)
+    {
+        showVictoryLedsPattern();
+    }
+    else
+    {
+        checkSensorsConfig();
+    }
 }
