@@ -29,7 +29,7 @@ const byte PIN_AUDIO_RST = 6;
 const byte PIN_AUDIO_ACT = 7;
 
 const byte RELAY_PINS[NUM_STAGES] = {
-    8, 9, 10};
+    10, 9, 8};
 
 // Arduino RX pin <--> RFID reader TX pin
 
@@ -53,10 +53,10 @@ const uint32_t LED_COLORS[NUM_STAGES] = {
 
 // sum(LED_STAGE_PATCH_SIZES) == NUM_LEDS
 
-const byte NUM_LEDS = 60;
+const byte NUM_LEDS = 87;
 
 const byte LED_STAGE_PATCH_SIZES[NUM_STAGES] = {
-    20, 20, 20};
+    29, 29, 29};
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(NUM_LEDS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
 
@@ -74,14 +74,14 @@ RDM6300 rfidReaders[NUM_STAGES] = {
     rfid03};
 
 String validStageTags[NUM_STAGES] = {
-    "1D00277FBDF8",
-    "1D00278D53E4",
-    "1D0027B80A88"};
+    "1D0028450000",
+    "1D0027A3EA00",
+    "1D0028774D00"};
 
 const byte NUM_RESET_TAGS = 1;
 
 String resetTags[NUM_RESET_TAGS] = {
-    "112233445566"};
+    "1D0027AABB00"};
 
 /**
  * LED functions.
@@ -225,6 +225,14 @@ void updateRelays()
  * RFID functions.
  */
 
+void initRfidReaders()
+{
+    for (int i = 0; i < NUM_STAGES; i++)
+    {
+        rfidReaders[i].begin();
+    }
+}
+
 void onValidStage(int idx)
 {
     const unsigned long OPEN_RELAY_SLEEP_MS = 1000;
@@ -331,6 +339,7 @@ void setup()
 {
     Serial.begin(9600);
 
+    initRfidReaders();
     initAudioPins();
     initRelays();
     initLedStrip();
