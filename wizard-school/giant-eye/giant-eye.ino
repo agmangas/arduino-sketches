@@ -1,5 +1,4 @@
 #include "rdm630.h"
-#include <Automaton.h>
 
 /**
  * Relays.
@@ -13,8 +12,6 @@ const int PIN_RELAY_RFID = 11;
  */
 
 const int PIN_BUTTON_LDR = 5;
-const int LDR_DEBOUNCE_MS = 250;
-Atm_button buttonLdr;
 
 /**
  * RFID modules.
@@ -35,7 +32,7 @@ const unsigned int EMPTY_TOLERANCE = 1;
 String currentTags[NUM_READERS];
 
 String validTags[NUM_READERS] = {
-    "1D0027B6BE00"};
+    "2B004525E400"};
 
 /**
  * Program state.
@@ -43,16 +40,14 @@ String validTags[NUM_READERS] = {
 
 typedef struct programState
 {
-    bool isRelayOpenRfid;
-    bool isRelayOpenLdr;
-    bool isLdrPressed;
-    unsigned int emptyReadCount[NUM_READERS];
+  bool isRelayOpenRfid;
+  bool isRelayOpenLdr;
+  unsigned int emptyReadCount[NUM_READERS];
 } ProgramState;
 
 ProgramState progState = {
     .isRelayOpenRfid = false,
     .isRelayOpenLdr = false,
-    .isLdrPressed = false,
     .emptyReadCount = {0}};
 
 /**
@@ -61,92 +56,92 @@ ProgramState progState = {
 
 void initRfidReaders()
 {
-    for (int i = 0; i < NUM_READERS; i++)
-    {
-        rfidReaders[i].begin();
-    }
+  for (int i = 0; i < NUM_READERS; i++)
+  {
+    rfidReaders[i].begin();
+  }
 }
 
 void pollRfidReaders()
 {
-    String tagId;
+  String tagId;
 
-    for (int i = 0; i < NUM_READERS; i++)
+  for (int i = 0; i < NUM_READERS; i++)
+  {
+    tagId = rfidReaders[i].getTagId();
+
+    if (tagId.length())
     {
-        tagId = rfidReaders[i].getTagId();
-
-        if (tagId.length())
-        {
-            progState.emptyReadCount[i] = 0;
-        }
-        else if (progState.emptyReadCount[i] <= EMPTY_TOLERANCE)
-        {
-            progState.emptyReadCount[i] += 1;
-        }
-
-        if (!tagId.length() &&
-            currentTags[i].length() &&
-            progState.emptyReadCount[i] <= EMPTY_TOLERANCE)
-        {
-            Serial.print(F("Ignoring empty read on #"));
-            Serial.println(i);
-            return;
-        }
-
-        currentTags[i] = tagId;
+      progState.emptyReadCount[i] = 0;
     }
+    else if (progState.emptyReadCount[i] <= EMPTY_TOLERANCE)
+    {
+      progState.emptyReadCount[i] += 1;
+    }
+
+    if (!tagId.length() &&
+        currentTags[i].length() &&
+        progState.emptyReadCount[i] <= EMPTY_TOLERANCE)
+    {
+      Serial.print(F("Ignoring empty read on #"));
+      Serial.println(i);
+      return;
+    }
+
+    currentTags[i] = tagId;
+  }
 }
 
 bool isTagDefined(int idx)
 {
-    return currentTags[idx].length() > 0;
+  return currentTags[idx].length() > 0;
 }
 
 bool areCurrentTagsValid()
 {
-    for (int i = 0; i < NUM_READERS; i++)
+  for (int i = 0; i < NUM_READERS; i++)
+  {
+    if (!isTagDefined(i))
     {
-        if (!isTagDefined(i))
-        {
-            return false;
-        }
-
-        if (validTags[i].compareTo(currentTags[i]) != 0)
-        {
-            return false;
-        }
+      return false;
     }
 
-    return true;
+    if (validTags[i].compareTo(currentTags[i]) != 0)
+    {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 void printCurrentTags()
 {
-    Serial.print(F("Tags::"));
-    Serial.println(millis());
+  Serial.print(F("Tags::"));
+  Serial.println(millis());
 
-    for (int i = 0; i < NUM_READERS; i++)
-    {
-        Serial.print(i);
-        Serial.print(F("::"));
-        Serial.println(currentTags[i]);
-    }
+  for (int i = 0; i < NUM_READERS; i++)
+  {
+    Serial.print(i);
+    Serial.print(F("::"));
+    Serial.println(currentTags[i]);
+  }
 }
 
 void updateRelayRfid()
 {
-    if (areCurrentTagsValid() == true &&
-        progState.isRelayOpenRfid == false)
-    {
-        Serial.println(F("Opening relay"));
-        openRelayRfid();
-    }
-    else if (areCurrentTagsValid() == false &&
-             progState.isRelayOpenRfid == true)
-    {
-        Serial.println(F("Locking relay"));
-        lockRelayRfid();
-    }
+  if (areCurrentTagsValid() == true &&
+      progState.isRelayOpenRfid == false)
+  {
+    Serial.println(F("Opening relay"));
+    openRelayRfid();
+  }
+  else if (areCurrentTagsValid() == false &&
+           progState.isRelayOpenRfid == true)
+  {
+    Serial.println(F("Locking relay"));
+    lockRelayRfid();
+  }
 }
 
 /**
@@ -155,76 +150,63 @@ void updateRelayRfid()
 
 void lockRelayRfid()
 {
-    digitalWrite(PIN_RELAY_RFID, LOW);
-    progState.isRelayOpenRfid = false;
+  digitalWrite(PIN_RELAY_RFID, LOW);
+  progState.isRelayOpenRfid = false;
 }
 
 void openRelayRfid()
 {
-    digitalWrite(PIN_RELAY_RFID, HIGH);
-    progState.isRelayOpenRfid = true;
+  digitalWrite(PIN_RELAY_RFID, HIGH);
+  progState.isRelayOpenRfid = true;
 }
 
 void lockRelayLdr()
 {
-    digitalWrite(PIN_RELAY_LDR, LOW);
-    progState.isRelayOpenLdr = false;
+  digitalWrite(PIN_RELAY_LDR, LOW);
+  progState.isRelayOpenLdr = false;
 }
 
 void openRelayLdr()
 {
-    digitalWrite(PIN_RELAY_LDR, HIGH);
-    progState.isRelayOpenLdr = true;
+  digitalWrite(PIN_RELAY_LDR, HIGH);
+  progState.isRelayOpenLdr = true;
 }
 
 void initRelays()
 {
-    pinMode(PIN_RELAY_RFID, OUTPUT);
-    pinMode(PIN_RELAY_LDR, OUTPUT);
+  pinMode(PIN_RELAY_RFID, OUTPUT);
+  pinMode(PIN_RELAY_LDR, OUTPUT);
 
-    lockRelayRfid();
-    lockRelayLdr();
+  lockRelayRfid();
+  lockRelayLdr();
 }
 
 /**
  * LDR functions.
  */
 
-void onLdrPress(int idx, int v, int up)
+bool isLdrDoorOpen()
 {
-    Serial.println(F("LDR press"));
-    progState.isLdrPressed = true;
+  return digitalRead(PIN_BUTTON_LDR) == LOW;
 }
 
-void onLdrRelease(int idx, int v, int up)
+void initLdr()
 {
-    Serial.print(F("LDR release"));
-    progState.isLdrPressed = false;
-}
-
-void initButtonLdr()
-{
-    buttonLdr
-        .begin(PIN_BUTTON_LDR)
-        .debounce(LDR_DEBOUNCE_MS)
-        .onPress(onLdrPress)
-        .onRelease(onLdrRelease);
+  pinMode(PIN_BUTTON_LDR, INPUT);
 }
 
 void updateRelayLdr()
 {
-    if (progState.isLdrPressed == true &&
-        progState.isRelayOpenRfid == false &&
-        progState.isRelayOpenLdr == false)
-    {
-        Serial.println(F("Opening LDR relay"));
-        openRelayLdr();
-    }
-    else if (progState.isRelayOpenLdr == true)
-    {
-        Serial.println(F("Locking LDR relay"));
-        lockRelayLdr();
-    }
+  bool isDoorOpen = isLdrDoorOpen();
+
+  if (progState.isRelayOpenRfid == false && isDoorOpen)
+  {
+    openRelayLdr();
+  }
+  else
+  {
+    lockRelayLdr();
+  }
 }
 
 /**
@@ -233,20 +215,19 @@ void updateRelayLdr()
 
 void setup()
 {
-    Serial.begin(9600);
+  Serial.begin(9600);
 
-    initRfidReaders();
-    initRelays();
-    initButtonLdr();
+  initRfidReaders();
+  initRelays();
+  initLdr();
 
-    Serial.println(F(">> Starting giant's eye program"));
+  Serial.println(F(">> Starting giant's eye program"));
 }
 
 void loop()
 {
-    pollRfidReaders();
-    printCurrentTags();
-    updateRelayRfid();
-    updateRelayLdr();
-    automaton.run();
+  pollRfidReaders();
+  printCurrentTags();
+  updateRelayRfid();
+  updateRelayLdr();
 }
