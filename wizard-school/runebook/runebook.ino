@@ -6,17 +6,17 @@
 #include <Atm_servo.h>
 
 /**
-  Shortest paths in the LED matrix.
-  [
-    {00, 01, 02, 03, 04, 05, 06},
-    {07, 08, 09, 10, 11, 12, 13},
-    {14, 15, 16, 17, 18, 19, 20},
-    {21, 22, 23, 24, 25, 26, 27},
-    {28, 29, 30, 31, 32, 33, 34},
-    {35, 36, 37, 38, 39, 40, 41},
-    {42, 43, 44, 45, 46, 47, 48}
-  ]
-*/
+ * Shortest paths in the LED matrix.
+ *  [
+ *    {00, 01, 02, 03, 04, 05, 06},
+ *    {07, 08, 09, 10, 11, 12, 13},
+ *    {14, 15, 16, 17, 18, 19, 20},
+ *    {21, 22, 23, 24, 25, 26, 27},
+ *    {28, 29, 30, 31, 32, 33, 34},
+ *    {35, 36, 37, 38, 39, 40, 41},
+ *    {42, 43, 44, 45, 46, 47, 48}
+ *  ]
+ */
 
 const byte PATHS_SIZE = 20;
 const byte PATHS_ITEM_LEN = 4;
@@ -47,8 +47,8 @@ const byte PATHS[PATHS_SIZE][PATHS_ITEM_LEN] = {
     {45, 46, 47, 48}};
 
 /**
-   LED index map.
-*/
+ * LED index map.
+ */
 
 const byte MATRIX_SIZE = 7;
 
@@ -62,8 +62,8 @@ const byte LED_MAP[MATRIX_SIZE][MATRIX_SIZE] = {
     {57, 58, 59, 60, 61, 62, 63}};
 
 /**
-   Proximity sensors.
-*/
+ * Proximity sensors.
+ */
 
 const int PROX_SENSORS_NUM = 9;
 const unsigned long PROX_SENSORS_CONFIRMATION_MS = 800;
@@ -78,8 +78,8 @@ Atm_button proxSensorsBtn[PROX_SENSORS_NUM];
 Atm_controller proxSensorsConfirmControl;
 
 /**
-   LED strip (book)
-*/
+ * LED strip (book).
+ */
 
 const int LED_BOOK_BRIGHTNESS = 240;
 const int LED_BOOK_PIN = 20;
@@ -92,8 +92,8 @@ const uint32_t LED_BOOK_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 Adafruit_NeoPixel ledBook = Adafruit_NeoPixel(LED_BOOK_NUM, LED_BOOK_PIN, NEO_GRB + NEO_KHZ800);
 
 /**
-   LED strip (pipes)
-*/
+ * LED strip (pipes).
+ */
 
 const int LED_PIPES_BRIGHTNESS = 240;
 const int LED_PIPES_PIN = 22;
@@ -116,20 +116,20 @@ const uint32_t LED_PIPES_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(LED_PIPES_NUM, LED_PIPES_PIN, NEO_GRB + NEO_KHZ800);
 
 /**
-   0: Rabano Vivaz
-   1: Aliento Troll
-   2: Baba Escarbato
-   3: Pluma Fenix
-   4: Pelo Canguingo
-   5: Bono Loto
-   6: Lazo Diablo
-   7: Patas Acromantula
-   8: Pezuña Thestral
-   9: Seta Dose
-   10: Culo Kraken
-   11: Morros Nutria
-   12: RESET
-*/
+ * 0: Rabano Vivaz
+ * 1: Aliento Troll
+ * 2: Baba Escarbato
+ * 3: Pluma Fenix
+ * 4: Pelo Canguingo
+ * 5: Bono Loto
+ * 6: Lazo Diablo
+ * 7: Patas Acromantula
+ * 8: Pezuña Thestral
+ * 9: Seta Dose
+ * 10: Culo Kraken
+ * 11: Morros Nutria
+ * 12: RESET
+ */
 
 const int RUNES_NUM = 12;
 const int RUNES_KEY_NUM = 4;
@@ -224,8 +224,8 @@ std::vector<byte> RUNES_PATHS[RUNES_NUM] = {
      3, 11, 19, 27}};
 
 /**
-  Servo.
-*/
+ * Servo.
+ */
 
 const int SERVO_PIN = 12;
 const int SERVO_STEP_SIZE = 180;
@@ -236,8 +236,8 @@ Atm_servo servo;
 Atm_timer timerServo;
 
 /**
-  Program state.
-*/
+ * Program state.
+ */
 
 const int HISTORY_SENSOR_SIZE = PROX_SENSORS_NUM * 3;
 const int HISTORY_PATH_SIZE = HISTORY_SENSOR_SIZE * (PATHS_ITEM_LEN + 1);
@@ -266,8 +266,8 @@ ProgramState progState = {
     .isRunePhaseComplete = false};
 
 /**
-   Servo functions.
-*/
+ * Servo functions.
+ */
 
 void onServoTimer(int idx, int v, int up)
 {
@@ -289,8 +289,8 @@ void initServo()
 }
 
 /**
-   Runes history functions.
-*/
+ * Runes history functions.
+ */
 
 bool isRuneInHistory(int runeIdx)
 {
@@ -380,8 +380,8 @@ void addRuneToHistory(int runeIdx)
 }
 
 /**
-   Proximity sensors functions.
-*/
+ * Proximity sensors functions.
+ */
 
 bool isSensorPatternConfirmed()
 {
@@ -496,10 +496,10 @@ void initProximitySensors()
 }
 
 /**
-  Function to reverse order of items in array.
-  Attribution to:
-  https://stackoverflow.com/a/22978241
-*/
+ * Function to reverse order of items in array.
+ * Attribution to:
+ * https://stackoverflow.com/a/22978241
+ */
 
 void reverseRange(int *arr, int lft, int rgt)
 {
@@ -512,8 +512,8 @@ void reverseRange(int *arr, int lft, int rgt)
 }
 
 /**
-   Functions to handle path history.
-*/
+ * Functions to handle path history.
+ */
 
 bool isHistoryPathResetRune()
 {
@@ -698,8 +698,8 @@ void refreshHistoryPath()
 }
 
 /**
-  Shortest path and path buffer functions.
-*/
+ * Shortest path and path buffer functions.
+ */
 
 void emptyPathBuffers()
 {
@@ -775,8 +775,8 @@ void updatePathBuffers(int init, int finish)
 }
 
 /**
-   LED functions.
-*/
+ * LED functions.
+ */
 
 void initLeds()
 {
@@ -1061,8 +1061,8 @@ void refreshLedsPipes()
 }
 
 /**
-   Entrypoint.
-*/
+ * Entrypoint.
+ */
 
 void setup()
 {
