@@ -22,10 +22,10 @@ String validTags[NUM_VALID_TAGS] = {
     "1D0027A3EA00"};
 
 /**
- * Relay.
+ * Relays.
  */
 
-const int RELAY_PIN = 24;
+const int RELAY_PIN_RFID = 24;
 
 /**
  * Shortest paths in the LED matrix.
@@ -334,7 +334,7 @@ typedef struct programState
   int *historyRunes;
   unsigned long lastSensorActivation;
   bool isRunePhaseComplete;
-  bool isRelayOpen;
+  bool isRfidPhaseComplete;
   int *micsLedLevel;
   unsigned long *micsLastRead;
   int micsValidLevelCounter;
@@ -348,7 +348,7 @@ ProgramState progState = {
     .historyRunes = historyRunes,
     .lastSensorActivation = 0,
     .isRunePhaseComplete = false,
-    .isRelayOpen = false,
+    .isRfidPhaseComplete = false,
     .micsLedLevel = micsLedLevel,
     .micsLastRead = micsLastRead,
     .micsValidLevelCounter = 0,
@@ -1179,7 +1179,7 @@ void refreshLedsMics()
 bool shouldListenToMics()
 {
   return progState.isRunePhaseComplete == true &&
-         progState.isRelayOpen == true;
+         progState.isRfidPhaseComplete == true;
 }
 
 void onMicChange(int idx, int v, int up)
@@ -1381,8 +1381,8 @@ void pollRfidToOpenRelay()
     if (validTags[i].compareTo(tagId) == 0)
     {
       Serial.print(F("Valid RFID tag"));
-      openRelay();
-      progState.isRelayOpen = true;
+      openRelayRfid();
+      progState.isRfidPhaseComplete = true;
     }
   }
 }
@@ -1390,27 +1390,27 @@ void pollRfidToOpenRelay()
 bool shouldPollRfid()
 {
   return progState.isRunePhaseComplete == true &&
-         progState.isRelayOpen == false;
+         progState.isRfidPhaseComplete == false;
 }
 
 /**
  * Relay functions.
  */
 
-void lockRelay()
+void lockRelayRfid()
 {
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN_RFID, LOW);
 }
 
-void openRelay()
+void openRelayRfid()
 {
-  digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN_RFID, HIGH);
 }
 
-void initRelay()
+void initRelays()
 {
-  pinMode(RELAY_PIN, OUTPUT);
-  lockRelay();
+  pinMode(RELAY_PIN_RFID, OUTPUT);
+  lockRelayRfid();
 }
 
 /**
@@ -1429,7 +1429,7 @@ void setup()
   initLeds();
   initServo();
   initRfid();
-  initRelay();
+  initRelays();
   initMics();
   initMicsTimer();
 
