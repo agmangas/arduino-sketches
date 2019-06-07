@@ -4,6 +4,28 @@
 #include <set>
 #include <vector>
 #include <Atm_servo.h>
+#include "rdm630.h"
+
+/**
+ * RFID reader.
+ */
+
+const byte PIN_RFID_RX = 26;
+const byte PIN_RFID_TX = 27;
+
+RDM6300 rfidReader(PIN_RFID_RX, PIN_RFID_TX);
+
+const byte NUM_VALID_TAGS = 2;
+
+String validTags[NUM_VALID_TAGS] = {
+    "1D0028450000",
+    "1D0027A3EA00"};
+
+/**
+ * Relay.
+ */
+
+const int RELAY_PIN = 24;
 
 /**
  * Shortest paths in the LED matrix.
@@ -78,6 +100,55 @@ Atm_button proxSensorsBtn[PROX_SENSORS_NUM];
 Atm_controller proxSensorsConfirmControl;
 
 /**
+ * Microphones.
+ */
+
+const int MICS_NUM = 2;
+const int MICS_AVG_BUF_SIZE = 5;
+const int MICS_SAMPLE_RATE_MS = 50;
+const int MICS_RANGE_MIN = 0;
+const int MICS_RANGE_MAX = 10;
+const int MICS_VALID_COUNTER_TARGET = 15;
+
+// Inclusive
+const int MICS_THRESHOLD_MIN = 3;
+const int MICS_THRESHOLD_MAX = 7;
+
+const byte MICS_PIN[MICS_NUM] = {
+    34, 32};
+
+uint16_t micsAvgBufs[MICS_NUM][MICS_AVG_BUF_SIZE];
+
+Atm_analog mics[MICS_NUM];
+
+/**
+ * LED strip (microphones).
+ */
+
+const int LED_MICS_BRIGHTNESS = 200;
+const int LED_MICS_PINS[MICS_NUM] = {28, 30};
+const int LED_MICS_NUM[MICS_NUM] = {10, 10};
+const uint32_t LED_MICS_COLOR = Adafruit_NeoPixel::Color(255, 131, 0);
+
+Adafruit_NeoPixel ledMic01 = Adafruit_NeoPixel(
+    LED_MICS_NUM[0],
+    LED_MICS_PINS[0],
+    NEO_GRB + NEO_KHZ800);
+
+Adafruit_NeoPixel ledMic02 = Adafruit_NeoPixel(
+    LED_MICS_NUM[1],
+    LED_MICS_PINS[1],
+    NEO_GRB + NEO_KHZ800);
+
+Adafruit_NeoPixel ledMics[MICS_NUM] = {
+    ledMic01,
+    ledMic02};
+
+const int MICS_TIMER_MS = 1000;
+
+Atm_timer micsTimer;
+
+/**
  * LED strip (book).
  */
 
@@ -89,7 +160,10 @@ const int LED_BOOK_PATTERN_TAIL_SIZE = 5;
 const int LED_BOOK_FADE_MS = 15;
 const uint32_t LED_BOOK_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 
-Adafruit_NeoPixel ledBook = Adafruit_NeoPixel(LED_BOOK_NUM, LED_BOOK_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledBook = Adafruit_NeoPixel(
+    LED_BOOK_NUM,
+    LED_BOOK_PIN,
+    NEO_GRB + NEO_KHZ800);
 
 /**
  * LED strip (pipes).
@@ -113,7 +187,10 @@ const int LED_PIPES_ERROR_NUM_ITERS = 20;
 const int LED_PIPES_ERROR_INI_DELAY = 10;
 const uint32_t LED_PIPES_COLOR = Adafruit_NeoPixel::Color(128, 0, 128);
 
-Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(LED_PIPES_NUM, LED_PIPES_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledPipes = Adafruit_NeoPixel(
+    LED_PIPES_NUM,
+    LED_PIPES_PIN,
+    NEO_GRB + NEO_KHZ800);
 
 /**
  * 0: Rabano Vivaz
@@ -246,6 +323,8 @@ int historySensor[HISTORY_SENSOR_SIZE];
 int historyPath[HISTORY_PATH_SIZE];
 int historyPathLed[HISTORY_PATH_SIZE];
 int historyRunes[RUNES_KEY_NUM];
+int micsLedLevel[MICS_NUM];
+unsigned long micsLastRead[MICS_NUM];
 
 typedef struct programState
 {
@@ -255,6 +334,11 @@ typedef struct programState
   int *historyRunes;
   unsigned long lastSensorActivation;
   bool isRunePhaseComplete;
+  bool isRelayOpen;
+  int *micsLedLevel;
+  unsigned long *micsLastRead;
+  int micsValidLevelCounter;
+  bool isMicsPhaseComplete;
 } ProgramState;
 
 ProgramState progState = {
@@ -263,7 +347,12 @@ ProgramState progState = {
     .historyPathLed = historyPathLed,
     .historyRunes = historyRunes,
     .lastSensorActivation = 0,
-    .isRunePhaseComplete = false};
+    .isRunePhaseComplete = false,
+    .isRelayOpen = false,
+    .micsLedLevel = micsLedLevel,
+    .micsLastRead = micsLastRead,
+    .micsValidLevelCounter = 0,
+    .isMicsPhaseComplete = false};
 
 /**
  * Servo functions.
@@ -791,6 +880,14 @@ void initLeds()
   ledPipes.show();
 
   clearLedsPipes();
+
+  for (int i = 0; i < MICS_NUM; i++)
+  {
+    ledMics[i].begin();
+    ledMics[i].setBrightness(LED_MICS_BRIGHTNESS);
+    ledMics[i].clear();
+    ledMics[i].show();
+  }
 }
 
 void clearLedsBook()
@@ -1060,6 +1157,262 @@ void refreshLedsPipes()
   ledPipes.show();
 }
 
+void refreshLedsMics()
+{
+  for (int i = 0; i < MICS_NUM; i++)
+  {
+    ledMics[i].clear();
+
+    for (int j = 0; j < progState.micsLedLevel[i]; j++)
+    {
+      ledMics[i].setPixelColor(j, LED_MICS_COLOR);
+    }
+
+    ledMics[i].show();
+  }
+}
+
+/**
+ * Microphones functions.
+ */
+
+bool shouldListenToMics()
+{
+  return progState.isRunePhaseComplete == true &&
+         progState.isRelayOpen == true;
+}
+
+void onMicChange(int idx, int v, int up)
+{
+  if (!shouldListenToMics() ||
+      progState.isMicsPhaseComplete)
+  {
+    return;
+  }
+
+  Serial.print(F("Mics :: #"));
+  Serial.print(idx);
+  Serial.print(F(" :: "));
+  Serial.println(v);
+
+  if (v > progState.micsLedLevel[idx])
+  {
+    progState.micsLedLevel[idx] = v;
+  }
+
+  refreshLedsMics();
+
+  progState.micsLastRead[idx] = millis();
+}
+
+void initMics()
+{
+  for (int i = 0; i < MICS_NUM; i++)
+  {
+    mics[i]
+        .begin(MICS_PIN[i], MICS_SAMPLE_RATE_MS)
+        .range(MICS_RANGE_MIN, MICS_RANGE_MAX)
+        .average(micsAvgBufs[i], sizeof(micsAvgBufs[i]))
+        .onChange(onMicChange, i);
+
+    progState.micsLedLevel[i] = MICS_RANGE_MIN;
+    progState.micsLastRead[i] = 0;
+  }
+}
+
+bool isMicsLevelValid()
+{
+  bool isValidLevel;
+
+  for (int i = 0; i < MICS_NUM; i++)
+  {
+    isValidLevel =
+        progState.micsLedLevel[i] >= MICS_THRESHOLD_MIN &&
+        progState.micsLedLevel[i] <= MICS_THRESHOLD_MAX;
+
+    if (!isValidLevel)
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void resetMicsLastRead()
+{
+  for (int i = 0; i < MICS_NUM; i++)
+  {
+    progState.micsLastRead[i] = 0;
+  }
+}
+
+bool isMicsUpdateRecent()
+{
+  unsigned long now = millis();
+
+  bool isRecent;
+  unsigned long diff;
+
+  for (int i = 0; i < MICS_NUM; i++)
+  {
+    if (now < progState.micsLastRead[i])
+    {
+      Serial.println(F("Mics :: Timer overflow"));
+      resetMicsLastRead();
+      return false;
+    }
+
+    diff = now - progState.micsLastRead[i];
+
+    if (diff > MICS_TIMER_MS)
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void decreaseMicsLedLevel()
+{
+  for (int i = 0; i < MICS_NUM; i++)
+  {
+    if (progState.micsLedLevel[i] > 0)
+    {
+      progState.micsLedLevel[i]--;
+      Serial.print(F("Mics :: "));
+      Serial.print(i);
+      Serial.print(" LED level -- :: ");
+      Serial.println(progState.micsLedLevel[i]);
+    }
+  }
+
+  refreshLedsMics();
+}
+
+void onMicsComplete()
+{
+  Serial.println(F("Mics :: Completed"));
+  progState.isMicsPhaseComplete = true;
+}
+
+void onMicsTimer(int idx, int v, int up)
+{
+  if (!shouldListenToMics() ||
+      progState.isMicsPhaseComplete)
+  {
+    return;
+  }
+
+  if (progState.micsValidLevelCounter >= MICS_VALID_COUNTER_TARGET)
+  {
+    onMicsComplete();
+    return;
+  }
+
+  if (!isMicsUpdateRecent())
+  {
+    if (progState.micsValidLevelCounter > 0)
+    {
+      progState.micsValidLevelCounter--;
+      Serial.print(F("Mics :: Old (counter--) ::"));
+      Serial.println(progState.micsValidLevelCounter);
+    }
+
+    decreaseMicsLedLevel();
+
+    return;
+  }
+
+  if (isMicsLevelValid())
+  {
+    progState.micsValidLevelCounter++;
+    Serial.print(F("Mics :: Valid level (counter++) ::"));
+    Serial.println(progState.micsValidLevelCounter);
+  }
+  else if (progState.micsValidLevelCounter > 0)
+  {
+    progState.micsValidLevelCounter--;
+    Serial.print(F("Mics :: Invalid level (counter--) ::"));
+    Serial.println(progState.micsValidLevelCounter);
+  }
+}
+
+void initMicsTimer()
+{
+  micsTimer
+      .begin(MICS_TIMER_MS)
+      .repeat(-1)
+      .onTimer(onMicsTimer)
+      .start();
+}
+
+/**
+ * RFID functions.
+ */
+
+void initRfid()
+{
+  rfidReader.begin();
+}
+
+void pollRfidToOpenRelay()
+{
+  if (!shouldPollRfid())
+  {
+    return;
+  }
+
+  String tagId;
+
+  tagId = rfidReader.getTagId();
+
+  if (!tagId.length())
+  {
+    return;
+  }
+
+  Serial.print(F("Tag: "));
+  Serial.println(tagId);
+
+  for (int i = 0; i < NUM_VALID_TAGS; i++)
+  {
+    if (validTags[i].compareTo(tagId) == 0)
+    {
+      Serial.print(F("Valid RFID tag"));
+      openRelay();
+      progState.isRelayOpen = true;
+    }
+  }
+}
+
+bool shouldPollRfid()
+{
+  return progState.isRunePhaseComplete == true &&
+         progState.isRelayOpen == false;
+}
+
+/**
+ * Relay functions.
+ */
+
+void lockRelay()
+{
+  digitalWrite(RELAY_PIN, LOW);
+}
+
+void openRelay()
+{
+  digitalWrite(RELAY_PIN, HIGH);
+}
+
+void initRelay()
+{
+  pinMode(RELAY_PIN, OUTPUT);
+  lockRelay();
+}
+
 /**
  * Entrypoint.
  */
@@ -1075,6 +1428,10 @@ void setup()
   initProximitySensors();
   initLeds();
   initServo();
+  initRfid();
+  initRelay();
+  initMics();
+  initMicsTimer();
 
   Serial.println(F(">> Starting Runebook program"));
 }
@@ -1084,4 +1441,5 @@ void loop()
   automaton.run();
   refreshLedsBook();
   refreshLedsPipes();
+  pollRfidToOpenRelay();
 }
