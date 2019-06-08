@@ -26,6 +26,7 @@ String validTags[NUM_VALID_TAGS] = {
  */
 
 const int RELAY_PIN_RFID = 24;
+const int RELAY_PIN_MICS = 52;
 
 /**
  * Shortest paths in the LED matrix.
@@ -108,6 +109,7 @@ const int MICS_AVG_BUF_SIZE = 5;
 const int MICS_SAMPLE_RATE_MS = 50;
 const int MICS_RANGE_MIN = 0;
 const int MICS_RANGE_MAX = 10;
+const int MICS_RANGE_MAINTAIN_LEVEL_DIFF = 2;
 const int MICS_VALID_COUNTER_TARGET = 15;
 
 // Inclusive
@@ -1179,13 +1181,13 @@ void refreshLedsMics()
 bool shouldListenToMics()
 {
   return progState.isRunePhaseComplete == true &&
-         progState.isRfidPhaseComplete == true;
+         progState.isRfidPhaseComplete == true &&
+         progState.isMicsPhaseComplete == false;
 }
 
 void onMicChange(int idx, int v, int up)
 {
-  if (!shouldListenToMics() ||
-      progState.isMicsPhaseComplete)
+  if (!shouldListenToMics())
   {
     return;
   }
@@ -1198,9 +1200,31 @@ void onMicChange(int idx, int v, int up)
   if (v > progState.micsLedLevel[idx])
   {
     progState.micsLedLevel[idx] = v;
-  }
+    refreshLedsMics();
 
-  refreshLedsMics();
+    Serial.print(F("Mics :: "));
+    Serial.print(idx);
+    Serial.print(" LED level ++ :: ");
+    Serial.println(progState.micsLedLevel[idx]);
+  }
+  else if (v < progState.micsLedLevel[idx])
+  {
+    int levelDiff = progState.micsLedLevel[idx] - v;
+    bool isCurrentLevelOverMin = progState.micsLedLevel[idx] > MICS_RANGE_MIN;
+    bool isMinLevel = v == MICS_RANGE_MIN && isCurrentLevelOverMin;
+    bool isLevelTooLow = levelDiff > MICS_RANGE_MAINTAIN_LEVEL_DIFF;
+
+    if (isMinLevel || isLevelTooLow)
+    {
+      progState.micsLedLevel[idx]--;
+      refreshLedsMics();
+
+      Serial.print(F("Mics :: "));
+      Serial.print(idx);
+      Serial.print(" LED level -- :: ");
+      Serial.println(progState.micsLedLevel[idx]);
+    }
+  }
 
   progState.micsLastRead[idx] = millis();
 }
@@ -1281,6 +1305,7 @@ void decreaseMicsLedLevel()
     if (progState.micsLedLevel[i] > 0)
     {
       progState.micsLedLevel[i]--;
+
       Serial.print(F("Mics :: "));
       Serial.print(i);
       Serial.print(" LED level -- :: ");
@@ -1291,23 +1316,28 @@ void decreaseMicsLedLevel()
   refreshLedsMics();
 }
 
-void onMicsComplete()
+void onMicsPhaseComplete()
 {
   Serial.println(F("Mics :: Completed"));
+  openRelayMics();
   progState.isMicsPhaseComplete = true;
+}
+
+bool isMicsPhaseComplete()
+{
+  return progState.micsValidLevelCounter >= MICS_VALID_COUNTER_TARGET;
 }
 
 void onMicsTimer(int idx, int v, int up)
 {
-  if (!shouldListenToMics() ||
-      progState.isMicsPhaseComplete)
+  if (!shouldListenToMics())
   {
     return;
   }
 
-  if (progState.micsValidLevelCounter >= MICS_VALID_COUNTER_TARGET)
+  if (isMicsPhaseComplete())
   {
-    onMicsComplete();
+    onMicsPhaseComplete();
     return;
   }
 
@@ -1321,7 +1351,6 @@ void onMicsTimer(int idx, int v, int up)
     }
 
     decreaseMicsLedLevel();
-
     return;
   }
 
@@ -1357,6 +1386,13 @@ void initRfid()
   rfidReader.begin();
 }
 
+void onRfidPhaseComplete()
+{
+  Serial.print(F("RFID phase complete"));
+  openRelayRfid();
+  progState.isRfidPhaseComplete = true;
+}
+
 void pollRfidToOpenRelay()
 {
   if (!shouldPollRfid())
@@ -1380,9 +1416,7 @@ void pollRfidToOpenRelay()
   {
     if (validTags[i].compareTo(tagId) == 0)
     {
-      Serial.print(F("Valid RFID tag"));
-      openRelayRfid();
-      progState.isRfidPhaseComplete = true;
+      onRfidPhaseComplete();
     }
   }
 }
@@ -1407,10 +1441,23 @@ void openRelayRfid()
   digitalWrite(RELAY_PIN_RFID, HIGH);
 }
 
+void lockRelayMics()
+{
+  digitalWrite(RELAY_PIN_MICS, LOW);
+}
+
+void openRelayMics()
+{
+  digitalWrite(RELAY_PIN_MICS, HIGH);
+}
+
 void initRelays()
 {
   pinMode(RELAY_PIN_RFID, OUTPUT);
+  pinMode(RELAY_PIN_MICS, OUTPUT);
+
   lockRelayRfid();
+  lockRelayMics();
 }
 
 /**
