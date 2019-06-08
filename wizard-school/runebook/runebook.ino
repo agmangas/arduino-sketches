@@ -330,31 +330,31 @@ unsigned long micsLastRead[MICS_NUM];
 
 typedef struct programState
 {
+  bool isRunePhaseComplete;
+  bool isRfidPhaseComplete;
+  bool isMicsPhaseComplete;
   int *historySensor;
   int *historyPath;
   int *historyPathLed;
   int *historyRunes;
   unsigned long lastSensorActivation;
-  bool isRunePhaseComplete;
-  bool isRfidPhaseComplete;
   int *micsLedLevel;
   unsigned long *micsLastRead;
   int micsValidLevelCounter;
-  bool isMicsPhaseComplete;
 } ProgramState;
 
 ProgramState progState = {
+    .isRunePhaseComplete = false,
+    .isRfidPhaseComplete = false,
+    .isMicsPhaseComplete = false,
     .historySensor = historySensor,
     .historyPath = historyPath,
     .historyPathLed = historyPathLed,
     .historyRunes = historyRunes,
     .lastSensorActivation = 0,
-    .isRunePhaseComplete = false,
-    .isRfidPhaseComplete = false,
     .micsLedLevel = micsLedLevel,
     .micsLastRead = micsLastRead,
-    .micsValidLevelCounter = 0,
-    .isMicsPhaseComplete = false};
+    .micsValidLevelCounter = 0};
 
 /**
  * Servo functions.
@@ -363,7 +363,7 @@ ProgramState progState = {
 void onServoTimer(int idx, int v, int up)
 {
   int servoPos = random(0, 181);
-  Serial.print("Moving servo to: ");
+  Serial.print(F("Moving servo to: "));
   Serial.println(servoPos);
   servo.position(servoPos);
 }
@@ -508,6 +508,15 @@ void cleanSensorState()
   progState.lastSensorActivation = 0;
 }
 
+void onRunePhaseComplete()
+{
+  Serial.println("Rune phase complete");
+  animateLedPipesSuccess();
+  Serial.println("Starting servo timer");
+  timerServo.start();
+  progState.isRunePhaseComplete = true;
+}
+
 void onSensorPatternConfirmed()
 {
   Serial.println(F("Pattern confirmed"));
@@ -546,11 +555,7 @@ void onSensorPatternConfirmed()
 
   if (runesComplete && validRunes && !progState.isRunePhaseComplete)
   {
-    Serial.println("Valid runes combination");
-    progState.isRunePhaseComplete = true;
-    animateLedPipesSuccess();
-    Serial.println("Starting servo timer");
-    timerServo.start();
+    onRunePhaseComplete();
   }
   else if (runesComplete && !validRunes)
   {
@@ -562,6 +567,11 @@ void onSensorPatternConfirmed()
 
 void onProxSensor(int idx, int v, int up)
 {
+  if (!shouldListenToProxSensors())
+  {
+    return;
+  }
+
   Serial.print(F("Sensor activated: "));
   Serial.println(idx);
 
@@ -584,6 +594,11 @@ void initProximitySensors()
       .begin()
       .IF(isSensorPatternConfirmed)
       .onChange(true, onSensorPatternConfirmed);
+}
+
+bool shouldListenToProxSensors()
+{
+  return progState.isRunePhaseComplete == false;
 }
 
 /**
@@ -1393,7 +1408,7 @@ void onRfidPhaseComplete()
   progState.isRfidPhaseComplete = true;
 }
 
-void pollRfidToOpenRelay()
+void pollRfidReader()
 {
   if (!shouldPollRfid())
   {
@@ -1488,5 +1503,5 @@ void loop()
   automaton.run();
   refreshLedsBook();
   refreshLedsPipes();
-  pollRfidToOpenRelay();
+  pollRfidReader();
 }
