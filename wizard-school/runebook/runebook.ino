@@ -330,17 +330,17 @@ unsigned long micsLastRead[MICS_NUM];
 
 typedef struct programState
 {
-  bool isRunePhaseComplete;
-  bool isRfidPhaseComplete;
-  bool isMicsPhaseComplete;
-  int *historySensor;
-  int *historyPath;
-  int *historyPathLed;
-  int *historyRunes;
-  unsigned long lastSensorActivation;
-  int *micsLedLevel;
-  unsigned long *micsLastRead;
-  int micsValidLevelCounter;
+    bool isRunePhaseComplete;
+    bool isRfidPhaseComplete;
+    bool isMicsPhaseComplete;
+    int *historySensor;
+    int *historyPath;
+    int *historyPathLed;
+    int *historyRunes;
+    unsigned long lastSensorActivation;
+    int *micsLedLevel;
+    unsigned long *micsLastRead;
+    int micsValidLevelCounter;
 } ProgramState;
 
 ProgramState progState = {
@@ -362,21 +362,21 @@ ProgramState progState = {
 
 void onServoTimer(int idx, int v, int up)
 {
-  int servoPos = random(0, 181);
-  Serial.print(F("Moving servo to: "));
-  Serial.println(servoPos);
-  servo.position(servoPos);
+    int servoPos = random(0, 181);
+    Serial.print(F("Moving servo to: "));
+    Serial.println(servoPos);
+    servo.position(servoPos);
 }
 
 void initServo()
 {
-  servo
-      .begin(SERVO_PIN)
-      .step(SERVO_STEP_SIZE, SERVO_STEP_TIME);
+    servo
+        .begin(SERVO_PIN)
+        .step(SERVO_STEP_SIZE, SERVO_STEP_TIME);
 
-  timerServo.begin(SERVO_TIMER_MS)
-      .repeat(-1)
-      .onTimer(onServoTimer);
+    timerServo.begin(SERVO_TIMER_MS)
+        .repeat(-1)
+        .onTimer(onServoTimer);
 }
 
 /**
@@ -385,89 +385,89 @@ void initServo()
 
 bool isRuneInHistory(int runeIdx)
 {
-  for (int i = 0; i < RUNES_KEY_NUM; i++)
-  {
-    if (progState.historyRunes[i] == runeIdx)
+    for (int i = 0; i < RUNES_KEY_NUM; i++)
     {
-      return true;
+        if (progState.historyRunes[i] == runeIdx)
+        {
+            return true;
+        }
     }
-  }
 
-  return false;
+    return false;
 }
 
 void emptyHistoryRunes()
 {
-  for (int i = 0; i < RUNES_KEY_NUM; i++)
-  {
-    progState.historyRunes[i] = -1;
-  }
+    for (int i = 0; i < RUNES_KEY_NUM; i++)
+    {
+        progState.historyRunes[i] = -1;
+    }
 }
 
 bool isHistoryRunesComplete()
 {
-  return getHistoryRunesSize() == RUNES_KEY_NUM;
+    return getHistoryRunesSize() == RUNES_KEY_NUM;
 }
 
 bool isValidRunesCombination()
 {
-  if (!isHistoryRunesComplete())
-  {
-    return false;
-  }
-
-  for (int i = 0; i < RUNES_KEY_NUM; i++)
-  {
-    if (progState.historyRunes[i] != RUNES_VALID_KEY[i])
+    if (!isHistoryRunesComplete())
     {
-      return false;
+        return false;
     }
-  }
 
-  return true;
+    for (int i = 0; i < RUNES_KEY_NUM; i++)
+    {
+        if (progState.historyRunes[i] != RUNES_VALID_KEY[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 int getHistoryRunesSize()
 {
-  int size = 0;
+    int size = 0;
 
-  for (int i = 0; i < RUNES_KEY_NUM; i++)
-  {
-    if (progState.historyRunes[i] == -1)
+    for (int i = 0; i < RUNES_KEY_NUM; i++)
     {
-      break;
+        if (progState.historyRunes[i] == -1)
+        {
+            break;
+        }
+
+        size++;
     }
 
-    size++;
-  }
-
-  return size;
+    return size;
 }
 
 void addRuneToHistory(int runeIdx)
 {
-  if (isHistoryRunesComplete())
-  {
-    return;
-  }
-
-  int nextIdx = -1;
-
-  for (int i = 0; i < RUNES_KEY_NUM; i++)
-  {
-    if (progState.historyRunes[i] == -1)
+    if (isHistoryRunesComplete())
     {
-      nextIdx = i;
-      break;
+        return;
     }
-  }
 
-  if (nextIdx == -1)
-  {
-    return;
-  }
+    int nextIdx = -1;
 
-  progState.historyRunes[nextIdx] = runeIdx;
+    for (int i = 0; i < RUNES_KEY_NUM; i++)
+    {
+        if (progState.historyRunes[i] == -1)
+        {
+            nextIdx = i;
+            break;
+        }
+    }
+
+    if (nextIdx == -1)
+    {
+        return;
+    }
+
+    progState.historyRunes[nextIdx] = runeIdx;
 }
 
 /**
@@ -476,129 +476,129 @@ void addRuneToHistory(int runeIdx)
 
 bool isSensorPatternConfirmed()
 {
-  if (progState.lastSensorActivation == 0)
-  {
-    return false;
-  }
+    if (progState.lastSensorActivation == 0)
+    {
+        return false;
+    }
 
-  if (progState.historySensor[0] == -1 ||
-      progState.historySensor[1] == -1)
-  {
-    return false;
-  }
+    if (progState.historySensor[0] == -1 ||
+        progState.historySensor[1] == -1)
+    {
+        return false;
+    }
 
-  unsigned long now = millis();
+    unsigned long now = millis();
 
-  if (now < progState.lastSensorActivation)
-  {
-    Serial.println(F("Millis overflow in sensor pattern confirmation"));
-    return true;
-  }
+    if (now < progState.lastSensorActivation)
+    {
+        Serial.println(F("Millis overflow in sensor pattern confirmation"));
+        return true;
+    }
 
-  unsigned long diff = now - progState.lastSensorActivation;
+    unsigned long diff = now - progState.lastSensorActivation;
 
-  return diff > PROX_SENSORS_CONFIRMATION_MS;
+    return diff > PROX_SENSORS_CONFIRMATION_MS;
 }
 
 void cleanSensorState()
 {
-  emptyPathBuffers();
-  emptyHistorySensor();
-  emptyHistoryPath();
-  progState.lastSensorActivation = 0;
+    emptyPathBuffers();
+    emptyHistorySensor();
+    emptyHistoryPath();
+    progState.lastSensorActivation = 0;
 }
 
 void onRunePhaseComplete()
 {
-  Serial.println("Rune phase complete");
-  animateLedPipesSuccess();
-  Serial.println("Starting servo timer");
-  timerServo.start();
-  progState.isRunePhaseComplete = true;
+    Serial.println("Rune phase complete");
+    animateLedPipesSuccess();
+    Serial.println("Starting servo timer");
+    timerServo.start();
+    progState.isRunePhaseComplete = true;
 }
 
 void onSensorPatternConfirmed()
 {
-  Serial.println(F("Pattern confirmed"));
+    Serial.println(F("Pattern confirmed"));
 
-  animateBookLedPattern();
+    animateBookLedPattern();
 
-  int runeIdx = getHistoryPathRune();
+    int runeIdx = getHistoryPathRune();
 
-  if (isHistoryPathResetRune())
-  {
-    Serial.println("Reset rune");
-    cleanSensorState();
-    emptyHistoryRunes();
-  }
-  else if (runeIdx == -1)
-  {
-    Serial.println("No rune match found");
-  }
-  else
-  {
-    Serial.print("Match on rune: ");
-    Serial.println(runeIdx);
-
-    if (!isHistoryRunesComplete() && !isRuneInHistory(runeIdx))
+    if (isHistoryPathResetRune())
     {
-      addRuneToHistory(runeIdx);
-      fadeBookLedPattern();
-      animateRunePipeBlob(runeIdx);
+        Serial.println("Reset rune");
+        cleanSensorState();
+        emptyHistoryRunes();
     }
-  }
+    else if (runeIdx == -1)
+    {
+        Serial.println("No rune match found");
+    }
+    else
+    {
+        Serial.print("Match on rune: ");
+        Serial.println(runeIdx);
 
-  cleanSensorState();
+        if (!isHistoryRunesComplete() && !isRuneInHistory(runeIdx))
+        {
+            addRuneToHistory(runeIdx);
+            fadeBookLedPattern();
+            animateRunePipeBlob(runeIdx);
+        }
+    }
 
-  bool runesComplete = isHistoryRunesComplete();
-  bool validRunes = isValidRunesCombination();
+    cleanSensorState();
 
-  if (runesComplete && validRunes && !progState.isRunePhaseComplete)
-  {
-    onRunePhaseComplete();
-  }
-  else if (runesComplete && !validRunes)
-  {
-    Serial.println("Invalid runes combination");
-    emptyHistoryRunes();
-    animateLedPipesError();
-  }
+    bool runesComplete = isHistoryRunesComplete();
+    bool validRunes = isValidRunesCombination();
+
+    if (runesComplete && validRunes && !progState.isRunePhaseComplete)
+    {
+        onRunePhaseComplete();
+    }
+    else if (runesComplete && !validRunes)
+    {
+        Serial.println("Invalid runes combination");
+        emptyHistoryRunes();
+        animateLedPipesError();
+    }
 }
 
 void onProxSensor(int idx, int v, int up)
 {
-  if (!shouldListenToProxSensors())
-  {
-    return;
-  }
+    if (!shouldListenToProxSensors())
+    {
+        return;
+    }
 
-  Serial.print(F("Sensor activated: "));
-  Serial.println(idx);
+    Serial.print(F("Sensor activated: "));
+    Serial.println(idx);
 
-  progState.lastSensorActivation = millis();
+    progState.lastSensorActivation = millis();
 
-  addHistorySensor(idx);
-  refreshHistoryPath();
+    addHistorySensor(idx);
+    refreshHistoryPath();
 }
 
 void initProximitySensors()
 {
-  for (int i = 0; i < PROX_SENSORS_NUM; i++)
-  {
-    proxSensorsBtn[i]
-        .begin(PROX_SENSORS_PINS[i])
-        .onPress(onProxSensor, i);
-  }
+    for (int i = 0; i < PROX_SENSORS_NUM; i++)
+    {
+        proxSensorsBtn[i]
+            .begin(PROX_SENSORS_PINS[i])
+            .onPress(onProxSensor, i);
+    }
 
-  proxSensorsConfirmControl
-      .begin()
-      .IF(isSensorPatternConfirmed)
-      .onChange(true, onSensorPatternConfirmed);
+    proxSensorsConfirmControl
+        .begin()
+        .IF(isSensorPatternConfirmed)
+        .onChange(true, onSensorPatternConfirmed);
 }
 
 bool shouldListenToProxSensors()
 {
-  return progState.isRunePhaseComplete == false;
+    return progState.isRunePhaseComplete == false;
 }
 
 /**
@@ -609,12 +609,12 @@ bool shouldListenToProxSensors()
 
 void reverseRange(int *arr, int lft, int rgt)
 {
-  while (lft < rgt)
-  {
-    int temp = arr[lft];
-    arr[lft++] = arr[rgt];
-    arr[rgt--] = temp;
-  }
+    while (lft < rgt)
+    {
+        int temp = arr[lft];
+        arr[lft++] = arr[rgt];
+        arr[rgt--] = temp;
+    }
 }
 
 /**
@@ -623,184 +623,184 @@ void reverseRange(int *arr, int lft, int rgt)
 
 bool isHistoryPathResetRune()
 {
-  std::set<int> histPathSet(
-      progState.historyPath,
-      progState.historyPath + getHistoryPathSize());
+    std::set<int> histPathSet(
+        progState.historyPath,
+        progState.historyPath + getHistoryPathSize());
 
-  std::set<int> resetRuneSet(
-      RUNE_RESET_PATH.begin(),
-      RUNE_RESET_PATH.end());
+    std::set<int> resetRuneSet(
+        RUNE_RESET_PATH.begin(),
+        RUNE_RESET_PATH.end());
 
-  return histPathSet == resetRuneSet;
+    return histPathSet == resetRuneSet;
 }
 
 int getHistoryPathRune()
 {
-  int currSize = getHistoryPathSize();
+    int currSize = getHistoryPathSize();
 
-  if (currSize == 0)
-  {
-    return -1;
-  }
-
-  std::set<int> histPathSet(
-      progState.historyPath,
-      progState.historyPath + currSize);
-
-  for (int i = 0; i < RUNES_NUM; i++)
-  {
-    std::set<int> runeSet(
-        RUNES_PATHS[i].begin(),
-        RUNES_PATHS[i].end());
-
-    if (histPathSet == runeSet)
+    if (currSize == 0)
     {
-      return i;
+        return -1;
     }
-  }
 
-  return -1;
+    std::set<int> histPathSet(
+        progState.historyPath,
+        progState.historyPath + currSize);
+
+    for (int i = 0; i < RUNES_NUM; i++)
+    {
+        std::set<int> runeSet(
+            RUNES_PATHS[i].begin(),
+            RUNES_PATHS[i].end());
+
+        if (histPathSet == runeSet)
+        {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 int getHistoryPathSize()
 {
-  int currSize = 0;
+    int currSize = 0;
 
-  for (int i = 0; i < HISTORY_PATH_SIZE; i++)
-  {
-    if (progState.historyPath[i] != -1)
+    for (int i = 0; i < HISTORY_PATH_SIZE; i++)
     {
-      currSize++;
+        if (progState.historyPath[i] != -1)
+        {
+            currSize++;
+        }
+        else
+        {
+            break;
+        }
     }
-    else
-    {
-      break;
-    }
-  }
 
-  return currSize;
+    return currSize;
 }
 
 void emptyHistorySensor()
 {
-  for (int i = 0; i < HISTORY_SENSOR_SIZE; i++)
-  {
-    progState.historySensor[i] = -1;
-  }
+    for (int i = 0; i < HISTORY_SENSOR_SIZE; i++)
+    {
+        progState.historySensor[i] = -1;
+    }
 }
 
 void emptyHistoryPath()
 {
-  for (int i = 0; i < HISTORY_PATH_SIZE; i++)
-  {
-    progState.historyPath[i] = -1;
-    progState.historyPathLed[i] = -1;
-  }
+    for (int i = 0; i < HISTORY_PATH_SIZE; i++)
+    {
+        progState.historyPath[i] = -1;
+        progState.historyPathLed[i] = -1;
+    }
 }
 
 bool isSensorAdjacent(int idxOne, int idxOther)
 {
-  bool isMatchAsc;
-  bool isMatchDesc;
+    bool isMatchAsc;
+    bool isMatchDesc;
 
-  for (int i = 0; i < PATHS_SIZE; i++)
-  {
-    isMatchAsc = PATHS[i][0] == idxOne &&
-                 PATHS[i][PATHS_ITEM_LEN - 1] == idxOther;
-
-    isMatchDesc = PATHS[i][0] == idxOther &&
-                  PATHS[i][PATHS_ITEM_LEN - 1] == idxOne;
-
-    if (isMatchAsc || isMatchDesc)
+    for (int i = 0; i < PATHS_SIZE; i++)
     {
-      return true;
-    }
-  }
+        isMatchAsc = PATHS[i][0] == idxOne &&
+                     PATHS[i][PATHS_ITEM_LEN - 1] == idxOther;
 
-  return false;
+        isMatchDesc = PATHS[i][0] == idxOther &&
+                      PATHS[i][PATHS_ITEM_LEN - 1] == idxOne;
+
+        if (isMatchAsc || isMatchDesc)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void addHistorySensor(int sensorIdx)
 {
-  if (sensorIdx < 0 || sensorIdx >= PROX_SENSORS_NUM)
-  {
-    Serial.println(F("Sensor index is out of range"));
-    return;
-  }
-
-  int sensorMatrixIdx = PROX_SENSORS_INDEX[sensorIdx];
-  int nextIdx = -1;
-
-  for (int i = 0; i < HISTORY_SENSOR_SIZE; i++)
-  {
-    if (progState.historySensor[i] == -1)
+    if (sensorIdx < 0 || sensorIdx >= PROX_SENSORS_NUM)
     {
-      nextIdx = i;
-      break;
+        Serial.println(F("Sensor index is out of range"));
+        return;
     }
-  }
 
-  if (nextIdx == -1)
-  {
-    Serial.println(F("Full sensor history"));
-    return;
-  }
+    int sensorMatrixIdx = PROX_SENSORS_INDEX[sensorIdx];
+    int nextIdx = -1;
 
-  if (nextIdx > 0)
-  {
-    int prevSensorMatrixIdx = progState.historySensor[nextIdx - 1];
-
-    if (!isSensorAdjacent(prevSensorMatrixIdx, sensorMatrixIdx))
+    for (int i = 0; i < HISTORY_SENSOR_SIZE; i++)
     {
-      Serial.print(F("Sensor "));
-      Serial.print(sensorMatrixIdx);
-      Serial.print(F(" not adjacent to: "));
-      Serial.println(prevSensorMatrixIdx);
-
-      return;
+        if (progState.historySensor[i] == -1)
+        {
+            nextIdx = i;
+            break;
+        }
     }
-  }
 
-  Serial.print(F("Adding sensor to history: "));
-  Serial.println(sensorMatrixIdx);
+    if (nextIdx == -1)
+    {
+        Serial.println(F("Full sensor history"));
+        return;
+    }
 
-  progState.historySensor[nextIdx] = sensorMatrixIdx;
+    if (nextIdx > 0)
+    {
+        int prevSensorMatrixIdx = progState.historySensor[nextIdx - 1];
+
+        if (!isSensorAdjacent(prevSensorMatrixIdx, sensorMatrixIdx))
+        {
+            Serial.print(F("Sensor "));
+            Serial.print(sensorMatrixIdx);
+            Serial.print(F(" not adjacent to: "));
+            Serial.println(prevSensorMatrixIdx);
+
+            return;
+        }
+    }
+
+    Serial.print(F("Adding sensor to history: "));
+    Serial.println(sensorMatrixIdx);
+
+    progState.historySensor[nextIdx] = sensorMatrixIdx;
 }
 
 void refreshHistoryPath()
 {
-  emptyHistoryPath();
+    emptyHistoryPath();
 
-  int start;
-  int finish;
-  int pathPivot = 0;
+    int start;
+    int finish;
+    int pathPivot = 0;
 
-  for (int i = 1; i < HISTORY_SENSOR_SIZE; i++)
-  {
-    if (progState.historySensor[i] == -1)
+    for (int i = 1; i < HISTORY_SENSOR_SIZE; i++)
     {
-      return;
+        if (progState.historySensor[i] == -1)
+        {
+            return;
+        }
+
+        start = progState.historySensor[i - 1];
+        finish = progState.historySensor[i];
+
+        updatePathBuffers(start, finish);
+
+        if (isEmptyPathBuffers())
+        {
+            Serial.println(F("Unexpected empty path buffers"));
+            return;
+        }
+
+        for (int j = 0; j < PATHS_ITEM_LEN; j++)
+        {
+            progState.historyPath[pathPivot] = pathBuf[j];
+            progState.historyPathLed[pathPivot] = ledPathBuf[j];
+
+            pathPivot++;
+        }
     }
-
-    start = progState.historySensor[i - 1];
-    finish = progState.historySensor[i];
-
-    updatePathBuffers(start, finish);
-
-    if (isEmptyPathBuffers())
-    {
-      Serial.println(F("Unexpected empty path buffers"));
-      return;
-    }
-
-    for (int j = 0; j < PATHS_ITEM_LEN; j++)
-    {
-      progState.historyPath[pathPivot] = pathBuf[j];
-      progState.historyPathLed[pathPivot] = ledPathBuf[j];
-
-      pathPivot++;
-    }
-  }
 }
 
 /**
@@ -809,75 +809,75 @@ void refreshHistoryPath()
 
 void emptyPathBuffers()
 {
-  for (int i = 0; i < PATHS_ITEM_LEN; i++)
-  {
-    pathBuf[i] = -1;
-    ledPathBuf[i] = -1;
-  }
+    for (int i = 0; i < PATHS_ITEM_LEN; i++)
+    {
+        pathBuf[i] = -1;
+        ledPathBuf[i] = -1;
+    }
 }
 
 bool isEmptyPathBuffers()
 {
-  for (int i = 0; i < PATHS_ITEM_LEN; i++)
-  {
-    if (pathBuf[i] == -1 || ledPathBuf[i] == -1)
+    for (int i = 0; i < PATHS_ITEM_LEN; i++)
     {
-      return true;
+        if (pathBuf[i] == -1 || ledPathBuf[i] == -1)
+        {
+            return true;
+        }
     }
-  }
 
-  return false;
+    return false;
 }
 
 void updatePathBuffers(int init, int finish)
 {
-  emptyPathBuffers();
+    emptyPathBuffers();
 
-  int matchIdx = -1;
+    int matchIdx = -1;
 
-  bool isMatchAsc;
-  bool isMatchDesc;
+    bool isMatchAsc;
+    bool isMatchDesc;
 
-  for (int i = 0; i < PATHS_SIZE; i++)
-  {
-    isMatchAsc = PATHS[i][0] == init &&
-                 PATHS[i][PATHS_ITEM_LEN - 1] == finish;
-
-    isMatchDesc = PATHS[i][0] == finish &&
-                  PATHS[i][PATHS_ITEM_LEN - 1] == init;
-
-    if (isMatchAsc || isMatchDesc)
+    for (int i = 0; i < PATHS_SIZE; i++)
     {
-      matchIdx = i;
-      break;
+        isMatchAsc = PATHS[i][0] == init &&
+                     PATHS[i][PATHS_ITEM_LEN - 1] == finish;
+
+        isMatchDesc = PATHS[i][0] == finish &&
+                      PATHS[i][PATHS_ITEM_LEN - 1] == init;
+
+        if (isMatchAsc || isMatchDesc)
+        {
+            matchIdx = i;
+            break;
+        }
     }
-  }
 
-  if (matchIdx == -1)
-  {
-    Serial.println(F("No shortest path could be found"));
-    return;
-  }
+    if (matchIdx == -1)
+    {
+        Serial.println(F("No shortest path could be found"));
+        return;
+    }
 
-  for (int i = 0; i < PATHS_ITEM_LEN; i++)
-  {
-    pathBuf[i] = PATHS[matchIdx][i];
-  }
+    for (int i = 0; i < PATHS_ITEM_LEN; i++)
+    {
+        pathBuf[i] = PATHS[matchIdx][i];
+    }
 
-  if (isMatchDesc)
-  {
-    reverseRange(pathBuf, 0, PATHS_ITEM_LEN - 1);
-  }
+    if (isMatchDesc)
+    {
+        reverseRange(pathBuf, 0, PATHS_ITEM_LEN - 1);
+    }
 
-  int idxCol;
-  int idxRow;
+    int idxCol;
+    int idxRow;
 
-  for (int i = 0; i < PATHS_ITEM_LEN; i++)
-  {
-    idxCol = pathBuf[i] % MATRIX_SIZE;
-    idxRow = floor(((float)pathBuf[i]) / MATRIX_SIZE);
-    ledPathBuf[i] = LED_MAP[idxRow][idxCol];
-  }
+    for (int i = 0; i < PATHS_ITEM_LEN; i++)
+    {
+        idxCol = pathBuf[i] % MATRIX_SIZE;
+        idxRow = floor(((float)pathBuf[i]) / MATRIX_SIZE);
+        ledPathBuf[i] = LED_MAP[idxRow][idxCol];
+    }
 }
 
 /**
@@ -886,307 +886,307 @@ void updatePathBuffers(int init, int finish)
 
 void initLeds()
 {
-  ledBook.begin();
-  ledBook.setBrightness(LED_BOOK_BRIGHTNESS);
-  ledBook.show();
+    ledBook.begin();
+    ledBook.setBrightness(LED_BOOK_BRIGHTNESS);
+    ledBook.show();
 
-  clearLedsBook();
+    clearLedsBook();
 
-  ledPipes.begin();
-  ledPipes.setBrightness(LED_PIPES_BRIGHTNESS);
-  ledPipes.show();
+    ledPipes.begin();
+    ledPipes.setBrightness(LED_PIPES_BRIGHTNESS);
+    ledPipes.show();
 
-  clearLedsPipes();
+    clearLedsPipes();
 
-  for (int i = 0; i < MICS_NUM; i++)
-  {
-    ledMics[i].begin();
-    ledMics[i].setBrightness(LED_MICS_BRIGHTNESS);
-    ledMics[i].clear();
-    ledMics[i].show();
-  }
+    for (int i = 0; i < MICS_NUM; i++)
+    {
+        ledMics[i].begin();
+        ledMics[i].setBrightness(LED_MICS_BRIGHTNESS);
+        ledMics[i].clear();
+        ledMics[i].show();
+    }
 }
 
 void clearLedsBook()
 {
-  ledBook.clear();
-  ledBook.show();
+    ledBook.clear();
+    ledBook.show();
 }
 
 void clearLedsPipes()
 {
-  ledPipes.clear();
-  ledPipes.show();
+    ledPipes.clear();
+    ledPipes.show();
 }
 
 void fadeBookLedPattern()
 {
-  clearLedsBook();
+    clearLedsBook();
 
-  const int iniVal = 0;
-  const int endVal = 250;
+    const int iniVal = 0;
+    const int endVal = 250;
 
-  for (int k = iniVal; k < endVal; k++)
-  {
-    for (int i = 0; i < HISTORY_PATH_SIZE; i++)
+    for (int k = iniVal; k < endVal; k++)
     {
-      if (progState.historyPathLed[i] == -1)
-      {
-        break;
-      }
+        for (int i = 0; i < HISTORY_PATH_SIZE; i++)
+        {
+            if (progState.historyPathLed[i] == -1)
+            {
+                break;
+            }
 
-      ledBook.setPixelColor(progState.historyPathLed[i], 0, 0, k);
+            ledBook.setPixelColor(progState.historyPathLed[i], 0, 0, k);
+        }
+
+        ledBook.show();
+
+        delay(LED_BOOK_FADE_MS);
     }
-
-    ledBook.show();
-
-    delay(LED_BOOK_FADE_MS);
-  }
 }
 
 void animateBookLedPattern()
 {
-  int pivotIdx;
+    int pivotIdx;
 
-  for (int i = 0; i < HISTORY_PATH_SIZE; i++)
-  {
+    for (int i = 0; i < HISTORY_PATH_SIZE; i++)
+    {
+        clearLedsBook();
+
+        if (progState.historyPathLed[i] == -1)
+        {
+            break;
+        }
+
+        for (int j = 0; j < LED_BOOK_PATTERN_TAIL_SIZE; j++)
+        {
+            pivotIdx = i + j;
+
+            if (progState.historyPathLed[pivotIdx] == -1)
+            {
+                break;
+            }
+
+            ledBook.setPixelColor(progState.historyPathLed[pivotIdx], LED_BOOK_COLOR);
+        }
+
+        ledBook.show();
+
+        delay(LED_BOOK_PATTERN_ANIMATE_MS);
+    }
+
     clearLedsBook();
-
-    if (progState.historyPathLed[i] == -1)
-    {
-      break;
-    }
-
-    for (int j = 0; j < LED_BOOK_PATTERN_TAIL_SIZE; j++)
-    {
-      pivotIdx = i + j;
-
-      if (progState.historyPathLed[pivotIdx] == -1)
-      {
-        break;
-      }
-
-      ledBook.setPixelColor(progState.historyPathLed[pivotIdx], LED_BOOK_COLOR);
-    }
-
-    ledBook.show();
-
-    delay(LED_BOOK_PATTERN_ANIMATE_MS);
-  }
-
-  clearLedsBook();
 }
 
 int getLedCoilLoopSize(int runesHistoryLen)
 {
-  float coilProgress = (float)runesHistoryLen / RUNES_KEY_NUM;
-  return (LED_PIPES_COIL_END - LED_PIPES_COIL_INI) * coilProgress;
+    float coilProgress = (float)runesHistoryLen / RUNES_KEY_NUM;
+    return (LED_PIPES_COIL_END - LED_PIPES_COIL_INI) * coilProgress;
 }
 
 int getLedCoilLoopSize()
 {
-  return getLedCoilLoopSize(getHistoryRunesSize());
+    return getLedCoilLoopSize(getHistoryRunesSize());
 }
 
 uint32_t getPipeColor()
 {
-  return Adafruit_NeoPixel::Color(0, random(150, 250), random(150, 250));
+    return Adafruit_NeoPixel::Color(0, random(150, 250), random(150, 250));
 }
 
 void animateRunePipeBlob(int runeIdx)
 {
-  int prevRunesLen = getHistoryRunesSize();
-  prevRunesLen = prevRunesLen > 0 ? prevRunesLen - 1 : 0;
-  int prevCoilSize = getLedCoilLoopSize(prevRunesLen);
+    int prevRunesLen = getHistoryRunesSize();
+    prevRunesLen = prevRunesLen > 0 ? prevRunesLen - 1 : 0;
+    int prevCoilSize = getLedCoilLoopSize(prevRunesLen);
 
-  int blobEnd = LED_PIPES_COIL_END - prevCoilSize;
-  int pivotIdx = RUNES_LED_INDEX[runeIdx];
+    int blobEnd = LED_PIPES_COIL_END - prevCoilSize;
+    int pivotIdx = RUNES_LED_INDEX[runeIdx];
 
-  for (int i = 0; i < blobEnd; i++)
-  {
-    ledPipes.setPixelColor(i, 0);
-  }
-
-  ledPipes.show();
-
-  for (int k = 0; k < LED_PIPES_BLOB_NUM_PULSES; k++)
-  {
-    for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
-    {
-      ledPipes.setPixelColor(pivotIdx + i, getPipeColor());
-    }
-
-    ledPipes.show();
-    delay(LED_PIPES_BLOB_PULSE_DELAY);
-
-    for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
-    {
-      ledPipes.setPixelColor(pivotIdx + i, 0);
-    }
-
-    ledPipes.show();
-    delay(LED_PIPES_BLOB_PULSE_DELAY);
-  }
-
-  while (pivotIdx < blobEnd)
-  {
     for (int i = 0; i < blobEnd; i++)
     {
-      ledPipes.setPixelColor(i, 0);
+        ledPipes.setPixelColor(i, 0);
     }
 
-    for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
+    ledPipes.show();
+
+    for (int k = 0; k < LED_PIPES_BLOB_NUM_PULSES; k++)
     {
-      ledPipes.setPixelColor(pivotIdx + i, getPipeColor());
+        for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
+        {
+            ledPipes.setPixelColor(pivotIdx + i, getPipeColor());
+        }
+
+        ledPipes.show();
+        delay(LED_PIPES_BLOB_PULSE_DELAY);
+
+        for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
+        {
+            ledPipes.setPixelColor(pivotIdx + i, 0);
+        }
+
+        ledPipes.show();
+        delay(LED_PIPES_BLOB_PULSE_DELAY);
     }
 
-    pivotIdx++;
+    while (pivotIdx < blobEnd)
+    {
+        for (int i = 0; i < blobEnd; i++)
+        {
+            ledPipes.setPixelColor(i, 0);
+        }
+
+        for (int i = 0; i < LED_PIPES_BLOB_SIZE; i++)
+        {
+            ledPipes.setPixelColor(pivotIdx + i, getPipeColor());
+        }
+
+        pivotIdx++;
+        ledPipes.show();
+        delay(LED_PIPES_ANIMATE_BLOB_DELAY_MS);
+    }
+
+    for (int i = 0; i < blobEnd; i++)
+    {
+        ledPipes.setPixelColor(i, 0);
+    }
+
     ledPipes.show();
-    delay(LED_PIPES_ANIMATE_BLOB_DELAY_MS);
-  }
 
-  for (int i = 0; i < blobEnd; i++)
-  {
-    ledPipes.setPixelColor(i, 0);
-  }
+    int coilIni = LED_PIPES_COIL_END - getLedCoilLoopSize();
 
-  ledPipes.show();
-
-  int coilIni = LED_PIPES_COIL_END - getLedCoilLoopSize();
-
-  for (int i = blobEnd; i >= coilIni; i--)
-  {
-    ledPipes.setPixelColor(i, getPipeColor());
-    ledPipes.show();
-    delay(LED_PIPES_COIL_FILL_DELAY_MS);
-  }
+    for (int i = blobEnd; i >= coilIni; i--)
+    {
+        ledPipes.setPixelColor(i, getPipeColor());
+        ledPipes.show();
+        delay(LED_PIPES_COIL_FILL_DELAY_MS);
+    }
 }
 
 void animateLedPipesSuccess()
 {
-  clearLedsPipes();
+    clearLedsPipes();
 
-  int incPivotIdx = LED_PIPES_COIL_END;
-  int decPivotIdx = LED_PIPES_COIL_END;
+    int incPivotIdx = LED_PIPES_COIL_END;
+    int decPivotIdx = LED_PIPES_COIL_END;
 
-  while (incPivotIdx < LED_PIPES_NUM || decPivotIdx >= 0)
-  {
-    if (incPivotIdx < LED_PIPES_NUM)
+    while (incPivotIdx < LED_PIPES_NUM || decPivotIdx >= 0)
     {
-      ledPipes.setPixelColor(incPivotIdx, getPipeColor());
-      incPivotIdx++;
-    }
+        if (incPivotIdx < LED_PIPES_NUM)
+        {
+            ledPipes.setPixelColor(incPivotIdx, getPipeColor());
+            incPivotIdx++;
+        }
 
-    if (decPivotIdx >= 0)
-    {
-      ledPipes.setPixelColor(decPivotIdx, getPipeColor());
-      decPivotIdx--;
-    }
+        if (decPivotIdx >= 0)
+        {
+            ledPipes.setPixelColor(decPivotIdx, getPipeColor());
+            decPivotIdx--;
+        }
 
-    ledPipes.show();
-    delay(LED_PIPES_SUCCESS_ANIMATE_DELAY);
-  }
+        ledPipes.show();
+        delay(LED_PIPES_SUCCESS_ANIMATE_DELAY);
+    }
 }
 
 void animateLedPipesError()
 {
-  clearLedsPipes();
+    clearLedsPipes();
 
-  int delayMs = LED_PIPES_ERROR_INI_DELAY;
+    int delayMs = LED_PIPES_ERROR_INI_DELAY;
 
-  for (int k = 0; k < LED_PIPES_ERROR_NUM_ITERS; k++)
-  {
-    for (int i = 0; i < LED_PIPES_NUM; i++)
+    for (int k = 0; k < LED_PIPES_ERROR_NUM_ITERS; k++)
     {
-      ledPipes.setPixelColor(i, random(150, 250), 0, 0);
+        for (int i = 0; i < LED_PIPES_NUM; i++)
+        {
+            ledPipes.setPixelColor(i, random(150, 250), 0, 0);
+        }
+
+        ledPipes.show();
+        delay(delayMs);
+
+        for (int i = 0; i < LED_PIPES_NUM; i++)
+        {
+            ledPipes.setPixelColor(i, 0);
+        }
+
+        ledPipes.show();
+        delay(delayMs);
+
+        delayMs = delayMs + LED_PIPES_ERROR_DELAY_STEP;
     }
-
-    ledPipes.show();
-    delay(delayMs);
-
-    for (int i = 0; i < LED_PIPES_NUM; i++)
-    {
-      ledPipes.setPixelColor(i, 0);
-    }
-
-    ledPipes.show();
-    delay(delayMs);
-
-    delayMs = delayMs + LED_PIPES_ERROR_DELAY_STEP;
-  }
 }
 
 void refreshLedsBook()
 {
-  ledBook.clear();
+    ledBook.clear();
 
-  for (int i = 0; i < HISTORY_PATH_SIZE; i++)
-  {
-    if (progState.historyPathLed[i] == -1)
+    for (int i = 0; i < HISTORY_PATH_SIZE; i++)
     {
-      break;
+        if (progState.historyPathLed[i] == -1)
+        {
+            break;
+        }
+
+        ledBook.setPixelColor(progState.historyPathLed[i], LED_BOOK_COLOR);
     }
 
-    ledBook.setPixelColor(progState.historyPathLed[i], LED_BOOK_COLOR);
-  }
-
-  ledBook.show();
+    ledBook.show();
 }
 
 void refreshLedsPipes()
 {
-  ledPipes.clear();
+    ledPipes.clear();
 
-  if (progState.isRunePhaseComplete)
-  {
-    for (int i = 0; i < LED_PIPES_NUM; i++)
+    if (progState.isRunePhaseComplete)
     {
-      ledPipes.setPixelColor(i, getPipeColor());
+        for (int i = 0; i < LED_PIPES_NUM; i++)
+        {
+            ledPipes.setPixelColor(i, getPipeColor());
+        }
     }
-  }
-  else
-  {
-    int currRuneIdx;
-
-    for (int i = 0; i < RUNES_KEY_NUM; i++)
+    else
     {
-      if (progState.historyRunes[i] == -1)
-      {
-        break;
-      }
+        int currRuneIdx;
 
-      currRuneIdx = RUNES_LED_INDEX[progState.historyRunes[i]];
+        for (int i = 0; i < RUNES_KEY_NUM; i++)
+        {
+            if (progState.historyRunes[i] == -1)
+            {
+                break;
+            }
 
-      for (int j = 0; j < LED_PIPES_BLOB_SIZE; j++)
-      {
-        ledPipes.setPixelColor(currRuneIdx + j, getPipeColor());
-      }
+            currRuneIdx = RUNES_LED_INDEX[progState.historyRunes[i]];
+
+            for (int j = 0; j < LED_PIPES_BLOB_SIZE; j++)
+            {
+                ledPipes.setPixelColor(currRuneIdx + j, getPipeColor());
+            }
+        }
+
+        int coilSize = getLedCoilLoopSize();
+
+        for (int i = 0; i < coilSize; i++)
+        {
+            ledPipes.setPixelColor(LED_PIPES_COIL_END - i, getPipeColor());
+        }
     }
 
-    int coilSize = getLedCoilLoopSize();
-
-    for (int i = 0; i < coilSize; i++)
-    {
-      ledPipes.setPixelColor(LED_PIPES_COIL_END - i, getPipeColor());
-    }
-  }
-
-  ledPipes.show();
+    ledPipes.show();
 }
 
 void refreshLedsMics()
 {
-  for (int i = 0; i < MICS_NUM; i++)
-  {
-    ledMics[i].clear();
-
-    for (int j = 0; j < progState.micsLedLevel[i]; j++)
+    for (int i = 0; i < MICS_NUM; i++)
     {
-      ledMics[i].setPixelColor(j, LED_MICS_COLOR);
-    }
+        ledMics[i].clear();
 
-    ledMics[i].show();
-  }
+        for (int j = 0; j < progState.micsLedLevel[i]; j++)
+        {
+            ledMics[i].setPixelColor(j, LED_MICS_COLOR);
+        }
+
+        ledMics[i].show();
+    }
 }
 
 /**
@@ -1195,201 +1195,200 @@ void refreshLedsMics()
 
 bool shouldListenToMics()
 {
-  return progState.isRunePhaseComplete == true &&
-         progState.isRfidPhaseComplete == true &&
-         progState.isMicsPhaseComplete == false;
+    return progState.isRunePhaseComplete == true &&
+           progState.isRfidPhaseComplete == true &&
+           progState.isMicsPhaseComplete == false;
 }
 
 void onMicChange(int idx, int v, int up)
 {
-  if (!shouldListenToMics())
-  {
-    return;
-  }
-
-  Serial.print(F("Mics :: #"));
-  Serial.print(idx);
-  Serial.print(F(" :: "));
-  Serial.println(v);
-
-  if (v > progState.micsLedLevel[idx])
-  {
-    progState.micsLedLevel[idx] = v;
-    refreshLedsMics();
-
-    Serial.print(F("Mics :: "));
-    Serial.print(idx);
-    Serial.print(" LED level ++ :: ");
-    Serial.println(progState.micsLedLevel[idx]);
-  }
-  else if (v < progState.micsLedLevel[idx])
-  {
-    int levelDiff = progState.micsLedLevel[idx] - v;
-    bool isCurrentLevelOverMin = progState.micsLedLevel[idx] > MICS_RANGE_MIN;
-    bool isMinLevel = v == MICS_RANGE_MIN && isCurrentLevelOverMin;
-    bool isLevelTooLow = levelDiff > MICS_RANGE_MAINTAIN_LEVEL_DIFF;
-
-    if (isMinLevel || isLevelTooLow)
+    if (!shouldListenToMics())
     {
-      progState.micsLedLevel[idx]--;
-      refreshLedsMics();
-
-      Serial.print(F("Mics :: "));
-      Serial.print(idx);
-      Serial.print(" LED level -- :: ");
-      Serial.println(progState.micsLedLevel[idx]);
+        return;
     }
-  }
 
-  progState.micsLastRead[idx] = millis();
+    Serial.print(F("Mics #"));
+    Serial.print(idx);
+    Serial.print(F(" :: "));
+    Serial.println(v);
+
+    if (v > progState.micsLedLevel[idx])
+    {
+        progState.micsLedLevel[idx] = v;
+        refreshLedsMics();
+
+        Serial.print(F("Mics :: #"));
+        Serial.print(idx);
+        Serial.print(F(" :: +LED :: "));
+        Serial.println(progState.micsLedLevel[idx]);
+    }
+    else if (v < progState.micsLedLevel[idx])
+    {
+        int levelDiff = progState.micsLedLevel[idx] - v;
+        bool isCurrentLevelOverMin = progState.micsLedLevel[idx] > MICS_RANGE_MIN;
+        bool isMinLevel = v == MICS_RANGE_MIN && isCurrentLevelOverMin;
+        bool isLevelTooLow = levelDiff > MICS_RANGE_MAINTAIN_LEVEL_DIFF;
+
+        if (isMinLevel || isLevelTooLow)
+        {
+            progState.micsLedLevel[idx]--;
+            refreshLedsMics();
+
+            Serial.print(F("Mics :: #"));
+            Serial.print(idx);
+            Serial.print(F(" :: -LED :: "));
+            Serial.println(progState.micsLedLevel[idx]);
+        }
+    }
+
+    progState.micsLastRead[idx] = millis();
 }
 
 void initMics()
 {
-  for (int i = 0; i < MICS_NUM; i++)
-  {
-    mics[i]
-        .begin(MICS_PIN[i], MICS_SAMPLE_RATE_MS)
-        .range(MICS_RANGE_MIN, MICS_RANGE_MAX)
-        .average(micsAvgBufs[i], sizeof(micsAvgBufs[i]))
-        .onChange(onMicChange, i);
+    for (int i = 0; i < MICS_NUM; i++)
+    {
+        mics[i]
+            .begin(MICS_PIN[i], MICS_SAMPLE_RATE_MS)
+            .range(MICS_RANGE_MIN, MICS_RANGE_MAX)
+            .average(micsAvgBufs[i], sizeof(micsAvgBufs[i]))
+            .onChange(onMicChange, i);
 
-    progState.micsLedLevel[i] = MICS_RANGE_MIN;
-    progState.micsLastRead[i] = 0;
-  }
+        progState.micsLedLevel[i] = MICS_RANGE_MIN;
+        progState.micsLastRead[i] = 0;
+    }
 }
 
 bool isMicsLevelValid()
 {
-  bool isValidLevel;
+    bool isValidLevel;
 
-  for (int i = 0; i < MICS_NUM; i++)
-  {
-    isValidLevel =
-        progState.micsLedLevel[i] >= MICS_THRESHOLD_MIN &&
-        progState.micsLedLevel[i] <= MICS_THRESHOLD_MAX;
-
-    if (!isValidLevel)
+    for (int i = 0; i < MICS_NUM; i++)
     {
-      return false;
-    }
-  }
+        isValidLevel = progState.micsLedLevel[i] >= MICS_THRESHOLD_MIN &&
+                       progState.micsLedLevel[i] <= MICS_THRESHOLD_MAX;
 
-  return true;
+        if (!isValidLevel)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void resetMicsLastRead()
 {
-  for (int i = 0; i < MICS_NUM; i++)
-  {
-    progState.micsLastRead[i] = 0;
-  }
+    for (int i = 0; i < MICS_NUM; i++)
+    {
+        progState.micsLastRead[i] = 0;
+    }
 }
 
 bool isMicsUpdateRecent()
 {
-  unsigned long now = millis();
+    unsigned long now = millis();
 
-  bool isRecent;
-  unsigned long diff;
+    bool isRecent;
+    unsigned long diff;
 
-  for (int i = 0; i < MICS_NUM; i++)
-  {
-    if (now < progState.micsLastRead[i])
+    for (int i = 0; i < MICS_NUM; i++)
     {
-      Serial.println(F("Mics :: Timer overflow"));
-      resetMicsLastRead();
-      return false;
+        if (now < progState.micsLastRead[i])
+        {
+            Serial.println(F("Mics :: Timer overflow"));
+            resetMicsLastRead();
+            return false;
+        }
+
+        diff = now - progState.micsLastRead[i];
+
+        if (diff > MICS_TIMER_MS)
+        {
+            return false;
+        }
     }
 
-    diff = now - progState.micsLastRead[i];
-
-    if (diff > MICS_TIMER_MS)
-    {
-      return false;
-    }
-  }
-
-  return true;
+    return true;
 }
 
 void decreaseMicsLedLevel()
 {
-  for (int i = 0; i < MICS_NUM; i++)
-  {
-    if (progState.micsLedLevel[i] > 0)
+    for (int i = 0; i < MICS_NUM; i++)
     {
-      progState.micsLedLevel[i]--;
+        if (progState.micsLedLevel[i] > 0)
+        {
+            progState.micsLedLevel[i]--;
 
-      Serial.print(F("Mics :: "));
-      Serial.print(i);
-      Serial.print(" LED level -- :: ");
-      Serial.println(progState.micsLedLevel[i]);
+            Serial.print(F("Mics :: #"));
+            Serial.print(i);
+            Serial.print(F(" :: -LED :: "));
+            Serial.println(progState.micsLedLevel[i]);
+        }
     }
-  }
 
-  refreshLedsMics();
+    refreshLedsMics();
 }
 
 void onMicsPhaseComplete()
 {
-  Serial.println(F("Mics :: Completed"));
-  openRelayMics();
-  progState.isMicsPhaseComplete = true;
+    Serial.println(F("Mics :: Completed"));
+    openRelayMics();
+    progState.isMicsPhaseComplete = true;
 }
 
 bool isMicsPhaseComplete()
 {
-  return progState.micsValidLevelCounter >= MICS_VALID_COUNTER_TARGET;
+    return progState.micsValidLevelCounter >= MICS_VALID_COUNTER_TARGET;
 }
 
 void onMicsTimer(int idx, int v, int up)
 {
-  if (!shouldListenToMics())
-  {
-    return;
-  }
-
-  if (isMicsPhaseComplete())
-  {
-    onMicsPhaseComplete();
-    return;
-  }
-
-  if (!isMicsUpdateRecent())
-  {
-    if (progState.micsValidLevelCounter > 0)
+    if (!shouldListenToMics())
     {
-      progState.micsValidLevelCounter--;
-      Serial.print(F("Mics :: Old (counter--) ::"));
-      Serial.println(progState.micsValidLevelCounter);
+        return;
     }
 
-    decreaseMicsLedLevel();
-    return;
-  }
+    if (isMicsPhaseComplete())
+    {
+        onMicsPhaseComplete();
+        return;
+    }
 
-  if (isMicsLevelValid())
-  {
-    progState.micsValidLevelCounter++;
-    Serial.print(F("Mics :: Valid level (counter++) ::"));
-    Serial.println(progState.micsValidLevelCounter);
-  }
-  else if (progState.micsValidLevelCounter > 0)
-  {
-    progState.micsValidLevelCounter--;
-    Serial.print(F("Mics :: Invalid level (counter--) ::"));
-    Serial.println(progState.micsValidLevelCounter);
-  }
+    if (!isMicsUpdateRecent())
+    {
+        if (progState.micsValidLevelCounter > 0)
+        {
+            progState.micsValidLevelCounter--;
+            Serial.print(F("Mics :: Expired (-counter) ::"));
+            Serial.println(progState.micsValidLevelCounter);
+        }
+
+        decreaseMicsLedLevel();
+        return;
+    }
+
+    if (isMicsLevelValid())
+    {
+        progState.micsValidLevelCounter++;
+        Serial.print(F("Mics :: Level valid (+counter) ::"));
+        Serial.println(progState.micsValidLevelCounter);
+    }
+    else if (progState.micsValidLevelCounter > 0)
+    {
+        progState.micsValidLevelCounter--;
+        Serial.print(F("Mics :: Level invalid (-counter) ::"));
+        Serial.println(progState.micsValidLevelCounter);
+    }
 }
 
 void initMicsTimer()
 {
-  micsTimer
-      .begin(MICS_TIMER_MS)
-      .repeat(-1)
-      .onTimer(onMicsTimer)
-      .start();
+    micsTimer
+        .begin(MICS_TIMER_MS)
+        .repeat(-1)
+        .onTimer(onMicsTimer)
+        .start();
 }
 
 /**
@@ -1398,48 +1397,49 @@ void initMicsTimer()
 
 void initRfid()
 {
-  rfidReader.begin();
+    rfidReader.begin();
 }
 
 void onRfidPhaseComplete()
 {
-  Serial.print(F("RFID phase complete"));
-  openRelayRfid();
-  progState.isRfidPhaseComplete = true;
+    Serial.print(F("RFID phase complete"));
+    openRelayRfid();
+    progState.isRfidPhaseComplete = true;
 }
 
 void pollRfidReader()
 {
-  if (!shouldPollRfid())
-  {
-    return;
-  }
-
-  String tagId;
-
-  tagId = rfidReader.getTagId();
-
-  if (!tagId.length())
-  {
-    return;
-  }
-
-  Serial.print(F("Tag: "));
-  Serial.println(tagId);
-
-  for (int i = 0; i < NUM_VALID_TAGS; i++)
-  {
-    if (validTags[i].compareTo(tagId) == 0)
+    if (!shouldPollRfid())
     {
-      onRfidPhaseComplete();
+        return;
     }
-  }
+
+    String tagId;
+
+    tagId = rfidReader.getTagId();
+
+    if (!tagId.length())
+    {
+        return;
+    }
+
+    Serial.print(F("Tag: "));
+    Serial.println(tagId);
+
+    for (int i = 0; i < NUM_VALID_TAGS; i++)
+    {
+        if (validTags[i].compareTo(tagId) == 0)
+        {
+            onRfidPhaseComplete();
+            return;
+        }
+    }
 }
 
 bool shouldPollRfid()
 {
-  return progState.isRunePhaseComplete == true &&
-         progState.isRfidPhaseComplete == false;
+    return progState.isRunePhaseComplete == true &&
+           progState.isRfidPhaseComplete == false;
 }
 
 /**
@@ -1448,31 +1448,31 @@ bool shouldPollRfid()
 
 void lockRelayRfid()
 {
-  digitalWrite(RELAY_PIN_RFID, LOW);
+    digitalWrite(RELAY_PIN_RFID, LOW);
 }
 
 void openRelayRfid()
 {
-  digitalWrite(RELAY_PIN_RFID, HIGH);
+    digitalWrite(RELAY_PIN_RFID, HIGH);
 }
 
 void lockRelayMics()
 {
-  digitalWrite(RELAY_PIN_MICS, LOW);
+    digitalWrite(RELAY_PIN_MICS, LOW);
 }
 
 void openRelayMics()
 {
-  digitalWrite(RELAY_PIN_MICS, HIGH);
+    digitalWrite(RELAY_PIN_MICS, HIGH);
 }
 
 void initRelays()
 {
-  pinMode(RELAY_PIN_RFID, OUTPUT);
-  pinMode(RELAY_PIN_MICS, OUTPUT);
+    pinMode(RELAY_PIN_RFID, OUTPUT);
+    pinMode(RELAY_PIN_MICS, OUTPUT);
 
-  lockRelayRfid();
-  lockRelayMics();
+    lockRelayRfid();
+    lockRelayMics();
 }
 
 /**
@@ -1481,27 +1481,27 @@ void initRelays()
 
 void setup()
 {
-  Serial.begin(9600);
+    Serial.begin(9600);
 
-  emptyHistoryRunes();
-  emptyPathBuffers();
-  emptyHistorySensor();
-  emptyHistoryPath();
-  initProximitySensors();
-  initLeds();
-  initServo();
-  initRfid();
-  initRelays();
-  initMics();
-  initMicsTimer();
+    emptyHistoryRunes();
+    emptyPathBuffers();
+    emptyHistorySensor();
+    emptyHistoryPath();
+    initProximitySensors();
+    initLeds();
+    initServo();
+    initRfid();
+    initRelays();
+    initMics();
+    initMicsTimer();
 
-  Serial.println(F(">> Starting Runebook program"));
+    Serial.println(F(">> Starting Runebook program"));
 }
 
 void loop()
 {
-  automaton.run();
-  refreshLedsBook();
-  refreshLedsPipes();
-  pollRfidReader();
+    automaton.run();
+    refreshLedsBook();
+    refreshLedsPipes();
+    pollRfidReader();
 }
