@@ -1360,7 +1360,7 @@ void onMicsTimer(int idx, int v, int up)
         if (progState.micsValidLevelCounter > 0)
         {
             progState.micsValidLevelCounter--;
-            Serial.print(F("Mics :: Expired (-counter) ::"));
+            Serial.print(F("Mics :: Expired (-counter) :: "));
             Serial.println(progState.micsValidLevelCounter);
         }
 
@@ -1371,13 +1371,13 @@ void onMicsTimer(int idx, int v, int up)
     if (isMicsLevelValid())
     {
         progState.micsValidLevelCounter++;
-        Serial.print(F("Mics :: Level valid (+counter) ::"));
+        Serial.print(F("Mics :: Level valid (+counter) :: "));
         Serial.println(progState.micsValidLevelCounter);
     }
     else if (progState.micsValidLevelCounter > 0)
     {
         progState.micsValidLevelCounter--;
-        Serial.print(F("Mics :: Level invalid (-counter) ::"));
+        Serial.print(F("Mics :: Level invalid (-counter) :: "));
         Serial.println(progState.micsValidLevelCounter);
     }
 }
