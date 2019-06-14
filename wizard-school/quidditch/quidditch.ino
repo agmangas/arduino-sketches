@@ -17,7 +17,7 @@ const byte PIN_TRACK_GOAL = A2;
 const byte PIN_TRACK_FAIL = A1;
 const byte PIN_TRACK_VICTORY = 11;
 
-const int TRACK_VICTORY_MS = 8000;
+const int TRACK_VICTORY_MS = 9000;
 
 /**
  * Proximity sensors.
@@ -222,7 +222,7 @@ int getResultLedsPerLevel()
 void showResults()
 {
     int numPerLevel = getResultLedsPerLevel();
-    int currIdx = 0;
+    int currIdx = LED_RESULT_NUM - 1;
 
     resultLedStrip.clear();
     resultLedStrip.show();
@@ -243,7 +243,7 @@ void showResults()
             resultLedStrip.setPixelColor(currIdx, color);
             resultLedStrip.show();
 
-            currIdx++;
+            currIdx--;
         }
     }
 }
