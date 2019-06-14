@@ -306,7 +306,10 @@ std::vector<byte> RUNES_PATHS[RUNES_NUM] = {
 const int SERVO_PIN = 12;
 const int SERVO_STEP_SIZE = 180;
 const int SERVO_STEP_TIME = 0;
-const int SERVO_TIMER_MS = 1500;
+const int SERVO_TIMER_MS = 100;
+const int SERVO_POS_HI = 20;
+const int SERVO_POS_LO = 150;
+const int SERVO_REPEATS = 100;
 
 Atm_servo servo;
 Atm_timer timerServo;
@@ -359,8 +362,8 @@ ProgramState progState = {
 
 void onServoTimer(int idx, int v, int up)
 {
-    int servoPos = random(0, 181);
-    Serial.print(F("Moving servo to: "));
+    int servoPos = up % 2 == 0 ? SERVO_POS_HI : SERVO_POS_LO;
+    Serial.print(F("Moving servo: "));
     Serial.println(servoPos);
     servo.position(servoPos);
 }
@@ -372,7 +375,7 @@ void initServo()
         .step(SERVO_STEP_SIZE, SERVO_STEP_TIME);
 
     timerServo.begin(SERVO_TIMER_MS)
-        .repeat(-1)
+        .repeat(SERVO_REPEATS)
         .onTimer(onServoTimer);
 }
 
