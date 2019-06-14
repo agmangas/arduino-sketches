@@ -15,7 +15,9 @@ const byte PIN_AUDIO_RST = 6;
 const byte PIN_AUDIO_ACT = 5;
 const byte PIN_TRACK_GOAL = A2;
 const byte PIN_TRACK_FAIL = A1;
-const byte PIN_TRACK_VICTORY = A0;
+const byte PIN_TRACK_VICTORY = 11;
+
+const int TRACK_VICTORY_MS = 8000;
 
 /**
  * Proximity sensors.
@@ -107,6 +109,7 @@ ProgramState progState = {
 void onVictory()
 {
     playTrack(PIN_TRACK_VICTORY);
+    delay(TRACK_VICTORY_MS);
     progState.isVictory = true;
     openRelay();
     Serial.println(F("Victory"));
