@@ -105,7 +105,6 @@ Atm_controller proxSensorsConfirmControl;
  */
 
 const int MICS_NUM = 2;
-const int MICS_AVG_BUF_SIZE = 5;
 const int MICS_SAMPLE_RATE_MS = 50;
 const int MICS_RANGE_MIN = 0;
 const int MICS_RANGE_MAX = 10;
@@ -117,9 +116,7 @@ const int MICS_THRESHOLD_MIN = 3;
 const int MICS_THRESHOLD_MAX = 7;
 
 const byte MICS_PIN[MICS_NUM] = {
-    34, 32};
-
-uint16_t micsAvgBufs[MICS_NUM][MICS_AVG_BUF_SIZE];
+    A5, A6};
 
 Atm_analog mics[MICS_NUM];
 
@@ -1251,7 +1248,6 @@ void initMics()
         mics[i]
             .begin(MICS_PIN[i], MICS_SAMPLE_RATE_MS)
             .range(MICS_RANGE_MIN, MICS_RANGE_MAX)
-            .average(micsAvgBufs[i], sizeof(micsAvgBufs[i]))
             .onChange(onMicChange, i);
 
         progState.micsLedLevel[i] = MICS_RANGE_MIN;
