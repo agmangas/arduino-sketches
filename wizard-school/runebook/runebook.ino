@@ -512,6 +512,8 @@ void onRunePhaseComplete()
     Serial.println("Starting servo timer");
     timerServo.start();
     progState.isRunePhaseComplete = true;
+    refreshLedsBook();
+    refreshLedsPipes();
 }
 
 void onSensorPatternConfirmed()
@@ -1405,11 +1407,6 @@ void onRfidPhaseComplete()
 
 void pollRfidReader()
 {
-    if (!shouldPollRfid())
-    {
-        return;
-    }
-
     String tagId;
 
     tagId = rfidReader.getTagId();
@@ -1497,7 +1494,14 @@ void setup()
 void loop()
 {
     automaton.run();
-    refreshLedsBook();
-    refreshLedsPipes();
-    pollRfidReader();
+
+    if (shouldListenToProxSensors())
+    {
+        refreshLedsBook();
+        refreshLedsPipes();
+    }
+    else if (shouldPollRfid())
+    {
+        pollRfidReader();
+    }
 }
