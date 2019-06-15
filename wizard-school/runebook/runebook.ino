@@ -113,6 +113,7 @@ const int MICS_VALID_COUNTER_TARGET = 15;
 // Inclusive
 const int MICS_THRESHOLD_MIN = 3;
 const int MICS_THRESHOLD_MAX = MICS_RANGE_MAX;
+const int MICS_ACTIVATION_MIN = 2;
 
 const byte MICS_PIN[MICS_NUM] = {
     A5, A6};
@@ -126,10 +127,10 @@ const int MICS_RECENT_TIMER_RATIO = 1;
  * LED strip (microphones).
  */
 
-const int LED_MICS_BRIGHTNESS = 200;
+const int LED_MICS_BRIGHTNESS = 30;
 const int LED_MICS_PINS[MICS_NUM] = {28, 30};
 const int LED_MICS_NUM[MICS_NUM] = {10, 10};
-const uint32_t LED_MICS_COLOR = Adafruit_NeoPixel::Color(255, 131, 0);
+const uint32_t LED_MICS_COLOR = Adafruit_NeoPixel::Color(200, 0, 0);
 const int LED_MICS_HIDE_LT_LEVEL = 2;
 
 Adafruit_NeoPixel ledMic01 = Adafruit_NeoPixel(
@@ -1215,9 +1216,14 @@ void onMicChange(int idx, int v, int up)
     Serial.print(F(" :: "));
     Serial.println(v);
 
-    if (v > progState.micsLedLevel[idx])
+    if (v < MICS_ACTIVATION_MIN)
     {
-        progState.micsLedLevel[idx] = v;
+        return;
+    }
+
+    if (progState.micsLedLevel[idx] < MICS_RANGE_MAX)
+    {
+        progState.micsLedLevel[idx]++;
         refreshLedsMics();
 
         Serial.print(F("Mics :: #"));
@@ -1394,6 +1400,8 @@ void onRfidPhaseComplete()
 void pollRfidReader()
 {
     String tagId;
+
+    Serial.println(F("Reading RFID"));
 
     tagId = rfidReader.getTagId();
 
