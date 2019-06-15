@@ -108,17 +108,19 @@ const int MICS_NUM = 2;
 const int MICS_SAMPLE_RATE_MS = 50;
 const int MICS_RANGE_MIN = 0;
 const int MICS_RANGE_MAX = 10;
-const int MICS_RANGE_MAINTAIN_LEVEL_DIFF = 2;
 const int MICS_VALID_COUNTER_TARGET = 15;
 
 // Inclusive
 const int MICS_THRESHOLD_MIN = 3;
-const int MICS_THRESHOLD_MAX = 7;
+const int MICS_THRESHOLD_MAX = MICS_RANGE_MAX;
 
 const byte MICS_PIN[MICS_NUM] = {
     A5, A6};
 
 Atm_analog mics[MICS_NUM];
+
+const int MICS_TIMER_MS = 1000;
+const int MICS_RECENT_TIMER_RATIO = 1;
 
 /**
  * LED strip (microphones).
@@ -128,6 +130,7 @@ const int LED_MICS_BRIGHTNESS = 200;
 const int LED_MICS_PINS[MICS_NUM] = {28, 30};
 const int LED_MICS_NUM[MICS_NUM] = {10, 10};
 const uint32_t LED_MICS_COLOR = Adafruit_NeoPixel::Color(255, 131, 0);
+const int LED_MICS_HIDE_LT_LEVEL = 2;
 
 Adafruit_NeoPixel ledMic01 = Adafruit_NeoPixel(
     LED_MICS_NUM[0],
@@ -142,8 +145,6 @@ Adafruit_NeoPixel ledMic02 = Adafruit_NeoPixel(
 Adafruit_NeoPixel ledMics[MICS_NUM] = {
     ledMic01,
     ledMic02};
-
-const int MICS_TIMER_MS = 1000;
 
 Atm_timer micsTimer;
 
@@ -356,6 +357,24 @@ ProgramState progState = {
     .micsLastRead = micsLastRead,
     .micsValidLevelCounter = 0};
 
+bool shouldListenToProxSensors()
+{
+    return progState.isRunePhaseComplete == false;
+}
+
+bool shouldListenToRfid()
+{
+    return progState.isRunePhaseComplete == true &&
+           progState.isRfidPhaseComplete == false;
+}
+
+bool shouldListenToMics()
+{
+    return progState.isRunePhaseComplete == true &&
+           progState.isRfidPhaseComplete == true &&
+           progState.isMicsPhaseComplete == false;
+}
+
 /**
  * Servo functions.
  */
@@ -515,8 +534,9 @@ void onRunePhaseComplete()
     Serial.println("Starting servo timer");
     timerServo.start();
     progState.isRunePhaseComplete = true;
-    refreshLedsBook();
-    refreshLedsPipes();
+    clearLedsBook();
+    ledPipes.fill(getPipeColor());
+    ledPipes.show();
 }
 
 void onSensorPatternConfirmed()
@@ -596,11 +616,6 @@ void initProximitySensors()
         .begin()
         .IF(isSensorPatternConfirmed)
         .onChange(true, onSensorPatternConfirmed);
-}
-
-bool shouldListenToProxSensors()
-{
-    return progState.isRunePhaseComplete == false;
 }
 
 /**
@@ -1139,38 +1154,28 @@ void refreshLedsPipes()
 {
     ledPipes.clear();
 
-    if (progState.isRunePhaseComplete)
+    int currRuneIdx;
+
+    for (int i = 0; i < RUNES_KEY_NUM; i++)
     {
-        for (int i = 0; i < LED_PIPES_NUM; i++)
+        if (progState.historyRunes[i] == -1)
         {
-            ledPipes.setPixelColor(i, getPipeColor());
+            break;
+        }
+
+        currRuneIdx = RUNES_LED_INDEX[progState.historyRunes[i]];
+
+        for (int j = 0; j < LED_PIPES_BLOB_SIZE; j++)
+        {
+            ledPipes.setPixelColor(currRuneIdx + j, getPipeColor());
         }
     }
-    else
+
+    int coilSize = getLedCoilLoopSize();
+
+    for (int i = 0; i < coilSize; i++)
     {
-        int currRuneIdx;
-
-        for (int i = 0; i < RUNES_KEY_NUM; i++)
-        {
-            if (progState.historyRunes[i] == -1)
-            {
-                break;
-            }
-
-            currRuneIdx = RUNES_LED_INDEX[progState.historyRunes[i]];
-
-            for (int j = 0; j < LED_PIPES_BLOB_SIZE; j++)
-            {
-                ledPipes.setPixelColor(currRuneIdx + j, getPipeColor());
-            }
-        }
-
-        int coilSize = getLedCoilLoopSize();
-
-        for (int i = 0; i < coilSize; i++)
-        {
-            ledPipes.setPixelColor(LED_PIPES_COIL_END - i, getPipeColor());
-        }
+        ledPipes.setPixelColor(LED_PIPES_COIL_END - i, getPipeColor());
     }
 
     ledPipes.show();
@@ -1182,9 +1187,12 @@ void refreshLedsMics()
     {
         ledMics[i].clear();
 
-        for (int j = 0; j < progState.micsLedLevel[i]; j++)
+        if (progState.micsLedLevel[i] > LED_MICS_HIDE_LT_LEVEL)
         {
-            ledMics[i].setPixelColor(j, LED_MICS_COLOR);
+            for (int j = 0; j < progState.micsLedLevel[i]; j++)
+            {
+                ledMics[i].setPixelColor(j, LED_MICS_COLOR);
+            }
         }
 
         ledMics[i].show();
@@ -1194,13 +1202,6 @@ void refreshLedsMics()
 /**
  * Microphones functions.
  */
-
-bool shouldListenToMics()
-{
-    return progState.isRunePhaseComplete == true &&
-           progState.isRfidPhaseComplete == true &&
-           progState.isMicsPhaseComplete == false;
-}
 
 void onMicChange(int idx, int v, int up)
 {
@@ -1223,24 +1224,6 @@ void onMicChange(int idx, int v, int up)
         Serial.print(idx);
         Serial.print(F(" :: +LED :: "));
         Serial.println(progState.micsLedLevel[idx]);
-    }
-    else if (v < progState.micsLedLevel[idx])
-    {
-        int levelDiff = progState.micsLedLevel[idx] - v;
-        bool isCurrentLevelOverMin = progState.micsLedLevel[idx] > MICS_RANGE_MIN;
-        bool isMinLevel = v == MICS_RANGE_MIN && isCurrentLevelOverMin;
-        bool isLevelTooLow = levelDiff > MICS_RANGE_MAINTAIN_LEVEL_DIFF;
-
-        if (isMinLevel || isLevelTooLow)
-        {
-            progState.micsLedLevel[idx]--;
-            refreshLedsMics();
-
-            Serial.print(F("Mics :: #"));
-            Serial.print(idx);
-            Serial.print(F(" :: -LED :: "));
-            Serial.println(progState.micsLedLevel[idx]);
-        }
     }
 
     progState.micsLastRead[idx] = millis();
@@ -1304,7 +1287,7 @@ bool isMicsUpdateRecent()
 
         diff = now - progState.micsLastRead[i];
 
-        if (diff > MICS_TIMER_MS)
+        if (diff > (MICS_TIMER_MS * MICS_RECENT_TIMER_RATIO))
         {
             return false;
         }
@@ -1432,12 +1415,6 @@ void pollRfidReader()
     }
 }
 
-bool shouldPollRfid()
-{
-    return progState.isRunePhaseComplete == true &&
-           progState.isRfidPhaseComplete == false;
-}
-
 /**
  * Relay functions.
  */
@@ -1503,7 +1480,7 @@ void loop()
         refreshLedsBook();
         refreshLedsPipes();
     }
-    else if (shouldPollRfid())
+    else if (shouldListenToRfid())
     {
         pollRfidReader();
     }
