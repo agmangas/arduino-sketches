@@ -142,16 +142,14 @@ void initOutputs()
     ledRfid
         .begin(OUTPUT_PIN_RFID)
         .blink(OUTPUT_MS_DURATION, OUTPUT_MS_PAUSE_DURATION)
-        .repeat(1)
-        .start();
+        .repeat(1);
 
     for (int i = 0; i < MICS_NUM; i++)
     {
         ledMics[i]
             .begin(OUTPUT_PIN_MICS[i])
             .blink(OUTPUT_MS_DURATION, OUTPUT_MS_PAUSE_DURATION)
-            .repeat(1)
-            .start();
+            .repeat(1);
     }
 }
 
