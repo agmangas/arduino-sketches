@@ -10,16 +10,9 @@
  * RFID reader.
  */
 
-const byte PIN_RFID_RX = 26;
-const byte PIN_RFID_TX = 27;
+const int RFID_SLAVE_PIN = 26;
 
-RDM6300 rfidReader(PIN_RFID_RX, PIN_RFID_TX);
-
-const byte NUM_VALID_TAGS = 2;
-
-String validTags[NUM_VALID_TAGS] = {
-    "1D0028450000",
-    "1D0027A3EA00"};
+Atm_button slaveRfidButton;
 
 /**
  * Relays.
@@ -105,23 +98,17 @@ Atm_controller proxSensorsConfirmControl;
  */
 
 const int MICS_NUM = 2;
-const int MICS_SAMPLE_RATE_MS = 50;
-const int MICS_RANGE_MIN = 0;
-const int MICS_RANGE_MAX = 10;
 const int MICS_VALID_COUNTER_TARGET = 15;
-
-// Inclusive
+const int MICS_LED_LEVELS = 10;
 const int MICS_THRESHOLD_MIN = 3;
-const int MICS_THRESHOLD_MAX = MICS_RANGE_MAX;
-const int MICS_ACTIVATION_MIN = 2;
-
-const byte MICS_PIN[MICS_NUM] = {
-    A5, A6};
-
-Atm_analog mics[MICS_NUM];
-
+const int MICS_THRESHOLD_MAX = MICS_LED_LEVELS;
 const int MICS_TIMER_MS = 1000;
 const int MICS_RECENT_TIMER_RATIO = 1;
+
+const byte MICS_SLAVE_PIN[MICS_NUM] = {
+    32, 34};
+
+Atm_button slaveMicButtons[MICS_NUM];
 
 /**
  * LED strip (microphones).
@@ -131,7 +118,6 @@ const int LED_MICS_BRIGHTNESS = 30;
 const int LED_MICS_PINS[MICS_NUM] = {28, 30};
 const int LED_MICS_NUM[MICS_NUM] = {10, 10};
 const uint32_t LED_MICS_COLOR = Adafruit_NeoPixel::Color(200, 0, 0);
-const int LED_MICS_HIDE_LT_LEVEL = 2;
 
 Adafruit_NeoPixel ledMic01 = Adafruit_NeoPixel(
     LED_MICS_NUM[0],
@@ -1182,18 +1168,22 @@ void refreshLedsPipes()
     ledPipes.show();
 }
 
+int micLevelToLedIndex(int ledLevel)
+{
+    return ledLevel;
+}
+
 void refreshLedsMics()
 {
     for (int i = 0; i < MICS_NUM; i++)
     {
         ledMics[i].clear();
 
-        if (progState.micsLedLevel[i] > LED_MICS_HIDE_LT_LEVEL)
+        for (int j = 0; j < progState.micsLedLevel[i]; j++)
         {
-            for (int j = 0; j < progState.micsLedLevel[i]; j++)
-            {
-                ledMics[i].setPixelColor(j, LED_MICS_COLOR);
-            }
+            ledMics[i].setPixelColor(
+                micLevelToLedIndex(j),
+                LED_MICS_COLOR);
         }
 
         ledMics[i].show();
@@ -1204,7 +1194,7 @@ void refreshLedsMics()
  * Microphones functions.
  */
 
-void onMicChange(int idx, int v, int up)
+void onMicPress(int idx, int v, int up)
 {
     if (!shouldListenToMics())
     {
@@ -1213,22 +1203,16 @@ void onMicChange(int idx, int v, int up)
 
     Serial.print(F("Mics #"));
     Serial.print(idx);
-    Serial.print(F(" :: "));
-    Serial.println(v);
+    Serial.println(F(" :: Press "));
 
-    if (v < MICS_ACTIVATION_MIN)
-    {
-        return;
-    }
-
-    if (progState.micsLedLevel[idx] < MICS_RANGE_MAX)
+    if (progState.micsLedLevel[idx] < MICS_LED_LEVELS)
     {
         progState.micsLedLevel[idx]++;
         refreshLedsMics();
 
         Serial.print(F("Mics :: #"));
         Serial.print(idx);
-        Serial.print(F(" :: +LED :: "));
+        Serial.print(F(" :: LED + :: "));
         Serial.println(progState.micsLedLevel[idx]);
     }
 
@@ -1239,12 +1223,11 @@ void initMics()
 {
     for (int i = 0; i < MICS_NUM; i++)
     {
-        mics[i]
-            .begin(MICS_PIN[i], MICS_SAMPLE_RATE_MS)
-            .range(MICS_RANGE_MIN, MICS_RANGE_MAX)
-            .onChange(onMicChange, i);
+        slaveMicButtons[i]
+            .begin(MICS_SLAVE_PIN[i])
+            .onPress(onMicPress, i);
 
-        progState.micsLedLevel[i] = MICS_RANGE_MIN;
+        progState.micsLedLevel[i] = 0;
         progState.micsLastRead[i] = 0;
     }
 }
@@ -1312,7 +1295,7 @@ void decreaseMicsLedLevel()
 
             Serial.print(F("Mics :: #"));
             Serial.print(i);
-            Serial.print(F(" :: -LED :: "));
+            Serial.print(F(" :: LED - :: "));
             Serial.println(progState.micsLedLevel[i]);
         }
     }
@@ -1347,27 +1330,19 @@ void onMicsTimer(int idx, int v, int up)
 
     if (!isMicsUpdateRecent())
     {
-        if (progState.micsValidLevelCounter > 0)
-        {
-            progState.micsValidLevelCounter--;
-            Serial.print(F("Mics :: Expired (-counter) :: "));
-            Serial.println(progState.micsValidLevelCounter);
-        }
-
         decreaseMicsLedLevel();
-        return;
     }
 
     if (isMicsLevelValid())
     {
         progState.micsValidLevelCounter++;
-        Serial.print(F("Mics :: Level valid (+counter) :: "));
+        Serial.print(F("Mics :: Counter + :: "));
         Serial.println(progState.micsValidLevelCounter);
     }
     else if (progState.micsValidLevelCounter > 0)
     {
         progState.micsValidLevelCounter--;
-        Serial.print(F("Mics :: Level invalid (-counter) :: "));
+        Serial.print(F("Mics :: Counter - :: "));
         Serial.println(progState.micsValidLevelCounter);
     }
 }
@@ -1385,9 +1360,22 @@ void initMicsTimer()
  * RFID functions.
  */
 
+void onRfidSlavePress(int idx, int v, int up)
+{
+    if (!shouldListenToRfid())
+    {
+        return;
+    }
+
+    Serial.println(F("Detected RFID tag"));
+    onRfidPhaseComplete();
+}
+
 void initRfid()
 {
-    rfidReader.begin();
+    slaveRfidButton
+        .begin(RFID_SLAVE_PIN)
+        .onPress(onRfidSlavePress);
 }
 
 void onRfidPhaseComplete()
@@ -1395,32 +1383,6 @@ void onRfidPhaseComplete()
     Serial.print(F("RFID phase complete"));
     openRelayRfid();
     progState.isRfidPhaseComplete = true;
-}
-
-void pollRfidReader()
-{
-    String tagId;
-
-    Serial.println(F("Reading RFID"));
-
-    tagId = rfidReader.getTagId();
-
-    if (!tagId.length())
-    {
-        return;
-    }
-
-    Serial.print(F("Tag: "));
-    Serial.println(tagId);
-
-    for (int i = 0; i < NUM_VALID_TAGS; i++)
-    {
-        if (validTags[i].compareTo(tagId) == 0)
-        {
-            onRfidPhaseComplete();
-            return;
-        }
-    }
 }
 
 /**
@@ -1487,9 +1449,5 @@ void loop()
     {
         refreshLedsBook();
         refreshLedsPipes();
-    }
-    else if (shouldListenToRfid())
-    {
-        pollRfidReader();
     }
 }

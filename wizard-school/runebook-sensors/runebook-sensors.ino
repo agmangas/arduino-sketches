@@ -47,9 +47,9 @@ Atm_led ledMics[MICS_NUM] = {ledMic01, ledMic02};
 
 const int OUTPUT_PIN_RFID = 4;
 const int OUTPUT_PIN_MICS[MICS_NUM] = {5, 6};
-
 const int OUTPUT_MS_DURATION = 200;
 const int OUTPUT_MS_PAUSE_DURATION = 50;
+const bool OUTPUT_ACTIVE_LOW = true;
 
 /**
  * RFID functions.
@@ -140,14 +140,14 @@ void initMics()
 void initOutputs()
 {
     ledRfid
-        .begin(OUTPUT_PIN_RFID)
+        .begin(OUTPUT_PIN_RFID, OUTPUT_ACTIVE_LOW)
         .blink(OUTPUT_MS_DURATION, OUTPUT_MS_PAUSE_DURATION)
         .repeat(1);
 
     for (int i = 0; i < MICS_NUM; i++)
     {
         ledMics[i]
-            .begin(OUTPUT_PIN_MICS[i])
+            .begin(OUTPUT_PIN_MICS[i], OUTPUT_ACTIVE_LOW)
             .blink(OUTPUT_MS_DURATION, OUTPUT_MS_PAUSE_DURATION)
             .repeat(1);
     }
