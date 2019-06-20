@@ -108,7 +108,7 @@ void initState()
 {
     for (int i = 0; i < LED_THROUGH_NUM; i++)
     {
-        progState.currThroughColorIdx[i] = 0;
+        progState.currThroughColorIdx[i] = random(0, LED_THROUGH_COLOR_NUM);
     }
 
     for (int i = 0; i < LED_STRIP_SUBSTRIP_NUM; i++)
@@ -232,13 +232,15 @@ void refreshLedStrip()
 
     for (int i = 0; i < LED_STRIP_SUBSTRIP_NUM; i++)
     {
+        uint32_t color = LED_STRIP_COLORS[progState.currSubstripColorIdx[i]];
+
         ledStrip.setPixelColor(
             LED_STRIP_SUBSTRIP_LIMITS[i][0],
-            progState.currSubstripColorIdx[i]);
+            color);
 
         ledStrip.setPixelColor(
             LED_STRIP_SUBSTRIP_LIMITS[i][1],
-            progState.currSubstripColorIdx[i]);
+            color);
     }
 
     ledStrip.show();
