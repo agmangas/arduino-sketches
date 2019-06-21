@@ -77,6 +77,14 @@ const uint32_t LED_STRIP_COLORS[LED_STRIP_COLOR_NUM] = {
     Adafruit_NeoPixel::Color(128, 128, 0)};
 
 /**
+ * LED refresh timer.
+ */
+
+Atm_timer ledRefreshTimer;
+
+const int LED_REFRESH_TIMER_MS = 200;
+
+/**
  * Relays.
  */
 
@@ -201,7 +209,7 @@ void refreshLedThrough()
 
     for (int i = 0; i < LED_THROUGH_NUM; i++)
     {
-        isBlink = progState.currThroughIdx == i &&
+        isBlink = i == progState.currThroughIdx &&
                   progState.blinkCounter % 2 == 0;
 
         color = isBlink ? 0 : LED_THROUGH_COLORS[progState.currThroughColorIdx[i]];
@@ -247,6 +255,25 @@ void refreshLedStrip()
 }
 
 /**
+ * LED refresh timer functions.
+ */
+
+void onLedTimer(int idx, int v, int up)
+{
+    refreshLedThrough();
+    refreshLedStrip();
+}
+
+void initLedTimer()
+{
+    ledRefreshTimer
+        .begin(LED_REFRESH_TIMER_MS)
+        .repeat(-1)
+        .onTimer(onLedTimer)
+        .start();
+}
+
+/**
  * Relay functions.
  */
 
@@ -286,6 +313,7 @@ void setup()
     initLedThrough();
     initLedStrip();
     initRelays();
+    initLedTimer();
 
     Serial.println(F(">> Starting panel program"));
 }
@@ -293,6 +321,4 @@ void setup()
 void loop()
 {
     automaton.run();
-    refreshLedThrough();
-    refreshLedStrip();
 }
