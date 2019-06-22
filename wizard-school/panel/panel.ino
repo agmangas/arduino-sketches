@@ -47,6 +47,11 @@ const uint32_t LED_THROUGH_COLORS[LED_THROUGH_COLOR_NUM] = {
     Adafruit_NeoPixel::Color(0, 0, 255),
     Adafruit_NeoPixel::Color(128, 0, 128)};
 
+const int LED_THROUGH_KEY[LED_THROUGH_NUM] = {
+    2, 0, 3, 1, 3, 0, 1, 2};
+
+Atm_controller ledThroughController;
+
 /**
  * Strip LEDs.
  */
@@ -76,6 +81,11 @@ const uint32_t LED_STRIP_COLORS[LED_STRIP_COLOR_NUM] = {
     Adafruit_NeoPixel::Color(128, 0, 128),
     Adafruit_NeoPixel::Color(128, 128, 0)};
 
+const int LED_STRIP_KEY[LED_STRIP_SUBSTRIP_NUM] = {
+    0, 2, 4};
+
+Atm_controller ledStripController;
+
 /**
  * LED refresh timer.
  */
@@ -88,8 +98,8 @@ const int LED_REFRESH_TIMER_MS = 200;
  * Relays.
  */
 
-const int RELAY_PIN_ONE = A5;
-const int RELAY_PIN_TWO = A6;
+const int RELAY_PIN_THROUGH = A5;
+const int RELAY_PIN_STRIP = A4;
 
 /**
  * Program state.
@@ -238,9 +248,11 @@ void refreshLedStrip()
 {
     ledStrip.clear();
 
+    uint32_t color;
+
     for (int i = 0; i < LED_STRIP_SUBSTRIP_NUM; i++)
     {
-        uint32_t color = LED_STRIP_COLORS[progState.currSubstripColorIdx[i]];
+        color = LED_STRIP_COLORS[progState.currSubstripColorIdx[i]];
 
         ledStrip.setPixelColor(
             LED_STRIP_SUBSTRIP_LIMITS[i][0],
@@ -274,6 +286,75 @@ void initLedTimer()
 }
 
 /**
+ * Controller functions.
+ */
+
+bool isValidLedThrough()
+{
+    for (int i = 0; i < LED_THROUGH_NUM; i++)
+    {
+        if (progState.currThroughColorIdx[i] != LED_THROUGH_KEY[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void onValidLedThrough()
+{
+    Serial.println(F("Valid LED (throughole)"));
+    openRelay(RELAY_PIN_THROUGH);
+}
+
+void onErrorLedThrough()
+{
+    Serial.println(F("Error LED (throughole)"));
+    lockRelay(RELAY_PIN_THROUGH);
+}
+
+bool isValidLedStrip()
+{
+    for (int i = 0; i < LED_STRIP_SUBSTRIP_NUM; i++)
+    {
+        if (progState.currSubstripColorIdx[i] != LED_STRIP_KEY[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void onValidLedStrip()
+{
+    Serial.println(F("Valid LED (strip)"));
+    openRelay(RELAY_PIN_STRIP);
+}
+
+void onErrorLedStrip()
+{
+    Serial.println(F("Error LED (strip)"));
+    lockRelay(RELAY_PIN_STRIP);
+}
+
+void initControllers()
+{
+    ledThroughController
+        .begin()
+        .IF(isValidLedThrough)
+        .onChange(true, onValidLedThrough)
+        .onChange(false, onErrorLedThrough);
+
+    ledStripController
+        .begin()
+        .IF(isValidLedStrip)
+        .onChange(true, onValidLedStrip)
+        .onChange(false, onErrorLedStrip);
+}
+
+/**
  * Relay functions.
  */
 
@@ -295,8 +376,8 @@ void initRelay(int pin)
 
 void initRelays()
 {
-    initRelay(RELAY_PIN_ONE);
-    initRelay(RELAY_PIN_TWO);
+    initRelay(RELAY_PIN_THROUGH);
+    initRelay(RELAY_PIN_STRIP);
 }
 
 /**
@@ -314,6 +395,7 @@ void setup()
     initLedStrip();
     initRelays();
     initLedTimer();
+    initControllers();
 
     Serial.println(F(">> Starting panel program"));
 }
