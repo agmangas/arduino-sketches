@@ -86,6 +86,8 @@ const int LED_STRIP_KEY[LED_STRIP_SUBSTRIP_NUM] = {
 
 Atm_controller ledStripController;
 
+const unsigned long LED_STRIP_VALID_DELAY_MS = 2000;
+
 /**
  * LED refresh timer.
  */
@@ -114,13 +116,15 @@ typedef struct programState
     int currThroughIdx;
     uint8_t blinkCounter;
     int *currSubstripColorIdx;
+    unsigned long millisValidStrip;
 } ProgramState;
 
 ProgramState progState = {
     .currThroughColorIdx = currThroughColorIdx,
     .currThroughIdx = 0,
     .blinkCounter = 0,
-    .currSubstripColorIdx = currSubstripColorIdx};
+    .currSubstripColorIdx = currSubstripColorIdx,
+    .millisValidStrip = 0};
 
 void initState()
 {
@@ -249,18 +253,19 @@ void refreshLedStrip()
     ledStrip.clear();
 
     uint32_t color;
+    uint8_t limLo;
+    uint8_t limHi;
 
     for (int i = 0; i < LED_STRIP_SUBSTRIP_NUM; i++)
     {
         color = LED_STRIP_COLORS[progState.currSubstripColorIdx[i]];
+        limLo = LED_STRIP_SUBSTRIP_LIMITS[i][0];
+        limHi = LED_STRIP_SUBSTRIP_LIMITS[i][1];
 
-        ledStrip.setPixelColor(
-            LED_STRIP_SUBSTRIP_LIMITS[i][0],
-            color);
-
-        ledStrip.setPixelColor(
-            LED_STRIP_SUBSTRIP_LIMITS[i][1],
-            color);
+        for (int j = limLo; j <= limHi; j++)
+        {
+            ledStrip.setPixelColor(j, color);
+        }
     }
 
     ledStrip.show();
@@ -320,11 +325,29 @@ bool isValidLedStrip()
     {
         if (progState.currSubstripColorIdx[i] != LED_STRIP_KEY[i])
         {
+            progState.millisValidStrip = 0;
             return false;
         }
     }
 
-    return true;
+    if (progState.millisValidStrip == 0)
+    {
+        progState.millisValidStrip = millis();
+    }
+    else
+    {
+        unsigned long now = millis();
+
+        if (progState.millisValidStrip > now)
+        {
+            Serial.println(F("Timer overflow"));
+            progState.millisValidStrip = 0;
+            return false;
+        }
+
+        int diff = now - progState.millisValidStrip;
+        return diff > LED_STRIP_VALID_DELAY_MS;
+    }
 }
 
 void onValidLedStrip()
