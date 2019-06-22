@@ -2,6 +2,28 @@
 #include <Adafruit_NeoPixel.h>
 
 /**
+ * Color gamma correction.
+ */
+
+const uint8_t PROGMEM gamma8[] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,
+    2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,
+    5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10,
+    10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
+    17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
+    25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
+    37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
+    51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
+    69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
+    90, 92, 93, 95, 96, 98, 99, 101, 102, 104, 105, 107, 109, 110, 112, 114,
+    115, 117, 119, 120, 122, 124, 126, 127, 129, 131, 133, 135, 137, 138, 140, 142,
+    144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 167, 169, 171, 173, 175,
+    177, 180, 182, 184, 186, 189, 191, 193, 196, 198, 200, 203, 205, 208, 210, 213,
+    215, 218, 220, 223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255};
+
+/**
  * Digital switch.
  */
 
@@ -72,21 +94,89 @@ const int LED_STRIP_SUBSTRIP_LIMITS[LED_STRIP_SUBSTRIP_NUM][2] = {
     {4, 7},
     {8, 11}};
 
-const int LED_STRIP_COLOR_NUM = 5;
+const int LED_STRIP_COLOR_NUM = 7;
+
+/**
+ * 0: Orange
+ * 1: Pink
+ * 2: Purple
+ * 3: Yellow
+ * 4: Red
+ * 5: Green
+ * 6: Blue
+ */
+
+uint32_t colorOrange()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[253]),
+        pgm_read_byte(&gamma8[106]),
+        pgm_read_byte(&gamma8[2]));
+}
+
+uint32_t colorPink()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[231]),
+        pgm_read_byte(&gamma8[84]),
+        pgm_read_byte(&gamma8[128]));
+}
+
+uint32_t colorPurple()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[125]),
+        pgm_read_byte(&gamma8[60]),
+        pgm_read_byte(&gamma8[152]));
+}
+
+uint32_t colorYellow()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[255]),
+        pgm_read_byte(&gamma8[255]),
+        pgm_read_byte(&gamma8[0]));
+}
+
+uint32_t colorRed()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[255]),
+        pgm_read_byte(&gamma8[0]),
+        pgm_read_byte(&gamma8[0]));
+}
+
+uint32_t colorGreen()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[0]),
+        pgm_read_byte(&gamma8[255]),
+        pgm_read_byte(&gamma8[0]));
+}
+
+uint32_t colorBlue()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[0]),
+        pgm_read_byte(&gamma8[0]),
+        pgm_read_byte(&gamma8[255]));
+}
 
 const uint32_t LED_STRIP_COLORS[LED_STRIP_COLOR_NUM] = {
-    Adafruit_NeoPixel::Color(255, 0, 0),
-    Adafruit_NeoPixel::Color(0, 255, 0),
-    Adafruit_NeoPixel::Color(0, 0, 255),
-    Adafruit_NeoPixel::Color(128, 0, 128),
-    Adafruit_NeoPixel::Color(128, 128, 0)};
+    colorOrange(),
+    colorPink(),
+    colorPurple(),
+    colorYellow(),
+    colorRed(),
+    colorGreen(),
+    colorBlue()};
 
 const int LED_STRIP_KEY[LED_STRIP_SUBSTRIP_NUM] = {
-    0, 2, 4};
+    3, 4, 0};
 
 Atm_controller ledStripController;
 
-const unsigned long LED_STRIP_VALID_DELAY_MS = 2000;
+const unsigned long LED_STRIP_VALID_DELAY_MS = 3500;
 
 /**
  * LED refresh timer.
@@ -94,7 +184,7 @@ const unsigned long LED_STRIP_VALID_DELAY_MS = 2000;
 
 Atm_timer ledRefreshTimer;
 
-const int LED_REFRESH_TIMER_MS = 200;
+const int LED_REFRESH_TIMER_MS = 150;
 
 /**
  * Relays.
@@ -333,6 +423,7 @@ bool isValidLedStrip()
     if (progState.millisValidStrip == 0)
     {
         progState.millisValidStrip = millis();
+        return false;
     }
     else
     {
@@ -345,7 +436,8 @@ bool isValidLedStrip()
             return false;
         }
 
-        int diff = now - progState.millisValidStrip;
+        unsigned long diff = now - progState.millisValidStrip;
+
         return diff > LED_STRIP_VALID_DELAY_MS;
     }
 }
