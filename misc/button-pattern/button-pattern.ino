@@ -91,7 +91,7 @@ uint32_t colorGray()
  * Throughhole LEDs.
  */
 
-const int LED_THROUGH_BRIGHTNESS = 150;
+const int LED_THROUGH_BRIGHTNESS = 250;
 const int LED_THROUGH_NUM = 7;
 const int LED_THROUGH_PIN = 12;
 
