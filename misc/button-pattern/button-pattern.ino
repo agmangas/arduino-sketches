@@ -92,7 +92,7 @@ uint32_t colorGray()
  */
 
 const int LED_THROUGH_BRIGHTNESS = 150;
-const int LED_THROUGH_NUM = 10;
+const int LED_THROUGH_NUM = 7;
 const int LED_THROUGH_PIN = 12;
 
 Adafruit_NeoPixel ledThrough = Adafruit_NeoPixel(
@@ -112,7 +112,9 @@ const uint32_t LED_THROUGH_COLORS[LED_THROUGH_COLOR_NUM] = {
     colorGray()};
 
 const int LED_THROUGH_KEY[LED_THROUGH_NUM] = {
-    0, 2, 0, 2, 0, 2, 0, 2, 0, 2};
+    0, 2, 0, 2, 0, 2, 0};
+
+const uint32_t LED_THROUGH_FINAL_COLOR = colorBlue();
 
 Atm_controller ledThroughController;
 
@@ -123,9 +125,20 @@ Atm_controller ledThroughController;
 const int BUTTON_NUM = LED_THROUGH_NUM;
 
 const int BUTTON_PINS[BUTTON_NUM] = {
-    2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    2, 3, 4, 5, 6, 7, 8};
 
 Atm_button buttons[BUTTON_NUM];
+
+/**
+ * Reset.
+ */
+
+const int RESET_BUTTON_NUM = 3;
+
+const int RESET_BUTTON_IDX[RESET_BUTTON_NUM] = {
+    0, 2, 4};
+
+Atm_controller resetController;
 
 /**
  * Program state.
@@ -136,16 +149,20 @@ int currLedColorIdx[BUTTON_NUM];
 typedef struct programState
 {
     int *currLedColorIdx;
+    bool isComplete;
 } ProgramState;
 
 ProgramState progState = {
-    .currLedColorIdx = currLedColorIdx};
+    .currLedColorIdx = currLedColorIdx,
+    .isComplete = false};
 
 void initState()
 {
+    progState.isComplete = false;
+
     for (int i = 0; i < BUTTON_NUM; i++)
     {
-        progState.currLedColorIdx[i] = 0;
+        progState.currLedColorIdx[i] = random(0, LED_THROUGH_NUM);
     }
 }
 
@@ -153,7 +170,7 @@ void initState()
  * Throughhole LED functions.
  */
 
-void initLedThrough()
+void initLed()
 {
     ledThrough.begin();
     ledThrough.setBrightness(LED_THROUGH_BRIGHTNESS);
@@ -161,7 +178,7 @@ void initLedThrough()
     ledThrough.show();
 }
 
-void refreshLedThrough()
+void refreshLed()
 {
     uint32_t color;
 
@@ -169,19 +186,47 @@ void refreshLedThrough()
 
     for (int i = 0; i < LED_THROUGH_NUM; i++)
     {
-        color = LED_THROUGH_COLORS[progState.currLedColorIdx[i]];
+        color = progState.isComplete
+                    ? LED_THROUGH_FINAL_COLOR
+                    : LED_THROUGH_COLORS[progState.currLedColorIdx[i]];
+
         ledThrough.setPixelColor(i, color);
     }
 
     ledThrough.show();
 }
 
+void showSuccessLedPattern()
+{
+    const int delayIterMs = 30;
+    const int valLimit = 250;
+
+    ledThrough.clear();
+
+    for (int k = 0; k < valLimit; k++)
+    {
+        for (int i = 0; i < LED_THROUGH_NUM; i++)
+        {
+            ledThrough.setPixelColor(i, k, k, k);
+        }
+
+        delay(delayIterMs);
+
+        ledThrough.show();
+    }
+}
+
 /**
- * LED controller functions.
+ * Controller functions.
  */
 
-bool isValidLedCombination()
+bool isValidCombination()
 {
+    if (progState.isComplete)
+    {
+        return true;
+    }
+
     for (int i = 0; i < LED_THROUGH_NUM; i++)
     {
         if (progState.currLedColorIdx[i] != LED_THROUGH_KEY[i])
@@ -193,23 +238,48 @@ bool isValidLedCombination()
     return true;
 }
 
-void onValidLedCombination()
+void onSuccess()
 {
     Serial.println(F("Valid LED combination"));
+    showSuccessLedPattern();
+    progState.isComplete = true;
 }
 
-void onErrorLedCombination()
+bool isResetPressed()
 {
-    Serial.println(F("Error LED combination"));
+    if (!progState.isComplete)
+    {
+        return false;
+    }
+
+    for (int i = 0; i < RESET_BUTTON_NUM; i++)
+    {
+        if (buttons[RESET_BUTTON_IDX[i]].state() != Atm_button::PRESSED)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
-void initLedController()
+void onReset()
+{
+    Serial.println(F("Reset"));
+    initState();
+}
+
+void initControllers()
 {
     ledThroughController
         .begin()
-        .IF(isValidLedCombination)
-        .onChange(true, onValidLedCombination)
-        .onChange(false, onErrorLedCombination);
+        .IF(isValidCombination)
+        .onChange(true, onSuccess);
+
+    resetController
+        .begin()
+        .IF(isResetPressed)
+        .onChange(true, onReset);
 }
 
 /**
@@ -218,6 +288,12 @@ void initLedController()
 
 void onPress(int idx, int v, int up)
 {
+    if (progState.isComplete)
+    {
+        Serial.println(F("Ignoring button"));
+        return;
+    }
+
     Serial.print(F("Button :: "));
     Serial.println(idx);
 
@@ -245,8 +321,8 @@ void setup()
 
     initState();
     initButtons();
-    initLedThrough();
-    initLedController();
+    initLed();
+    initControllers();
 
     Serial.println(F(">> Starting button pattern program"));
 }
@@ -254,5 +330,5 @@ void setup()
 void loop()
 {
     automaton.run();
-    refreshLedThrough();
+    refreshLed();
 }
