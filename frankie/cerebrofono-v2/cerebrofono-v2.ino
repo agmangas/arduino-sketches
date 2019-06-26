@@ -309,7 +309,6 @@ void setup()
     initLeds();
     playLedStartupPattern();
     sSerial.listen();
-    showStaticLed();
 
     Serial.println(F(">> Starting Cerebrofono program"));
 }
@@ -317,5 +316,6 @@ void setup()
 void loop()
 {
     readTagAndPlayAudio();
+    showStaticLed();
     delay(100);
 }
