@@ -44,6 +44,7 @@ const byte AUDIO_TRACK_PINS[NUM_TRACKS] = {
     8, 9, 10, 11, 12};
 
 const unsigned long AUDIO_TRACK_MAX_MS = 50000;
+const int AUDIO_EFFECT_DELAY_MS = 500;
 
 /**
  * LED strip.
@@ -152,6 +153,8 @@ void displayAudioLedEffect(int tagIdx)
 
     int currTarget;
     int currLevel;
+
+    delay(AUDIO_EFFECT_DELAY_MS);
 
     while (isTrackPlaying() && !timeout)
     {
