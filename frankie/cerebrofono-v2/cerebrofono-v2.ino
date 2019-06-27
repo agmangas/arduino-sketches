@@ -58,7 +58,7 @@ const uint8_t PIN_LEDS_02 = 3;
 const uint8_t PIN_LEDS_STATIC = 5;
 
 const int LED_EFFECT_STEP_MS = 3;
-const int LED_BRIGHTNESS = 150;
+const int LED_BRIGHTNESS = 250;
 
 Adafruit_NeoPixel pixelStrip01 = Adafruit_NeoPixel(
     NUM_LEDS,
@@ -79,11 +79,11 @@ const uint32_t COLOR_DEFAULT = Adafruit_NeoPixel::Color(126, 32, 198);
 const uint32_t COLOR_STATIC = Adafruit_NeoPixel::Color(200, 200, 200);
 
 const uint32_t AUDIO_TRACK_COLORS[NUM_TRACKS] = {
+    Adafruit_NeoPixel::Color(0, 0, 255),
     Adafruit_NeoPixel::Color(0, 255, 0),
-    Adafruit_NeoPixel::Color(255, 0, 0),
     Adafruit_NeoPixel::Color(231, 190, 0),
-    Adafruit_NeoPixel::Color(60, 72, 231),
-    Adafruit_NeoPixel::Color(255, 255, 255)};
+    Adafruit_NeoPixel::Color(255, 0, 0),
+    Adafruit_NeoPixel::Color(128, 0, 128)};
 
 /**
  * Audio FX functions.
