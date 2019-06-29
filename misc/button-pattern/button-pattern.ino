@@ -79,20 +79,12 @@ uint32_t colorBlue()
         pgm_read_byte(&gamma8[255]));
 }
 
-uint32_t colorGray()
-{
-    return Adafruit_NeoPixel::Color(
-        pgm_read_byte(&gamma8[190]),
-        pgm_read_byte(&gamma8[190]),
-        pgm_read_byte(&gamma8[190]));
-}
-
 /**
  * Throughhole LEDs.
  */
 
 const int LED_THROUGH_BRIGHTNESS = 250;
-const int LED_THROUGH_NUM = 7;
+const int LED_THROUGH_NUM = 10;
 const int LED_THROUGH_PIN = 12;
 
 Adafruit_NeoPixel ledThrough = Adafruit_NeoPixel(
@@ -109,10 +101,12 @@ const uint32_t LED_THROUGH_COLORS[LED_THROUGH_COLOR_NUM] = {
     colorYellow(),
     colorPink(),
     colorPurple(),
-    colorGray()};
+    colorOrange()};
+
+// Blue, Blue, Red, Blue, Red, Green, Orange, Yellow, Red, Green
 
 const int LED_THROUGH_KEY[LED_THROUGH_NUM] = {
-    0, 2, 0, 2, 0, 2, 0};
+    0, 0, 1, 0, 1, 2, 6, 3, 1, 2};
 
 const uint32_t LED_THROUGH_FINAL_COLOR = colorBlue();
 
@@ -125,7 +119,7 @@ Atm_controller ledThroughController;
 const int BUTTON_NUM = LED_THROUGH_NUM;
 
 const int BUTTON_PINS[BUTTON_NUM] = {
-    2, 3, 4, 5, 6, 7, 8};
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
 Atm_button buttons[BUTTON_NUM];
 
@@ -136,7 +130,7 @@ Atm_button buttons[BUTTON_NUM];
 const int RESET_BUTTON_NUM = 3;
 
 const int RESET_BUTTON_IDX[RESET_BUTTON_NUM] = {
-    0, 2, 4};
+    0, 1, 2};
 
 Atm_controller resetController;
 
