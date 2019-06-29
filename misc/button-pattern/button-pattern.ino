@@ -79,6 +79,14 @@ uint32_t colorBlue()
         pgm_read_byte(&gamma8[255]));
 }
 
+uint32_t colorGray()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[200]),
+        pgm_read_byte(&gamma8[200]),
+        pgm_read_byte(&gamma8[200]));
+}
+
 /**
  * Throughhole LEDs.
  */
@@ -101,9 +109,9 @@ const uint32_t LED_THROUGH_COLORS[LED_THROUGH_COLOR_NUM] = {
     colorYellow(),
     colorPink(),
     colorPurple(),
-    colorOrange()};
+    colorGray()};
 
-// Blue, Blue, Red, Blue, Red, Green, Orange, Yellow, Red, Green
+// Blue, Blue, Red, Blue, Red, Green, Gray, Yellow, Red, Green
 
 const int LED_THROUGH_KEY[LED_THROUGH_NUM] = {
     0, 0, 1, 0, 1, 2, 6, 3, 1, 2};
