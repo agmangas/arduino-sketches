@@ -164,7 +164,7 @@ void initState()
 
     for (int i = 0; i < BUTTON_NUM; i++)
     {
-        progState.currLedColorIdx[i] = random(0, LED_THROUGH_NUM);
+        progState.currLedColorIdx[i] = random(0, LED_THROUGH_COLOR_NUM);
     }
 }
 
