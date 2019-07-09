@@ -19,7 +19,7 @@ Atm_button slaveRfidButton;
  */
 
 const int RELAY_PIN_RFID = 24;
-const int RELAY_PIN_MICS = 52;
+const int RELAY_PIN_FURNACE = 52;
 
 /**
  * Shortest paths in the LED matrix.
@@ -94,46 +94,46 @@ Atm_button proxSensorsBtn[PROX_SENSORS_NUM];
 Atm_controller proxSensorsConfirmControl;
 
 /**
- * Microphones.
+ * Furnace buttons.
  */
 
-const int MICS_NUM = 2;
-const int MICS_VALID_COUNTER_TARGET = 15;
-const int MICS_LED_LEVELS = 10;
-const int MICS_THRESHOLD_MIN = 3;
-const int MICS_THRESHOLD_MAX = MICS_LED_LEVELS;
-const int MICS_TIMER_MS = 1000;
-const int MICS_RECENT_TIMER_RATIO = 1;
+const int FBUTTONS_NUM = 2;
+const int FBUTTONS_VALID_COUNTER_TARGET = 15;
+const int FBUTTONS_LED_LEVELS = 10;
+const int FBUTTONS_THRESHOLD_MIN = 3;
+const int FBUTTONS_THRESHOLD_MAX = FBUTTONS_LED_LEVELS;
+const int FBUTTONS_TIMER_MS = 1000;
+const int FBUTTONS_RECENT_TIMER_RATIO = 1;
 
-const byte MICS_SLAVE_PIN[MICS_NUM] = {
+const byte FBUTTONS_SLAVE_PIN[FBUTTONS_NUM] = {
     32, 34};
 
-Atm_button slaveMicButtons[MICS_NUM];
+Atm_button furnaceButtons[FBUTTONS_NUM];
 
 /**
- * LED strip (microphones).
+ * LED strip (furnace).
  */
 
-const int LED_MICS_BRIGHTNESS = 30;
-const int LED_MICS_PINS[MICS_NUM] = {28, 30};
-const int LED_MICS_NUM[MICS_NUM] = {10, 10};
-const uint32_t LED_MICS_COLOR = Adafruit_NeoPixel::Color(200, 0, 0);
+const int LED_FBUTTONS_BRIGHTNESS = 30;
+const int LED_FBUTTONS_PINS[FBUTTONS_NUM] = {28, 30};
+const int LED_FBUTTONS_NUM[FBUTTONS_NUM] = {10, 10};
+const uint32_t LED_FBUTTONS_COLOR = Adafruit_NeoPixel::Color(200, 0, 0);
 
-Adafruit_NeoPixel ledMic01 = Adafruit_NeoPixel(
-    LED_MICS_NUM[0],
-    LED_MICS_PINS[0],
+Adafruit_NeoPixel ledFurnace01 = Adafruit_NeoPixel(
+    LED_FBUTTONS_NUM[0],
+    LED_FBUTTONS_PINS[0],
     NEO_GRB + NEO_KHZ800);
 
-Adafruit_NeoPixel ledMic02 = Adafruit_NeoPixel(
-    LED_MICS_NUM[1],
-    LED_MICS_PINS[1],
+Adafruit_NeoPixel ledFurnace02 = Adafruit_NeoPixel(
+    LED_FBUTTONS_NUM[1],
+    LED_FBUTTONS_PINS[1],
     NEO_GRB + NEO_KHZ800);
 
-Adafruit_NeoPixel ledMics[MICS_NUM] = {
-    ledMic01,
-    ledMic02};
+Adafruit_NeoPixel ledsFurnace[FBUTTONS_NUM] = {
+    ledFurnace01,
+    ledFurnace02};
 
-Atm_timer micsTimer;
+Atm_timer furnaceTimer;
 
 /**
  * LED strip (book).
@@ -313,36 +313,36 @@ int historySensor[HISTORY_SENSOR_SIZE];
 int historyPath[HISTORY_PATH_SIZE];
 int historyPathLed[HISTORY_PATH_SIZE];
 int historyRunes[RUNES_KEY_NUM];
-int micsLedLevel[MICS_NUM];
-unsigned long micsLastRead[MICS_NUM];
+int furnaceLedLevel[FBUTTONS_NUM];
+unsigned long furnaceLastRead[FBUTTONS_NUM];
 
 typedef struct programState
 {
     bool isRunePhaseComplete;
     bool isRfidPhaseComplete;
-    bool isMicsPhaseComplete;
+    bool isFurnacePhaseComplete;
     int *historySensor;
     int *historyPath;
     int *historyPathLed;
     int *historyRunes;
     unsigned long lastSensorActivation;
-    int *micsLedLevel;
-    unsigned long *micsLastRead;
-    int micsValidLevelCounter;
+    int *furnaceLedLevel;
+    unsigned long *furnaceLastRead;
+    int furnaceValidLevelCounter;
 } ProgramState;
 
 ProgramState progState = {
     .isRunePhaseComplete = false,
     .isRfidPhaseComplete = false,
-    .isMicsPhaseComplete = false,
+    .isFurnacePhaseComplete = false,
     .historySensor = historySensor,
     .historyPath = historyPath,
     .historyPathLed = historyPathLed,
     .historyRunes = historyRunes,
     .lastSensorActivation = 0,
-    .micsLedLevel = micsLedLevel,
-    .micsLastRead = micsLastRead,
-    .micsValidLevelCounter = 0};
+    .furnaceLedLevel = furnaceLedLevel,
+    .furnaceLastRead = furnaceLastRead,
+    .furnaceValidLevelCounter = 0};
 
 bool shouldListenToProxSensors()
 {
@@ -355,11 +355,11 @@ bool shouldListenToRfid()
            progState.isRfidPhaseComplete == false;
 }
 
-bool shouldListenToMics()
+bool shouldListenToFurnaceButtons()
 {
     return progState.isRunePhaseComplete == true &&
            progState.isRfidPhaseComplete == true &&
-           progState.isMicsPhaseComplete == false;
+           progState.isFurnacePhaseComplete == false;
 }
 
 /**
@@ -902,12 +902,12 @@ void initLeds()
 
     clearLedsPipes();
 
-    for (int i = 0; i < MICS_NUM; i++)
+    for (int i = 0; i < FBUTTONS_NUM; i++)
     {
-        ledMics[i].begin();
-        ledMics[i].setBrightness(LED_MICS_BRIGHTNESS);
-        ledMics[i].clear();
-        ledMics[i].show();
+        ledsFurnace[i].begin();
+        ledsFurnace[i].setBrightness(LED_FBUTTONS_BRIGHTNESS);
+        ledsFurnace[i].clear();
+        ledsFurnace[i].show();
     }
 }
 
@@ -1168,78 +1168,78 @@ void refreshLedsPipes()
     ledPipes.show();
 }
 
-int micLevelToLedIndex(int ledLevel)
+int furnaceLevelToLedIndex(int ledLevel)
 {
     return ledLevel;
 }
 
-void refreshLedsMics()
+void refreshLedsFurnace()
 {
-    for (int i = 0; i < MICS_NUM; i++)
+    for (int i = 0; i < FBUTTONS_NUM; i++)
     {
-        ledMics[i].clear();
+        ledsFurnace[i].clear();
 
-        for (int j = 0; j < progState.micsLedLevel[i]; j++)
+        for (int j = 0; j < progState.furnaceLedLevel[i]; j++)
         {
-            ledMics[i].setPixelColor(
-                micLevelToLedIndex(j),
-                LED_MICS_COLOR);
+            ledsFurnace[i].setPixelColor(
+                furnaceLevelToLedIndex(j),
+                LED_FBUTTONS_COLOR);
         }
 
-        ledMics[i].show();
+        ledsFurnace[i].show();
     }
 }
 
 /**
- * Microphones functions.
+ * Furnace buttons functions.
  */
 
-void onMicPress(int idx, int v, int up)
+void onFurnaceButtonPress(int idx, int v, int up)
 {
-    if (!shouldListenToMics())
+    if (!shouldListenToFurnaceButtons())
     {
         return;
     }
 
-    Serial.print(F("Mics #"));
+    Serial.print(F("Fbuttons #"));
     Serial.print(idx);
     Serial.println(F(" :: Press "));
 
-    if (progState.micsLedLevel[idx] < MICS_LED_LEVELS)
+    if (progState.furnaceLedLevel[idx] < FBUTTONS_LED_LEVELS)
     {
-        progState.micsLedLevel[idx]++;
-        refreshLedsMics();
+        progState.furnaceLedLevel[idx]++;
+        refreshLedsFurnace();
 
-        Serial.print(F("Mics :: #"));
+        Serial.print(F("Fbuttons :: #"));
         Serial.print(idx);
         Serial.print(F(" :: LED + :: "));
-        Serial.println(progState.micsLedLevel[idx]);
+        Serial.println(progState.furnaceLedLevel[idx]);
     }
 
-    progState.micsLastRead[idx] = millis();
+    progState.furnaceLastRead[idx] = millis();
 }
 
-void initMics()
+void initFurnaceButtons()
 {
-    for (int i = 0; i < MICS_NUM; i++)
+    for (int i = 0; i < FBUTTONS_NUM; i++)
     {
-        slaveMicButtons[i]
-            .begin(MICS_SLAVE_PIN[i])
-            .onPress(onMicPress, i);
+        furnaceButtons[i]
+            .begin(FBUTTONS_SLAVE_PIN[i])
+            .onPress(onFurnaceButtonPress, i);
 
-        progState.micsLedLevel[i] = 0;
-        progState.micsLastRead[i] = 0;
+        progState.furnaceLedLevel[i] = 0;
+        progState.furnaceLastRead[i] = 0;
     }
 }
 
-bool isMicsLevelValid()
+bool isCurrentFurnaceLevelValid()
 {
     bool isValidLevel;
 
-    for (int i = 0; i < MICS_NUM; i++)
+    for (int i = 0; i < FBUTTONS_NUM; i++)
     {
-        isValidLevel = progState.micsLedLevel[i] >= MICS_THRESHOLD_MIN &&
-                       progState.micsLedLevel[i] <= MICS_THRESHOLD_MAX;
+        isValidLevel = progState.furnaceLedLevel[i] >= FBUTTONS_THRESHOLD_MIN &&
+                       progState.furnaceLedLevel[i] <= FBUTTONS_THRESHOLD_MAX;
 
         if (!isValidLevel)
         {
@@ -1250,33 +1250,33 @@ bool isMicsLevelValid()
     return true;
 }
 
-void resetMicsLastRead()
+void resetFurnaceLastRead()
 {
-    for (int i = 0; i < MICS_NUM; i++)
+    for (int i = 0; i < FBUTTONS_NUM; i++)
     {
-        progState.micsLastRead[i] = 0;
+        progState.furnaceLastRead[i] = 0;
     }
 }
 
-bool isMicsUpdateRecent()
+bool isFurnaceUpdateRecent()
 {
     unsigned long now = millis();
 
     bool isRecent;
     unsigned long diff;
 
-    for (int i = 0; i < MICS_NUM; i++)
+    for (int i = 0; i < FBUTTONS_NUM; i++)
     {
-        if (now < progState.micsLastRead[i])
+        if (now < progState.furnaceLastRead[i])
         {
-            Serial.println(F("Mics :: Timer overflow"));
-            resetMicsLastRead();
+            Serial.println(F("Fbuttons :: Timer overflow"));
+            resetFurnaceLastRead();
             return false;
         }
 
-        diff = now - progState.micsLastRead[i];
+        diff = now - progState.furnaceLastRead[i];
 
-        if (diff > (MICS_TIMER_MS * MICS_RECENT_TIMER_RATIO))
+        if (diff > (FBUTTONS_TIMER_MS * FBUTTONS_RECENT_TIMER_RATIO))
         {
             return false;
         }
@@ -1285,74 +1285,75 @@ bool isMicsUpdateRecent()
     return true;
 }
 
-void decreaseMicsLedLevel()
+void decreaseFurnaceLedLevel()
 {
-    for (int i = 0; i < MICS_NUM; i++)
+    for (int i = 0; i < FBUTTONS_NUM; i++)
     {
-        if (progState.micsLedLevel[i] > 0)
+        if (progState.furnaceLedLevel[i] > 0)
         {
-            progState.micsLedLevel[i]--;
+            progState.furnaceLedLevel[i]--;
 
-            Serial.print(F("Mics :: #"));
+            Serial.print(F("Fbuttons :: #"));
             Serial.print(i);
             Serial.print(F(" :: LED - :: "));
-            Serial.println(progState.micsLedLevel[i]);
+            Serial.println(progState.furnaceLedLevel[i]);
         }
     }
 
-    refreshLedsMics();
+    refreshLedsFurnace();
 }
 
-void onMicsPhaseComplete()
+void onFurnacePhaseComplete()
 {
-    Serial.println(F("Mics :: Completed"));
-    openRelayMics();
-    progState.isMicsPhaseComplete = true;
+    Serial.println(F("Fbuttons :: Completed"));
+    openRelayFurnace();
+    progState.isFurnacePhaseComplete = true;
 }
 
-bool isMicsPhaseComplete()
+bool isFurnacePhaseComplete()
 {
-    return progState.micsValidLevelCounter >= MICS_VALID_COUNTER_TARGET;
+    return progState.furnaceValidLevelCounter >=
+           FBUTTONS_VALID_COUNTER_TARGET;
 }
 
-void onMicsTimer(int idx, int v, int up)
+void onFurnaceTimer(int idx, int v, int up)
 {
-    if (!shouldListenToMics())
+    if (!shouldListenToFurnaceButtons())
     {
         return;
     }
 
-    if (isMicsPhaseComplete())
+    if (isFurnacePhaseComplete())
     {
-        onMicsPhaseComplete();
+        onFurnacePhaseComplete();
         return;
     }
 
-    if (!isMicsUpdateRecent())
+    if (!isFurnaceUpdateRecent())
     {
-        decreaseMicsLedLevel();
+        decreaseFurnaceLedLevel();
     }
 
-    if (isMicsLevelValid())
+    if (isCurrentFurnaceLevelValid())
     {
-        progState.micsValidLevelCounter++;
-        Serial.print(F("Mics :: Counter + :: "));
-        Serial.println(progState.micsValidLevelCounter);
+        progState.furnaceValidLevelCounter++;
+        Serial.print(F("Fbuttons :: Counter + :: "));
+        Serial.println(progState.furnaceValidLevelCounter);
     }
-    else if (progState.micsValidLevelCounter > 0)
+    else if (progState.furnaceValidLevelCounter > 0)
     {
-        progState.micsValidLevelCounter--;
-        Serial.print(F("Mics :: Counter - :: "));
-        Serial.println(progState.micsValidLevelCounter);
+        progState.furnaceValidLevelCounter--;
+        Serial.print(F("Fbuttons :: Counter - :: "));
+        Serial.println(progState.furnaceValidLevelCounter);
     }
 }
 
-void initMicsTimer()
+void initFurnaceTimer()
 {
-    micsTimer
-        .begin(MICS_TIMER_MS)
+    furnaceTimer
+        .begin(FBUTTONS_TIMER_MS)
         .repeat(-1)
-        .onTimer(onMicsTimer)
+        .onTimer(onFurnaceTimer)
         .start();
 }
 
@@ -1399,23 +1400,23 @@ void openRelayRfid()
     digitalWrite(RELAY_PIN_RFID, HIGH);
 }
 
-void lockRelayMics()
+void lockRelayFurnace()
 {
-    digitalWrite(RELAY_PIN_MICS, LOW);
+    digitalWrite(RELAY_PIN_FURNACE, LOW);
 }
 
-void openRelayMics()
+void openRelayFurnace()
 {
-    digitalWrite(RELAY_PIN_MICS, HIGH);
+    digitalWrite(RELAY_PIN_FURNACE, HIGH);
 }
 
 void initRelays()
 {
     pinMode(RELAY_PIN_RFID, OUTPUT);
-    pinMode(RELAY_PIN_MICS, OUTPUT);
+    pinMode(RELAY_PIN_FURNACE, OUTPUT);
 
     lockRelayRfid();
-    lockRelayMics();
+    lockRelayFurnace();
 }
 
 /**
@@ -1435,8 +1436,8 @@ void setup()
     initServo();
     initRfid();
     initRelays();
-    initMics();
-    initMicsTimer();
+    initFurnaceButtons();
+    initFurnaceTimer();
 
     Serial.println(F(">> Starting Runebook program"));
 }
