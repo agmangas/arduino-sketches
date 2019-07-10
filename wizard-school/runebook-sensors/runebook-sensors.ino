@@ -21,32 +21,12 @@ Atm_timer rfidTimer;
 const int RFID_TIMER_MS = 5000;
 
 /**
- * Microphones.
- */
-
-const int MICS_NUM = 2;
-const int MICS_SAMPLE_RATE_MS = 50;
-const int MICS_RANGE_MIN = 0;
-const int MICS_RANGE_MAX = 10;
-const int MICS_RANGE_ACTIVATION_THRESHOLD = 3;
-
-const byte MICS_PIN[MICS_NUM] = {
-    A0, A1};
-
-Atm_analog mics[MICS_NUM];
-
-/**
  * Output bits.
  */
 
 Atm_led ledRfid;
-Atm_led ledMic01;
-Atm_led ledMic02;
-
-Atm_led ledMics[MICS_NUM] = {ledMic01, ledMic02};
 
 const int OUTPUT_PIN_RFID = 6;
-const int OUTPUT_PIN_MICS[MICS_NUM] = {8, 10};
 const int OUTPUT_MS_DURATION = 200;
 const int OUTPUT_MS_PAUSE_DURATION = 50;
 const bool OUTPUT_ACTIVE_LOW = true;
@@ -99,41 +79,6 @@ void pollRfidReader()
 }
 
 /**
- * Microphone functions.
- */
-
-void onMicChange(int idx, int v, int up)
-{
-
-    Serial.print(F("Mics #"));
-    Serial.print(idx);
-    Serial.print(F(" :: "));
-    Serial.println(v);
-
-    if (v < MICS_RANGE_ACTIVATION_THRESHOLD)
-    {
-        return;
-    }
-
-    Serial.print(F("Mics #"));
-    Serial.print(idx);
-    Serial.println(F(" :: Pulse "));
-
-    ledMics[idx].start();
-}
-
-void initMics()
-{
-    for (int i = 0; i < MICS_NUM; i++)
-    {
-        mics[i]
-            .begin(MICS_PIN[i], MICS_SAMPLE_RATE_MS)
-            .range(MICS_RANGE_MIN, MICS_RANGE_MAX)
-            .onChange(onMicChange, i);
-    }
-}
-
-/**
  * Output bit functions.
  */
 
@@ -143,14 +88,6 @@ void initOutputs()
         .begin(OUTPUT_PIN_RFID, OUTPUT_ACTIVE_LOW)
         .blink(OUTPUT_MS_DURATION, OUTPUT_MS_PAUSE_DURATION)
         .repeat(1);
-
-    for (int i = 0; i < MICS_NUM; i++)
-    {
-        ledMics[i]
-            .begin(OUTPUT_PIN_MICS[i], OUTPUT_ACTIVE_LOW)
-            .blink(OUTPUT_MS_DURATION, OUTPUT_MS_PAUSE_DURATION)
-            .repeat(1);
-    }
 }
 
 /**
@@ -163,7 +100,6 @@ void setup()
 
     initRfid();
     initOutputs();
-    initMics();
 
     Serial.println(F(">> Starting Runebook sensors program"));
 }
