@@ -303,6 +303,19 @@ Atm_servo servo;
 Atm_timer timerServo;
 
 /**
+ * Audio FX.
+ */
+
+const byte PIN_AUDIO_RST = 36;
+const byte PIN_AUDIO_ACT = 50;
+const byte PIN_TRACK_00 = 38;
+const byte PIN_TRACK_01 = 40;
+const byte PIN_TRACK_02 = 42;
+const byte PIN_TRACK_03 = 44;
+const byte PIN_TRACK_04 = 46;
+const byte PIN_TRACK_05 = 48;
+
+/**
  * Program state.
  */
 
@@ -1420,6 +1433,58 @@ void initRelays()
 }
 
 /**
+ * Audio FX functions.
+ */
+
+void playTrack(byte trackPin)
+{
+    if (isTrackPlaying())
+    {
+        Serial.println(F("Skipping: Audio playing"));
+        return;
+    }
+
+    Serial.print(F("Playing track on pin: "));
+    Serial.println(trackPin);
+
+    digitalWrite(trackPin, LOW);
+    pinMode(trackPin, OUTPUT);
+    delay(300);
+    pinMode(trackPin, INPUT);
+}
+
+void initAudioPins()
+{
+    pinMode(PIN_TRACK_00, INPUT);
+    pinMode(PIN_TRACK_01, INPUT);
+    pinMode(PIN_TRACK_02, INPUT);
+    pinMode(PIN_TRACK_03, INPUT);
+    pinMode(PIN_TRACK_04, INPUT);
+    pinMode(PIN_TRACK_05, INPUT);
+    pinMode(PIN_AUDIO_ACT, INPUT);
+    pinMode(PIN_AUDIO_RST, INPUT);
+}
+
+bool isTrackPlaying()
+{
+    return digitalRead(PIN_AUDIO_ACT) == LOW;
+}
+
+void resetAudio()
+{
+    Serial.println(F("Audio FX reset"));
+
+    digitalWrite(PIN_AUDIO_RST, LOW);
+    pinMode(PIN_AUDIO_RST, OUTPUT);
+    delay(10);
+    pinMode(PIN_AUDIO_RST, INPUT);
+
+    Serial.println(F("Waiting for Audio FX startup"));
+
+    delay(2000);
+}
+
+/**
  * Entrypoint.
  */
 
@@ -1438,6 +1503,8 @@ void setup()
     initRelays();
     initFurnaceButtons();
     initFurnaceTimer();
+    initAudioPins();
+    resetAudio();
 
     Serial.println(F(">> Starting Runebook program"));
 }
