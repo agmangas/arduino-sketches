@@ -13,8 +13,8 @@ RDM6300 rfidReader(PIN_RFID_RX, PIN_RFID_TX);
 const byte NUM_VALID_TAGS = 2;
 
 String validTags[NUM_VALID_TAGS] = {
-    "1D00277B1300",
-    "1D00277B1300"};
+    "1D0027793200",
+    "1D0027AEA800"};
 
 Atm_timer rfidTimer;
 
@@ -27,9 +27,9 @@ const int RFID_TIMER_MS = 5000;
 Atm_led ledRfid;
 
 const int OUTPUT_PIN_RFID = 6;
-const int OUTPUT_MS_DURATION = 200;
-const int OUTPUT_MS_PAUSE_DURATION = 50;
-const bool OUTPUT_ACTIVE_LOW = true;
+const int OUTPUT_MS_DURATION = 30000;
+const int OUTPUT_MS_PAUSE_DURATION = 500;
+const bool OUTPUT_ACTIVE_LOW = false;
 
 /**
  * RFID functions.
