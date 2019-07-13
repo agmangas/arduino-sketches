@@ -82,7 +82,7 @@ const byte LED_MAP[MATRIX_SIZE][MATRIX_SIZE] = {
  */
 
 const int PROX_SENSORS_NUM = 9;
-const unsigned long PROX_SENSORS_CONFIRMATION_MS = 800;
+const unsigned long PROX_SENSORS_CONFIRMATION_MS = 1200;
 
 const int PROX_SENSORS_INDEX[PROX_SENSORS_NUM] = {
     0, 3, 6, 21, 24, 27, 42, 45, 48};
@@ -98,11 +98,11 @@ Atm_controller proxSensorsConfirmControl;
  */
 
 const int FBUTTONS_NUM = 2;
-const int FBUTTONS_VALID_COUNTER_TARGET = 15;
+const int FBUTTONS_VALID_COUNTER_TARGET = 30;
 const int FBUTTONS_LED_LEVELS = 10;
-const int FBUTTONS_THRESHOLD_MIN = 3;
+const int FBUTTONS_THRESHOLD_MIN = 7;
 const int FBUTTONS_THRESHOLD_MAX = FBUTTONS_LED_LEVELS;
-const int FBUTTONS_TIMER_MS = 1000;
+const int FBUTTONS_TIMER_MS = 500;
 const int FBUTTONS_RECENT_TIMER_RATIO = 1;
 
 const byte FBUTTONS_SLAVE_PIN[FBUTTONS_NUM] = {
@@ -166,7 +166,7 @@ const int LED_PIPES_COIL_LOOP_INI = 77;
 const int LED_PIPES_COIL_LOOP_END = 102;
 const int LED_PIPES_ANIMATE_BLOB_DELAY_MS = 15;
 const int LED_PIPES_COIL_FILL_DELAY_MS = 100;
-const int LED_PIPES_BLOB_NUM_PULSES = 12;
+const int LED_PIPES_BLOB_NUM_PULSES = 16;
 const int LED_PIPES_BLOB_PULSE_DELAY = 50;
 const int LED_PIPES_SUCCESS_ANIMATE_DELAY = 20;
 const int LED_PIPES_ERROR_DELAY_STEP = 5;
@@ -308,12 +308,11 @@ Atm_timer timerServo;
 
 const byte PIN_AUDIO_RST = 36;
 const byte PIN_AUDIO_ACT = 50;
-const byte PIN_TRACK_00 = 38;
-const byte PIN_TRACK_01 = 40;
-const byte PIN_TRACK_02 = 42;
-const byte PIN_TRACK_03 = 44;
-const byte PIN_TRACK_04 = 46;
-const byte PIN_TRACK_05 = 48;
+const byte PIN_TRACK_RUNE_SET_COMPLETE = 38;
+const byte PIN_TRACK_RUNE_DRAWN = 40;
+const byte PIN_TRACK_RUNE_UPLOADED = 42;
+const byte PIN_TRACK_RUNE_SET_ERROR = 44;
+const byte PIN_TRACK_FURNACE_OK = 46;
 
 /**
  * Program state.
@@ -529,14 +528,20 @@ void cleanSensorState()
 
 void onRunePhaseComplete()
 {
-    Serial.println("Rune phase complete");
+    Serial.println(F("Rune phase complete"));
+
+    playTrack(PIN_TRACK_RUNE_SET_COMPLETE);
     animateLedPipesSuccess();
-    Serial.println("Starting servo timer");
+    waitForAudio();
+
+    Serial.println(F("Starting servo timer"));
     timerServo.start();
-    progState.isRunePhaseComplete = true;
+
     clearLedsBook();
     ledPipes.fill(getPipeColor());
     ledPipes.show();
+
+    progState.isRunePhaseComplete = true;
 }
 
 void onSensorPatternConfirmed()
@@ -565,8 +570,14 @@ void onSensorPatternConfirmed()
         if (!isHistoryRunesComplete() && !isRuneInHistory(runeIdx))
         {
             addRuneToHistory(runeIdx);
+
+            playTrack(PIN_TRACK_RUNE_DRAWN);
             fadeBookLedPattern();
+            waitForAudio();
+
+            playTrack(PIN_TRACK_RUNE_UPLOADED);
             animateRunePipeBlob(runeIdx);
+            waitForAudio();
         }
     }
 
@@ -583,7 +594,10 @@ void onSensorPatternConfirmed()
     {
         Serial.println("Invalid runes combination");
         emptyHistoryRunes();
+
+        playTrack(PIN_TRACK_RUNE_SET_ERROR);
         animateLedPipesError();
+        waitForAudio();
     }
 }
 
@@ -1319,6 +1333,8 @@ void decreaseFurnaceLedLevel()
 void onFurnacePhaseComplete()
 {
     Serial.println(F("Fbuttons :: Completed"));
+    playTrack(PIN_TRACK_FURNACE_OK);
+    waitForAudio();
     openRelayFurnace();
     progState.isFurnacePhaseComplete = true;
 }
@@ -1453,14 +1469,34 @@ void playTrack(byte trackPin)
     pinMode(trackPin, INPUT);
 }
 
+void waitForAudio()
+{
+    const unsigned long maxWaitMs = 10000;
+    const unsigned long delayIterMs = 50;
+    const unsigned long marginDelayMs = 200;
+
+    delay(marginDelayMs);
+
+    unsigned long timeoutMillis = millis() + maxWaitMs;
+
+    while (isTrackPlaying())
+    {
+        delay(delayIterMs);
+
+        if (millis() > timeoutMillis)
+        {
+            break;
+        }
+    }
+}
+
 void initAudioPins()
 {
-    pinMode(PIN_TRACK_00, INPUT);
-    pinMode(PIN_TRACK_01, INPUT);
-    pinMode(PIN_TRACK_02, INPUT);
-    pinMode(PIN_TRACK_03, INPUT);
-    pinMode(PIN_TRACK_04, INPUT);
-    pinMode(PIN_TRACK_05, INPUT);
+    pinMode(PIN_TRACK_RUNE_SET_COMPLETE, INPUT);
+    pinMode(PIN_TRACK_RUNE_DRAWN, INPUT);
+    pinMode(PIN_TRACK_RUNE_UPLOADED, INPUT);
+    pinMode(PIN_TRACK_RUNE_SET_ERROR, INPUT);
+    pinMode(PIN_TRACK_FURNACE_OK, INPUT);
     pinMode(PIN_AUDIO_ACT, INPUT);
     pinMode(PIN_AUDIO_RST, INPUT);
 }
