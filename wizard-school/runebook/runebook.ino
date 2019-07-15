@@ -3,8 +3,8 @@
 #include <ArduinoSTL.h>
 #include <set>
 #include <vector>
-#include <Atm_servo.h>
 #include "rdm630.h"
+#include <Servo.h>
 
 /**
  * RFID reader.
@@ -292,14 +292,12 @@ std::vector<byte> RUNES_PATHS[RUNES_NUM] = {
  */
 
 const int SERVO_PIN = 12;
-const int SERVO_STEP_SIZE = 180;
-const int SERVO_STEP_TIME = 0;
 const int SERVO_TIMER_MS = 100;
 const int SERVO_POS_HI = 20;
 const int SERVO_POS_LO = 150;
-const int SERVO_REPEATS = 100;
+const int SERVO_REPEATS = 80;
 
-Atm_servo servo;
+Servo servo;
 Atm_timer timerServo;
 
 /**
@@ -380,21 +378,27 @@ bool shouldListenToFurnaceButtons()
 
 void onServoTimer(int idx, int v, int up)
 {
-    int servoPos = up % 2 == 0 ? SERVO_POS_HI : SERVO_POS_LO;
-    Serial.print(F("Moving servo: "));
-    Serial.println(servoPos);
-    servo.position(servoPos);
+    if (up % 2 == 0)
+    {
+        servo.write(SERVO_POS_HI);
+    }
+    else
+    {
+        servo.write(SERVO_POS_LO);
+    }
 }
 
 void initServo()
 {
-    servo
-        .begin(SERVO_PIN)
-        .step(SERVO_STEP_SIZE, SERVO_STEP_TIME);
+    servo.attach(SERVO_PIN);
+}
 
+void startServo()
+{
     timerServo.begin(SERVO_TIMER_MS)
         .repeat(SERVO_REPEATS)
-        .onTimer(onServoTimer);
+        .onTimer(onServoTimer)
+        .start();
 }
 
 /**
@@ -533,9 +537,6 @@ void onRunePhaseComplete()
     playTrack(PIN_TRACK_RUNE_SET_COMPLETE);
     animateLedPipesSuccess();
     waitForAudio();
-
-    Serial.println(F("Starting servo timer"));
-    timerServo.start();
 
     clearLedsBook();
     ledPipes.fill(getPipeColor());
@@ -1534,7 +1535,6 @@ void setup()
     emptyHistoryPath();
     initProximitySensors();
     initLeds();
-    initServo();
     initRfid();
     initRelays();
     initFurnaceButtons();
