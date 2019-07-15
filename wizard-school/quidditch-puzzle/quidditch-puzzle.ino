@@ -7,10 +7,21 @@
 typedef struct programState
 {
     bool isPotsOk;
+    unsigned long counterOk;
+    unsigned long counterErr;
 } ProgramState;
 
 ProgramState progState = {
-    .isPotsOk = false};
+    .isPotsOk = false,
+    .counterOk = 0,
+    .counterErr = 0};
+
+const int TIMER_STATE_MS = 500;
+const int MAX_COUNTER = 30;
+const int COUNTER_OK_THRESHOLD = 3;
+const int COUNTER_ERR_THRESHOLD = 10;
+
+Atm_timer timerState;
 
 /**
  * Relay.
@@ -33,13 +44,59 @@ const byte POTS_RANGE_LO = 0;
 const byte POTS_RANGE_HI = 2;
 
 byte potsKey[POTS_NUM] = {
-    2, 1, 0, 0, 2};
+    2, 0, 0, 1, 2};
 
 const unsigned long POTS_BOUNCE_MS = 1000;
 
 /**
-   Potentiometer functions
-*/
+ * Timer functions.
+ */
+
+void onStateTimer(int idx, int v, int up)
+{
+    bool isValid = isValidPotsCombination();
+
+    if (isValid)
+    {
+        if (progState.counterOk < MAX_COUNTER)
+        {
+            Serial.println(F("Counter OK ++"));
+            progState.counterOk++;
+        }
+
+        progState.counterErr = 0;
+    }
+    else
+    {
+        if (progState.counterErr < MAX_COUNTER)
+        {
+            Serial.println(F("Counter Error ++"));
+            progState.counterErr++;
+        }
+
+        progState.counterOk = 0;
+    }
+
+    if (progState.counterOk >= COUNTER_OK_THRESHOLD &&
+        progState.isPotsOk == false)
+    {
+        progState.isPotsOk = true;
+        openRelay();
+    }
+}
+
+void initStateTimer()
+{
+    timerState
+        .begin(TIMER_STATE_MS)
+        .repeat(-1)
+        .onTimer(onStateTimer)
+        .start();
+}
+
+/**
+ * Potentiometer functions.
+ */
 
 void onPotChange(int idx, int v, int up)
 {
@@ -107,37 +164,13 @@ void initRelay()
  * Entrypoint.
  */
 
-void updateState()
-{
-    if (progState.isPotsOk || !isValidPotsCombination())
-    {
-        return;
-    }
-
-    Serial.print(F("Valid pots: Checking in "));
-    Serial.print(POTS_BOUNCE_MS);
-    Serial.println(F(" ms"));
-
-    delay(POTS_BOUNCE_MS);
-
-    if (isValidPotsCombination())
-    {
-        Serial.println(F("Pots OK"));
-        progState.isPotsOk = true;
-        openRelay();
-    }
-    else
-    {
-        Serial.println(F("Pots changed during bounce delay"));
-    }
-}
-
 void setup()
 {
     Serial.begin(9600);
 
     initPots();
     initRelay();
+    initStateTimer();
 
     Serial.println(F(">> Starting quidditch puzzle program"));
 }
@@ -145,5 +178,4 @@ void setup()
 void loop()
 {
     automaton.run();
-    updateState();
 }
