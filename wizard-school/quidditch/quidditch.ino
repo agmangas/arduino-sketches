@@ -222,7 +222,7 @@ int getResultLedsPerLevel()
 void showResults()
 {
     int numPerLevel = getResultLedsPerLevel();
-    int currIdx = LED_RESULT_NUM - 1;
+    int currIdx = 0;
 
     resultLedStrip.clear();
     resultLedStrip.show();
@@ -243,7 +243,7 @@ void showResults()
             resultLedStrip.setPixelColor(currIdx, color);
             resultLedStrip.show();
 
-            currIdx--;
+            currIdx++;
         }
     }
 }
