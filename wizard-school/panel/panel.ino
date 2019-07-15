@@ -138,14 +138,6 @@ uint32_t colorYellow()
         pgm_read_byte(&gamma8[0]));
 }
 
-uint32_t colorRed()
-{
-    return Adafruit_NeoPixel::Color(
-        pgm_read_byte(&gamma8[255]),
-        pgm_read_byte(&gamma8[0]),
-        pgm_read_byte(&gamma8[0]));
-}
-
 uint32_t colorGreen()
 {
     return Adafruit_NeoPixel::Color(
@@ -162,12 +154,20 @@ uint32_t colorBlue()
         pgm_read_byte(&gamma8[255]));
 }
 
+uint32_t colorGray()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[250]),
+        pgm_read_byte(&gamma8[250]),
+        pgm_read_byte(&gamma8[250]));
+}
+
 const uint32_t LED_STRIP_COLORS[LED_STRIP_COLOR_NUM] = {
     colorOrange(),
     colorPink(),
     colorPurple(),
     colorYellow(),
-    colorRed(),
+    colorGray(),
     colorGreen(),
     colorBlue()};
 
