@@ -80,7 +80,7 @@ Atm_controller ledThroughController;
 
 const int LED_STRIP_BRIGHTNESS = 150;
 const int LED_STRIP_NUM = 12;
-const int LED_STRIP_PIN = 12;
+const int LED_STRIP_PIN = 10;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(
     LED_STRIP_NUM,
@@ -101,7 +101,7 @@ const int LED_STRIP_COLOR_NUM = 7;
  * 1: Pink
  * 2: Purple
  * 3: Yellow
- * 4: Red
+ * 4: Gray
  * 5: Green
  * 6: Blue
  */
@@ -138,6 +138,14 @@ uint32_t colorYellow()
         pgm_read_byte(&gamma8[0]));
 }
 
+uint32_t colorGray()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[200]),
+        pgm_read_byte(&gamma8[200]),
+        pgm_read_byte(&gamma8[200]));
+}
+
 uint32_t colorGreen()
 {
     return Adafruit_NeoPixel::Color(
@@ -152,14 +160,6 @@ uint32_t colorBlue()
         pgm_read_byte(&gamma8[0]),
         pgm_read_byte(&gamma8[0]),
         pgm_read_byte(&gamma8[255]));
-}
-
-uint32_t colorGray()
-{
-    return Adafruit_NeoPixel::Color(
-        pgm_read_byte(&gamma8[250]),
-        pgm_read_byte(&gamma8[250]),
-        pgm_read_byte(&gamma8[250]));
 }
 
 const uint32_t LED_STRIP_COLORS[LED_STRIP_COLOR_NUM] = {
