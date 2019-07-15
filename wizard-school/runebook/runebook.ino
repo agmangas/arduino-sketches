@@ -98,7 +98,7 @@ Atm_controller proxSensorsConfirmControl;
  */
 
 const int FBUTTONS_NUM = 2;
-const int FBUTTONS_VALID_COUNTER_TARGET = 30;
+const int FBUTTONS_VALID_COUNTER_TARGET = 15;
 const int FBUTTONS_LED_LEVELS = 10;
 const int FBUTTONS_THRESHOLD_MIN = 7;
 const int FBUTTONS_THRESHOLD_MAX = FBUTTONS_LED_LEVELS;
