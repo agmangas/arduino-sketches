@@ -10,9 +10,6 @@ const int LDR_NUM = 3;
 const byte LDR_PINS[LDR_NUM] = {
     3, 4, 5};
 
-const int LDR_PULSE_DURATION = 200;
-
-Atm_digital ldrs[LDR_NUM];
 Atm_bit ldrBits[LDR_NUM];
 Atm_timer ldrSnapshotTimer;
 
@@ -367,8 +364,25 @@ void printLdrState(int state)
     }
 }
 
-void takeLdrSnapshot(int idx, int v, int up)
+void refreshLdrBits()
 {
+    for (int i = 0; i < LDR_NUM; i++)
+    {
+        if (digitalRead(LDR_PINS[i]) == LOW)
+        {
+            ldrBits[i].on();
+        }
+        else
+        {
+            ldrBits[i].off();
+        }
+    }
+}
+
+void onLdrTimer(int idx, int v, int up)
+{
+    refreshLdrBits();
+
     LdrSnapshot currSnapshot;
 
     currSnapshot.state = getCurrentLdrState();
@@ -387,27 +401,18 @@ void takeLdrSnapshot(int idx, int v, int up)
     }
 }
 
-/**
- * State machine functions.
- */
-
-void initMachines()
+void initLdrs()
 {
     for (int i = 0; i < LDR_NUM; i++)
     {
-        ldrBits[i]
-            .begin();
-
-        ldrs[i]
-            .begin(LDR_PINS[i], LDR_PULSE_DURATION, true, true)
-            .onChange(HIGH, ldrBits[i], ldrBits[i].EVT_ON)
-            .onChange(LOW, ldrBits[i], ldrBits[i].EVT_OFF);
+        pinMode(LDR_PINS[i], INPUT_PULLUP);
+        ldrBits[i].begin();
     }
 
     ldrSnapshotTimer
         .begin(LDR_SNAPSHOT_TIMER_MS)
         .repeat(-1)
-        .onTimer(takeLdrSnapshot)
+        .onTimer(onLdrTimer)
         .start();
 }
 
@@ -506,7 +511,7 @@ void setup()
 {
     Serial.begin(9600);
 
-    initMachines();
+    initLdrs();
     initAudioPins();
     resetAudio();
 
