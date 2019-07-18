@@ -393,7 +393,7 @@ void updateState()
 
         if (hasStarted())
         {
-            uint32_t blinkColor = Adafruit_NeoPixel::Color(255, 255, 0);
+            uint32_t blinkColor = Adafruit_NeoPixel::Color(255, 0, 0);
             showErrorLedsBlink(blinkColor);
         }
 
