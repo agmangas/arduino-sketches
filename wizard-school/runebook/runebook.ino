@@ -431,6 +431,19 @@ bool isHistoryRunesComplete()
     return getHistoryRunesSize() == RUNES_KEY_NUM;
 }
 
+bool isRuneInValidKey(int runeIdx)
+{
+    for (int i = 0; i < RUNES_KEY_NUM; i++)
+    {
+        if (runeIdx == RUNES_VALID_KEY[i])
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool isValidRunesCombination()
 {
     if (!isHistoryRunesComplete())
@@ -440,7 +453,7 @@ bool isValidRunesCombination()
 
     for (int i = 0; i < RUNES_KEY_NUM; i++)
     {
-        if (progState.historyRunes[i] != RUNES_VALID_KEY[i])
+        if (!isRuneInValidKey(progState.historyRunes[i]))
         {
             return false;
         }
