@@ -48,6 +48,7 @@ const int LED_ERROR_SLEEP_MS = 250;
 const int LED_SUCCESS_ITERS = 6;
 const int LED_SUCCESS_SLEEP_MS = 200;
 const int LED_FADE_MS = 10;
+const uint32_t LED_TARGET_COLOR = Adafruit_NeoPixel::Color(180, 0, 220);
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_RGB + NEO_KHZ800);
 
@@ -62,8 +63,8 @@ const int SUCCESS_STREAK_MEDIUM = 4;
 const int SUCCESS_STREAK_SHORT = 3;
 
 const unsigned long MILLIS_SPAN_LONG = 6000;
-const unsigned long MILLIS_SPAN_MEDIUM = 3000;
-const unsigned long MILLIS_SPAN_SHORT = 1500;
+const unsigned long MILLIS_SPAN_MEDIUM = 6000;
+const unsigned long MILLIS_SPAN_SHORT = 6000;
 
 const int TARGETS_SIZE = KNOCK_NUM;
 
@@ -440,7 +441,7 @@ void showTargetLeds()
 
     for (int i = 0; i < TARGETS_SIZE; i++)
     {
-        ledStrip.setPixelColor(progState.targetKnocks[i], randomColor());
+        ledStrip.setPixelColor(progState.targetKnocks[i], LED_TARGET_COLOR);
     }
 
     ledStrip.show();
