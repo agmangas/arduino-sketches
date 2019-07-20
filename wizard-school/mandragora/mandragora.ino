@@ -42,10 +42,10 @@ const int NUM_CYCLES = 2;
  * Timings.
  */
 
-const int UNCOVER_MAX_DELAY_MS = 2000;
+const int UNCOVER_MAX_DELAY_MS = 5000;
 const int HOLD_EXPECTED_DELAY_MS = 5000;
-const int HOLD_TOLERANCE_MS = 2000;
-const int COVER_MAX_DELAY_MS = 2000;
+const int HOLD_TOLERANCE_MS = 3000;
+const int COVER_MAX_DELAY_MS = 5000;
 const int PRINT_HISTORY_INTERVAL_MS = 4000;
 
 /**
