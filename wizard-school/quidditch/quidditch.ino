@@ -409,6 +409,41 @@ bool addResult(int val)
     return false;
 }
 
+bool clearLastResult()
+{
+    int clearIdx = -1;
+
+    for (int i = 0; i < RESULTS_SIZE; i++)
+    {
+        if (i == 0 && progState.results[i] == -1)
+        {
+            break;
+        }
+        else if (progState.results[i] == -1)
+        {
+            clearIdx = i - 1;
+            break;
+        }
+        else if (i == RESULTS_SIZE - 1 && progState.results[i] != -1)
+        {
+            clearIdx = i;
+            break;
+        }
+    }
+
+    if (clearIdx != -1)
+    {
+        Serial.print(F("Clearing last result: "));
+        Serial.println(clearIdx);
+        progState.results[clearIdx] = -1;
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 bool isResultsError()
 {
     for (int i = 0; i < RESULTS_SIZE; i++)
