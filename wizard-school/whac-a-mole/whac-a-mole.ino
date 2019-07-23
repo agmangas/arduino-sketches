@@ -3,6 +3,102 @@
 #include <CircularBuffer.h>
 
 /**
+ * Color gamma correction.
+ */
+
+const uint8_t PROGMEM gamma8[] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,
+    2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,
+    5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10,
+    10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
+    17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
+    25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
+    37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
+    51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
+    69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
+    90, 92, 93, 95, 96, 98, 99, 101, 102, 104, 105, 107, 109, 110, 112, 114,
+    115, 117, 119, 120, 122, 124, 126, 127, 129, 131, 133, 135, 137, 138, 140, 142,
+    144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 167, 169, 171, 173, 175,
+    177, 180, 182, 184, 186, 189, 191, 193, 196, 198, 200, 203, 205, 208, 210, 213,
+    215, 218, 220, 223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255};
+
+uint32_t colorOrange()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[253]),
+        pgm_read_byte(&gamma8[106]),
+        pgm_read_byte(&gamma8[2]));
+}
+
+uint32_t colorPink()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[231]),
+        pgm_read_byte(&gamma8[84]),
+        pgm_read_byte(&gamma8[128]));
+}
+
+uint32_t colorPurple()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[125]),
+        pgm_read_byte(&gamma8[60]),
+        pgm_read_byte(&gamma8[152]));
+}
+
+uint32_t colorYellow()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[255]),
+        pgm_read_byte(&gamma8[255]),
+        pgm_read_byte(&gamma8[0]));
+}
+
+uint32_t colorRed()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[255]),
+        pgm_read_byte(&gamma8[0]),
+        pgm_read_byte(&gamma8[0]));
+}
+
+uint32_t colorGreen()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[0]),
+        pgm_read_byte(&gamma8[255]),
+        pgm_read_byte(&gamma8[0]));
+}
+
+uint32_t colorBlue()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[0]),
+        pgm_read_byte(&gamma8[0]),
+        pgm_read_byte(&gamma8[255]));
+}
+
+uint32_t colorGray()
+{
+    return Adafruit_NeoPixel::Color(
+        pgm_read_byte(&gamma8[200]),
+        pgm_read_byte(&gamma8[200]),
+        pgm_read_byte(&gamma8[200]));
+}
+
+uint32_t randomColor()
+{
+    int randVal = random(0, 3);
+    int r = randVal == 0 ? 0 : random(100, 250);
+    int g = randVal == 1 ? 0 : random(100, 250);
+    int b = randVal == 2 ? 0 : random(100, 250);
+
+    return Adafruit_NeoPixel::Color(r, g, b);
+}
+
+/**
  * Piezo knock sensors.
  */
 
@@ -28,7 +124,29 @@ const int KNOCK_BOUNCE_MS = 500;
  * We'll ignore it for the time being.
  */
 
+const bool KNOCK_IGNORE = true;
 const int KNOCK_IGNORED_IDX = 3;
+
+/**
+ * Colors for the unlock phase.
+ */
+
+const int UNLOCK_COLOR_NUM = 7;
+const unsigned long UNLOCK_DEBOUNCE_MS = 200;
+
+const uint32_t UNLOCK_COLORS[UNLOCK_COLOR_NUM] = {
+    colorBlue(),
+    colorRed(),
+    colorGreen(),
+    colorYellow(),
+    colorPink(),
+    colorPurple(),
+    colorGray()};
+
+// Blue, Red, Green, Yellow, Pink, Purple, Gray
+
+const int UNLOCK_COLORS_KEY[KNOCK_NUM] = {
+    2, 2, 2, 2, 2, 2, 2};
 
 /**
  * Relay.
@@ -47,8 +165,7 @@ const int LED_ERROR_ITERS = 3;
 const int LED_ERROR_SLEEP_MS = 250;
 const int LED_SUCCESS_ITERS = 6;
 const int LED_SUCCESS_SLEEP_MS = 200;
-const int LED_FADE_MS = 10;
-const uint32_t LED_TARGET_COLOR = Adafruit_NeoPixel::Color(180, 0, 220);
+const int LED_FADE_MS = 5;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_RGB + NEO_KHZ800);
 
@@ -69,31 +186,48 @@ const unsigned long MILLIS_SPAN_SHORT = 6000;
 const int TARGETS_SIZE = KNOCK_NUM;
 
 int targetKnocks[TARGETS_SIZE];
+int currColorIdx[KNOCK_NUM];
 
 typedef struct programState
 {
+    bool isKnockUnlocked;
+    unsigned long lastLockMillis;
     unsigned long startMillis;
     int *targetKnocks;
     int currPhase;
     int hitStreak;
-    bool isFinished;
+    bool isKnockComplete;
+    int *currColorIdx;
 } ProgramState;
 
 ProgramState progState = {
+    .isKnockUnlocked = false,
+    .lastLockMillis = 0,
     .startMillis = 0,
     .targetKnocks = targetKnocks,
     .currPhase = 0,
     .hitStreak = 0,
-    .isFinished = false};
+    .isKnockComplete = false,
+    .currColorIdx = currColorIdx};
 
-void cleanState()
+void initState()
+{
+    for (int i = 0; i < KNOCK_NUM; i++)
+    {
+        progState.currColorIdx[i] = 0;
+    }
+
+    cleanKnockGameState();
+}
+
+void cleanKnockGameState()
 {
     knockBuf.clear();
     emptyTargets();
     progState.startMillis = 0;
     progState.currPhase = 0;
     progState.hitStreak = 0;
-    progState.isFinished = false;
+    progState.isKnockComplete = false;
 }
 
 /**
@@ -210,14 +344,14 @@ int pickRandomTarget()
     int pivot = random(0, TARGETS_SIZE * 10) % TARGETS_SIZE;
     int counter = 0;
 
-    while ((isTarget(pivot) || pivot == KNOCK_IGNORED_IDX) &&
+    while ((isTarget(pivot) || isIgnoredKnock(pivot)) &&
            counter <= TARGETS_SIZE)
     {
         pivot = (pivot + 1) % TARGETS_SIZE;
         counter++;
     }
 
-    return (isTarget(pivot) || pivot == KNOCK_IGNORED_IDX) ? -1 : pivot;
+    return (isTarget(pivot) || isIgnoredKnock(pivot)) ? -1 : pivot;
 }
 
 void randomizeTargets(int num)
@@ -350,23 +484,51 @@ bool hasStarted()
     return progState.currPhase != 0 || progState.hitStreak != 0;
 }
 
-bool hasFinished()
+bool hasReachedFinalKnockPhase()
 {
     return progState.currPhase >= FINAL_PHASE;
 }
 
+bool isValidUnlockCombination()
+{
+    for (int i = 0; i < KNOCK_NUM; i++)
+    {
+        if (!isIgnoredKnock(i) &&
+            progState.currColorIdx[i] != UNLOCK_COLORS_KEY[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void updateState()
 {
-    if (progState.isFinished)
+    if (progState.isKnockComplete)
     {
         fadeLeds();
         return;
     }
 
-    if (hasFinished())
+    if (!progState.isKnockUnlocked)
     {
-        Serial.println(F("Game completed"));
-        progState.isFinished = true;
+        refreshUnlockPhaseLeds();
+
+        if (isValidUnlockCombination())
+        {
+            Serial.println(F("Valid unlock combination"));
+            fadeLeds();
+            progState.isKnockUnlocked = true;
+        }
+
+        return;
+    }
+
+    if (hasReachedFinalKnockPhase())
+    {
+        Serial.println(F("Game complete"));
+        progState.isKnockComplete = true;
         showSuccessLedPattern();
         openRelay();
         return;
@@ -386,7 +548,7 @@ void updateState()
             showErrorLedsBlink();
         }
 
-        cleanState();
+        cleanKnockGameState();
     }
     else if (isExpired())
     {
@@ -398,7 +560,7 @@ void updateState()
             showErrorLedsBlink(blinkColor);
         }
 
-        cleanState();
+        cleanKnockGameState();
     }
     else if (isKnockBufferMatch())
     {
@@ -425,23 +587,13 @@ void clearLeds()
     ledStrip.show();
 }
 
-uint32_t randomColor()
-{
-    int randVal = random(0, 3);
-    int r = randVal == 0 ? 0 : random(100, 250);
-    int g = randVal == 1 ? 0 : random(100, 250);
-    int b = randVal == 2 ? 0 : random(100, 250);
-
-    return Adafruit_NeoPixel::Color(r, g, b);
-}
-
 void showTargetLeds()
 {
     ledStrip.clear();
 
     for (int i = 0; i < TARGETS_SIZE; i++)
     {
-        ledStrip.setPixelColor(progState.targetKnocks[i], LED_TARGET_COLOR);
+        ledStrip.setPixelColor(progState.targetKnocks[i], colorPurple());
     }
 
     ledStrip.show();
@@ -537,6 +689,25 @@ void fadeLeds()
     clearLeds();
 }
 
+void refreshUnlockPhaseLeds()
+{
+    ledStrip.clear();
+
+    for (int i = 0; i < KNOCK_NUM; i++)
+    {
+        uint32_t color = UNLOCK_COLORS[progState.currColorIdx[i]];
+
+        if (isIgnoredKnock(i))
+        {
+            color = 0;
+        }
+
+        ledStrip.setPixelColor(i, color);
+    }
+
+    ledStrip.show();
+}
+
 /**
  * Relay functions.
  */
@@ -561,11 +732,45 @@ void initRelay()
  * Knock sensor functions.
  */
 
+bool isUnlockKnockEnabled()
+{
+    unsigned long now = millis();
+    return (now - progState.lastLockMillis) > UNLOCK_DEBOUNCE_MS;
+}
+
+bool isIgnoredKnock(int knockIdx)
+{
+    return KNOCK_IGNORE && knockIdx == KNOCK_IGNORED_IDX;
+}
+
+void onUnlockPhaseKnock(int idx)
+{
+    if (!isUnlockKnockEnabled())
+    {
+        return;
+    }
+
+    Serial.print(F("## Knock::Unlock:"));
+    Serial.println(idx);
+
+    progState.lastLockMillis = millis();
+
+    progState.currColorIdx[idx]++;
+    progState.currColorIdx[idx] = progState.currColorIdx[idx] % UNLOCK_COLOR_NUM;
+}
+
 void onKnock(int idx, int v, int up)
 {
-    if (idx == KNOCK_IGNORED_IDX)
+    if (isIgnoredKnock(idx))
     {
         Serial.print(F("Ignored knock"));
+        return;
+    }
+
+    if (!progState.isKnockUnlocked)
+    {
+        onUnlockPhaseKnock(idx);
+        return;
     }
 
     int analogVal = knockAnalogs[idx].state();
@@ -618,6 +823,7 @@ void setup()
 {
     Serial.begin(9600);
 
+    initState();
     initKnockSensors();
     initLeds();
     initRelay();
