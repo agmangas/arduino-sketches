@@ -38,7 +38,33 @@ void initState()
 }
 
 /**
- * LED functions.
+ * Player LED strips.
+ */
+
+const int LED_PLAYER_BRIGHTNESS = 200;
+
+const int LED_PLAYER_PINS[PLAYERS_NUM] = {
+    8, 9, 10};
+
+const int LED_PLAYER_NUM[PLAYERS_NUM] = {
+    10, 10, 10};
+
+Adafruit_NeoPixel ledPlayerStrips[PLAYERS_NUM] = {
+    Adafruit_NeoPixel(
+        LED_PLAYER_NUM[0],
+        LED_PLAYER_PINS[0],
+        NEO_RGB + NEO_KHZ800),
+    Adafruit_NeoPixel(
+        LED_PLAYER_NUM[1],
+        LED_PLAYER_PINS[1],
+        NEO_RGB + NEO_KHZ800),
+    Adafruit_NeoPixel(
+        LED_PLAYER_NUM[2],
+        LED_PLAYER_PINS[2],
+        NEO_RGB + NEO_KHZ800)};
+
+/**
+ * Player LED functions.
  */
 
 void clearPlayerButtonLed(int plyIdx, int optIdx)
@@ -59,6 +85,17 @@ void refreshPlayerButtonLeds()
         }
 
         showPlayerButtonLed(p, progState.currChoices[p]);
+    }
+}
+
+void initPlayerLeds()
+{
+    for (int p = 0; p < PLAYERS_NUM; p++)
+    {
+        ledPlayerStrips[p].begin();
+        ledPlayerStrips[p].setBrightness(LED_PLAYER_BRIGHTNESS);
+        ledPlayerStrips[p].clear();
+        ledPlayerStrips[p].show();
     }
 }
 
@@ -117,6 +154,7 @@ void setup()
 
     initState();
     initButtons();
+    initPlayerLeds();
 
     Serial.println(F(">> Starting quiz program"));
 }
