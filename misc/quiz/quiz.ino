@@ -22,6 +22,14 @@ Atm_button buttons[PLAYERS_NUM][OPTIONS_NUM];
 Atm_led buttonsLeds[PLAYERS_NUM][OPTIONS_NUM];
 
 /**
+ * Countdown timer.
+ */
+
+Atm_timer timerCountdown;
+
+const int TIMER_COUNTDOWN_MS = 5000;
+
+/**
  * Program state.
  */
 
@@ -73,10 +81,6 @@ Adafruit_NeoPixel ledPlayerStrips[PLAYERS_NUM] = {
  * Player LED functions.
  */
 
-void refreshPlayerButtonLeds()
-{
-}
-
 void initPlayerLeds()
 {
     for (int p = 0; p < PLAYERS_NUM; p++)
@@ -85,6 +89,41 @@ void initPlayerLeds()
         ledPlayerStrips[p].setBrightness(LED_PLAYER_BRIGHTNESS);
         ledPlayerStrips[p].clear();
         ledPlayerStrips[p].show();
+    }
+}
+
+/**
+ * Countdown timer functions.
+ */
+
+bool isTimerCountdownIdle()
+{
+    return timerCountdown.state() == Atm_timer::IDLE;
+}
+
+void onTimerCountdown(int idx, int v, int up)
+{
+    Serial.println(F("Countdown timer"));
+}
+
+void initTimerCountdown()
+{
+    timerCountdown
+        .begin(TIMER_COUNTDOWN_MS)
+        .repeat(1)
+        .onTimer(onTimerCountdown);
+}
+
+void startTimerCountdown()
+{
+    if (isTimerCountdownIdle())
+    {
+        Serial.println(F("Starting countdown timer"));
+        timerCountdown.start();
+    }
+    else
+    {
+        Serial.println(F("Countdown timer is not idle"));
     }
 }
 
@@ -154,6 +193,7 @@ void setup()
     initState();
     initButtons();
     initPlayerLeds();
+    initTimerCountdown();
 
     Serial.println(F(">> Starting quiz program"));
 }
