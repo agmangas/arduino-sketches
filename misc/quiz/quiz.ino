@@ -13,7 +13,13 @@ const int BUTTONS_PINS[PLAYERS_NUM][OPTIONS_NUM] = {
     {4, 5},
     {6, 7}};
 
+const int BUTTONS_LEDS_PINS[PLAYERS_NUM][OPTIONS_NUM] = {
+    {A0, A1},
+    {A2, A3},
+    {A4, A5}};
+
 Atm_button buttons[PLAYERS_NUM][OPTIONS_NUM];
+Atm_led buttonsLeds[PLAYERS_NUM][OPTIONS_NUM];
 
 /**
  * Program state.
@@ -67,25 +73,8 @@ Adafruit_NeoPixel ledPlayerStrips[PLAYERS_NUM] = {
  * Player LED functions.
  */
 
-void clearPlayerButtonLed(int plyIdx, int optIdx)
-{
-}
-
-void showPlayerButtonLed(int plyIdx, int optIdx)
-{
-}
-
 void refreshPlayerButtonLeds()
 {
-    for (int p = 0; p < PLAYERS_NUM; p++)
-    {
-        for (int o = 0; o < OPTIONS_NUM; o++)
-        {
-            clearPlayerButtonLed(p, o);
-        }
-
-        showPlayerButtonLed(p, progState.currChoices[p]);
-    }
 }
 
 void initPlayerLeds()
@@ -128,6 +117,12 @@ void onPlayerButton(int idx, int v, int up)
     Serial.print(F("::O"));
     Serial.println(optIdx);
 
+    for (int i = 0; i < OPTIONS_NUM; i++)
+    {
+        buttonsLeds[plyIdx][i].trigger(
+            (i == optIdx) ? Atm_led::EVT_ON : Atm_led::EVT_OFF);
+    }
+
     progState.currChoices[plyIdx] = optIdx;
 }
 
@@ -137,6 +132,10 @@ void initButtons()
     {
         for (int o = 0; o < OPTIONS_NUM; o++)
         {
+            buttonsLeds[p][o]
+                .begin(BUTTONS_LEDS_PINS[p][o])
+                .trigger(Atm_led::EVT_OFF);
+
             buttons[p][o]
                 .begin(BUTTONS_PINS[p][o])
                 .onPress(onPlayerButton, flattenButtonIndex(p, o));
