@@ -132,6 +132,12 @@ const int BUTTON_PINS[BUTTON_NUM] = {
 Atm_button buttons[BUTTON_NUM];
 
 /**
+ * Relay.
+ */
+
+const int RELAY_PIN = A0;
+
+/**
  * Reset.
  */
 
@@ -242,9 +248,12 @@ bool isValidCombination()
 
 void onSuccess()
 {
+    const unsigned long relayDelayMs = 1000;
     Serial.println(F("Valid LED combination"));
     showSuccessLedPattern();
     progState.isComplete = true;
+    delay(relayDelayMs);
+    openRelay();
 }
 
 bool isResetPressed()
@@ -314,6 +323,26 @@ void initButtons()
 }
 
 /**
+ * Relay functions.
+ */
+
+void lockRelay()
+{
+    digitalWrite(RELAY_PIN, LOW);
+}
+
+void openRelay()
+{
+    digitalWrite(RELAY_PIN, HIGH);
+}
+
+void initRelay()
+{
+    pinMode(RELAY_PIN, OUTPUT);
+    lockRelay();
+}
+
+/**
  * Entrypoint.
  */
 
@@ -325,6 +354,7 @@ void setup()
     initButtons();
     initLed();
     initControllers();
+    initRelay();
 
     Serial.println(F(">> Starting button pattern program"));
 }
