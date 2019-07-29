@@ -131,7 +131,9 @@ bool isValidPotsCombination()
 {
     for (int i = 0; i < POTS_NUM; i++)
     {
-        if (progState.currPotValues[i] != POTS_KEY[i])
+        if (progState.currPotValues[i] != POTS_KEY[i] &&
+            progState.currPotValues[i] != (POTS_KEY[i] + 1) &&
+            progState.currPotValues[i] != (POTS_KEY[i] - 1))
         {
             return false;
         }
