@@ -238,6 +238,7 @@ void showGlobalLed()
     int playerOffset;
     int phaseOffset;
     int currLedIdx;
+    uint32_t color;
 
     for (int p = 0; p < PLAYERS_NUM; p++)
     {
@@ -246,6 +247,10 @@ void showGlobalLed()
         for (int f = 0; f < progState.currPhase; f++)
         {
             phaseOffset = f * ledsPerPhase;
+
+            color = progState.phaseResults[p][f]
+                        ? COLOR_CORRECT
+                        : COLOR_ERROR;
 
             for (int i = 0; i < ledsPerPhase; i++)
             {
@@ -256,9 +261,7 @@ void showGlobalLed()
                     Serial.println(F("Warning :: Global LED overflow"));
                 }
 
-                ledGlobal.setPixelColor(
-                    currLedIdx,
-                    progState.phaseResults[p][f] ? COLOR_CORRECT : COLOR_ERROR);
+                ledGlobal.setPixelColor(currLedIdx, color);
             }
         }
     }
