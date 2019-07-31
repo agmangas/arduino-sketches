@@ -141,6 +141,33 @@ void initState()
 
         progState.currChoices[p] = 0;
     }
+
+    progState.currPhase = 0;
+    progState.countdownStartMillis = 0;
+}
+
+bool isFinished()
+{
+    return progState.currPhase >= NUM_PHASES;
+}
+
+void resetProgram()
+{
+    Serial.println(F("Program reset"));
+
+    initState();
+
+    for (int p = 0; p < PLAYERS_NUM; p++)
+    {
+        ledPlayerStrips[p].clear();
+        ledPlayerStrips[p].show();
+    }
+
+    ledCountdown.clear();
+    ledCountdown.show();
+
+    ledGlobal.clear();
+    ledGlobal.show();
 }
 
 /**
@@ -256,12 +283,21 @@ bool isTimerCountdownIdle()
     return timerCountdown.state() == Atm_timer::IDLE;
 }
 
-void blockOnFinish()
+void blockAndWaitForReset()
 {
+    const unsigned long iterDelayMs = 5000;
+
     while (true)
     {
         Serial.println(F("The end"));
-        delay(2000);
+
+        delay(iterDelayMs);
+
+        if (digitalRead(HOST_BUTTON_PIN) == LOW)
+        {
+            resetProgram();
+            break;
+        }
     }
 }
 
@@ -269,7 +305,7 @@ void onTimerCountdown(int idx, int v, int up)
 {
     Serial.println(F("Countdown timer finished"));
 
-    if (progState.currPhase >= NUM_PHASES)
+    if (isFinished())
     {
         Serial.println(F("Ignoring countdown timer :: Final phase"));
         return;
@@ -304,9 +340,9 @@ void onTimerCountdown(int idx, int v, int up)
     progState.countdownStartMillis = 0;
     showGlobalLed();
 
-    if (progState.currPhase >= NUM_PHASES)
+    if (isFinished())
     {
-        blockOnFinish();
+        blockAndWaitForReset();
     }
 }
 
