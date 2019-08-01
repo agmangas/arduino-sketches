@@ -372,10 +372,6 @@ void startTimerCountdown()
     }
 }
 
-/**
- * LEDs timer functions.
- */
-
 void onTimerLedCountdown(int idx, int v, int up)
 {
     ledCountdown.clear();
@@ -397,6 +393,7 @@ void onTimerLedCountdown(int idx, int v, int up)
 
     unsigned long diff = endMillis - now;
     float ratio = ((float)diff) / ((float)TIMER_COUNTDOWN_MS);
+    ratio = ratio > 1.0 ? 1.0 : ratio;
     int numLedsOn = floor(LED_COUNTDOWN_NUM * ratio);
 
     for (int i = 0; i < numLedsOn; i++)
