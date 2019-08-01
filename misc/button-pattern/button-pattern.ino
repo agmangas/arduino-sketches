@@ -278,6 +278,7 @@ void onReset()
 {
     Serial.println(F("Reset"));
     initState();
+    lockRelay();
 }
 
 void initControllers()
