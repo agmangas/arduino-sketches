@@ -9,17 +9,16 @@ const int PLAYERS_NUM = 3;
 const int OPTIONS_NUM = 2;
 
 const int BUTTONS_PINS[PLAYERS_NUM][OPTIONS_NUM] = {
-    {2, 3},
+    {A0, 3},
     {4, 5},
     {6, 7}};
 
 const int BUTTONS_LEDS_PINS[PLAYERS_NUM][OPTIONS_NUM] = {
-    {A0, A1},
-    {A2, A3},
+    {2, A1},
+    {A3, A2},
     {A4, A5}};
 
 Atm_button buttons[PLAYERS_NUM][OPTIONS_NUM];
-Atm_led buttonsLeds[PLAYERS_NUM][OPTIONS_NUM];
 
 /**
  * Show host button.
@@ -83,7 +82,7 @@ Adafruit_NeoPixel ledPlayerStrips[PLAYERS_NUM] = {
 
 const int LED_COUNTDOWN_BRIGHTNESS = 220;
 const int LED_COUNTDOWN_PIN = 11;
-const int LED_COUNTDOWN_NUM = 10;
+const int LED_COUNTDOWN_NUM = 30;
 
 Adafruit_NeoPixel ledCountdown = Adafruit_NeoPixel(
     LED_COUNTDOWN_NUM,
@@ -107,10 +106,10 @@ Adafruit_NeoPixel ledGlobal = Adafruit_NeoPixel(
  * Solution key.
  */
 
-const int NUM_PHASES = 10;
+const int NUM_PHASES = 5;
 
 const int SOLUTION_KEY[NUM_PHASES] = {
-    0, 1, 0, 1, 0, 1, 0, 1, 0, 1};
+    0, 1, 0, 1, 0};
 
 /**
  * Program state.
@@ -444,8 +443,9 @@ void onPlayerButton(int idx, int v, int up)
 
     for (int i = 0; i < OPTIONS_NUM; i++)
     {
-        buttonsLeds[plyIdx][i].trigger(
-            (i == optIdx) ? Atm_led::EVT_ON : Atm_led::EVT_OFF);
+        digitalWrite(
+            BUTTONS_LEDS_PINS[plyIdx][i],
+            (i == optIdx) ? HIGH : LOW);
     }
 
     progState.currChoices[plyIdx] = optIdx;
@@ -457,9 +457,8 @@ void initPlayerButtons()
     {
         for (int o = 0; o < OPTIONS_NUM; o++)
         {
-            buttonsLeds[p][o]
-                .begin(BUTTONS_LEDS_PINS[p][o])
-                .trigger(Atm_led::EVT_OFF);
+            pinMode(BUTTONS_LEDS_PINS[p][o], OUTPUT);
+            digitalWrite(BUTTONS_LEDS_PINS[p][o], LOW);
 
             buttons[p][o]
                 .begin(BUTTONS_PINS[p][o])
