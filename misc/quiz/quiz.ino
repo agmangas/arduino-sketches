@@ -14,7 +14,7 @@ const int BUTTONS_PINS[PLAYERS_NUM][OPTIONS_NUM] = {
     {6, 7}};
 
 const int BUTTONS_LEDS_PINS[PLAYERS_NUM][OPTIONS_NUM] = {
-    {2, A1},
+    {8, A1},
     {A3, A2},
     {A4, A5}};
 
@@ -24,7 +24,7 @@ Atm_button buttons[PLAYERS_NUM][OPTIONS_NUM];
  * Show host button.
  */
 
-const int HOST_BUTTON_PIN = A6;
+const int HOST_BUTTON_PIN = 2;
 Atm_button buttonHost;
 
 /**
@@ -33,7 +33,7 @@ Atm_button buttonHost;
 
 Atm_timer timerCountdown;
 
-const int TIMER_COUNTDOWN_MS = 5000;
+const int TIMER_COUNTDOWN_MS = 6500;
 
 /**
  * Countdown LED timer.
@@ -54,27 +54,27 @@ const uint32_t COLOR_ERROR = Adafruit_NeoPixel::Color(255, 0, 0);
  * Player LED strips.
  */
 
-const int LED_PLAYER_BRIGHTNESS = 150;
+// const int LED_PLAYER_BRIGHTNESS = 150;
 
-const int LED_PLAYER_PINS[PLAYERS_NUM] = {
-    8, 9, 10};
+// const int LED_PLAYER_PINS[PLAYERS_NUM] = {
+//     8, 9, 10};
 
-const int LED_PLAYER_NUM[PLAYERS_NUM] = {
-    10, 10, 10};
+// const int LED_PLAYER_NUM[PLAYERS_NUM] = {
+//     10, 10, 10};
 
-Adafruit_NeoPixel ledPlayerStrips[PLAYERS_NUM] = {
-    Adafruit_NeoPixel(
-        LED_PLAYER_NUM[0],
-        LED_PLAYER_PINS[0],
-        NEO_RGB + NEO_KHZ800),
-    Adafruit_NeoPixel(
-        LED_PLAYER_NUM[1],
-        LED_PLAYER_PINS[1],
-        NEO_RGB + NEO_KHZ800),
-    Adafruit_NeoPixel(
-        LED_PLAYER_NUM[2],
-        LED_PLAYER_PINS[2],
-        NEO_RGB + NEO_KHZ800)};
+// Adafruit_NeoPixel ledPlayerStrips[PLAYERS_NUM] = {
+//     Adafruit_NeoPixel(
+//         LED_PLAYER_NUM[0],
+//         LED_PLAYER_PINS[0],
+//         NEO_GRB + NEO_KHZ800),
+//     Adafruit_NeoPixel(
+//         LED_PLAYER_NUM[1],
+//         LED_PLAYER_PINS[1],
+//         NEO_GRB + NEO_KHZ800),
+//     Adafruit_NeoPixel(
+//         LED_PLAYER_NUM[2],
+//         LED_PLAYER_PINS[2],
+//         NEO_GRB + NEO_KHZ800)};
 
 /**
  * Countdown LED strip.
@@ -87,7 +87,7 @@ const int LED_COUNTDOWN_NUM = 30;
 Adafruit_NeoPixel ledCountdown = Adafruit_NeoPixel(
     LED_COUNTDOWN_NUM,
     LED_COUNTDOWN_PIN,
-    NEO_RGB + NEO_KHZ800);
+    NEO_GRB + NEO_KHZ800);
 
 /**
  * Global scoreboard strip.
@@ -100,7 +100,7 @@ const int LED_GLOBAL_NUM = 30;
 Adafruit_NeoPixel ledGlobal = Adafruit_NeoPixel(
     LED_GLOBAL_NUM,
     LED_GLOBAL_PIN,
-    NEO_RGB + NEO_KHZ800);
+    NEO_GRB + NEO_KHZ800);
 
 /**
  * Solution key.
@@ -109,7 +109,7 @@ Adafruit_NeoPixel ledGlobal = Adafruit_NeoPixel(
 const int NUM_PHASES = 5;
 
 const int SOLUTION_KEY[NUM_PHASES] = {
-    0, 1, 0, 1, 0};
+    1, 1, 0, 1, 1};
 
 /**
  * Program state.
@@ -156,11 +156,11 @@ void resetProgram()
 
     initState();
 
-    for (int p = 0; p < PLAYERS_NUM; p++)
-    {
-        ledPlayerStrips[p].clear();
-        ledPlayerStrips[p].show();
-    }
+    // for (int p = 0; p < PLAYERS_NUM; p++)
+    // {
+    //     ledPlayerStrips[p].clear();
+    //     ledPlayerStrips[p].show();
+    // }
 
     ledCountdown.clear();
     ledCountdown.show();
@@ -175,34 +175,34 @@ void resetProgram()
 
 void showPlayerLedCorrect(int pIdx)
 {
-    ledPlayerStrips[pIdx].fill(COLOR_CORRECT);
-    ledPlayerStrips[pIdx].show();
+    // ledPlayerStrips[pIdx].fill(COLOR_CORRECT);
+    // ledPlayerStrips[pIdx].show();
 }
 
 void showPlayerLedError(int pIdx)
 {
-    ledPlayerStrips[pIdx].fill(COLOR_ERROR);
-    ledPlayerStrips[pIdx].show();
+    // ledPlayerStrips[pIdx].fill(COLOR_ERROR);
+    // ledPlayerStrips[pIdx].show();
 }
 
 void clearPlayerLeds()
 {
-    for (int p = 0; p < PLAYERS_NUM; p++)
-    {
-        ledPlayerStrips[p].clear();
-        ledPlayerStrips[p].show();
-    }
+    // for (int p = 0; p < PLAYERS_NUM; p++)
+    // {
+    //     ledPlayerStrips[p].clear();
+    //     ledPlayerStrips[p].show();
+    // }
 }
 
 void initPlayerLeds()
 {
-    for (int p = 0; p < PLAYERS_NUM; p++)
-    {
-        ledPlayerStrips[p].begin();
-        ledPlayerStrips[p].setBrightness(LED_PLAYER_BRIGHTNESS);
-        ledPlayerStrips[p].clear();
-        ledPlayerStrips[p].show();
-    }
+    // for (int p = 0; p < PLAYERS_NUM; p++)
+    // {
+    //     ledPlayerStrips[p].begin();
+    //     ledPlayerStrips[p].setBrightness(LED_PLAYER_BRIGHTNESS);
+    //     ledPlayerStrips[p].clear();
+    //     ledPlayerStrips[p].show();
+    // }
 }
 
 /**
@@ -298,7 +298,39 @@ void blockAndWaitForReset()
         if (digitalRead(HOST_BUTTON_PIN) == LOW)
         {
             resetProgram();
+            delay(iterDelayMs);
             break;
+        }
+    }
+}
+
+void blinkCorrectLeds()
+{
+    const int numRepeats = 90;
+    const int delayRepeatMs = 60;
+
+    for (int i = 0; i < numRepeats; i++)
+    {
+        for (int p = 0; p < PLAYERS_NUM; p++)
+        {
+            for (int o = 0; o < OPTIONS_NUM; o++)
+            {
+                digitalWrite(
+                    BUTTONS_LEDS_PINS[p][o],
+                    (progState.phaseResults[p][progState.currPhase])
+                        ? !digitalRead(BUTTONS_LEDS_PINS[p][o])
+                        : LOW);
+            }
+        }
+
+        delay(delayRepeatMs);
+    }
+
+    for (int p = 0; p < PLAYERS_NUM; p++)
+    {
+        for (int o = 0; o < OPTIONS_NUM; o++)
+        {
+            digitalWrite(BUTTONS_LEDS_PINS[p][o], LOW);
         }
     }
 }
@@ -337,6 +369,8 @@ void onTimerCountdown(int idx, int v, int up)
             showPlayerLedError(p);
         }
     }
+
+    blinkCorrectLeds();
 
     progState.currPhase++;
     progState.countdownStartMillis = 0;
