@@ -146,7 +146,7 @@ const uint32_t UNLOCK_COLORS[UNLOCK_COLOR_NUM] = {
 // Blue, Red, Green, Yellow, Pink, Purple, Gray
 
 const int UNLOCK_COLORS_KEY[KNOCK_NUM] = {
-    2, 2, 2, 2, 2, 2, 2};
+    2, 5, 2, 2, 0, 1, 1};
 
 /**
  * Relay.
@@ -159,7 +159,7 @@ const int RELAY_PIN = 3;
  */
 
 const int LED_BRIGHTNESS = 230;
-const int LED_PIN = 2;
+const int LED_PIN = 7;
 const int LED_NUM = KNOCK_NUM;
 const int LED_ERROR_ITERS = 3;
 const int LED_ERROR_SLEEP_MS = 250;
