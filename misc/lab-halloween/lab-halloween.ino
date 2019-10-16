@@ -12,19 +12,20 @@ const byte PIN_RFID_TX = 13;
 
 RDM6300 rfidReader(PIN_RFID_RX, PIN_RFID_TX);
 
-const byte NUM_VALID_TAGS = 2;
+const byte NUM_VALID_TAGS = 1;
 const byte NUM_RESET_TAGS = 1;
 
 String validTags[NUM_VALID_TAGS] = {
-    "1D0027793200",
-    "1D0027AEA800"};
+    "011005CDB600"};
 
 String resetTags[NUM_RESET_TAGS] = {
-    "1D0027793200"};
+    "011005CDB400"};
 
 const byte RFID_TAG_NONE = 0;
 const byte RFID_TAG_VALID = 1;
 const byte RFID_TAG_RESET = 2;
+
+bool rfidResetFlag = false;
 
 /**
  * Throughhole LEDs.
@@ -39,7 +40,7 @@ Adafruit_NeoPixel ledThrough = Adafruit_NeoPixel(
     LED_THROUGH_PIN,
     NEO_RGB + NEO_KHZ800);
 
-const uint32_t LED_THROUGH_COLOR = Adafruit_NeoPixel::Color(255, 0, 255);
+const uint32_t LED_THROUGH_COLOR = Adafruit_NeoPixel::Color(0, 255, 0);
 
 const int LED_THROUGH_IDX_BUTTON = 0;
 const int LED_THROUGH_IDX_BUTTON_WLED = 1;
@@ -145,6 +146,9 @@ void resetState()
         leds[i].trigger(Atm_led::EVT_OFF);
     }
 
+    ledThrough.clear();
+    ledThrough.show();
+
     lockRelay();
 }
 
@@ -177,6 +181,12 @@ void refreshState()
     {
         Serial.println(F("Buttons w/LED: OK"));
         progState.isButtonsLedOk = true;
+
+        for (int i = 0; i < BUTTON_WLED_NUM; i++)
+        {
+            leds[i].trigger(Atm_led::EVT_ON);
+        }
+
         setLedThroughButtonsLed();
     }
 
@@ -184,16 +194,26 @@ void refreshState()
     {
         byte currTag = pollRfidReader();
 
-        if (currTag == RFID_TAG_VALID)
+        if (rfidResetFlag == false &&
+            currTag == RFID_TAG_VALID)
         {
             Serial.println(F("RFID: OK"));
             progState.isRfidReaderOk = true;
             setLedThroughRfid();
         }
-        else if (currTag == RFID_TAG_RESET)
+        else if (rfidResetFlag == false &&
+                 currTag == RFID_TAG_RESET)
         {
             Serial.println(F("RFID: Reset"));
+            showButtonsLedReset();
+            rfidResetFlag = true;
             resetState();
+        }
+        else if (rfidResetFlag == true &&
+                 currTag == RFID_TAG_NONE)
+        {
+            Serial.println(F("Clearing reset flag"));
+            rfidResetFlag = false;
         }
     }
 
@@ -280,6 +300,22 @@ bool isButtonsLedStateValid()
     return true;
 }
 
+void showButtonsLedReset()
+{
+    const unsigned long delayMs = 500;
+
+    for (int i = 0; i < BUTTON_WLED_NUM; i++)
+    {
+        digitalWrite(LED_PINS[i], HIGH);
+    }
+
+    for (int i = 0; i < BUTTON_WLED_NUM; i++)
+    {
+        delay(delayMs);
+        digitalWrite(LED_PINS[i], LOW);
+    }
+}
+
 void onPressButtonsLed(int idx, int v, int up)
 {
     Serial.print(F("Button w/LED: "));
@@ -333,7 +369,7 @@ bool isButtonsStateValid()
         return false;
     }
 
-    int buttonsBufLimitHi = buttonsBuf.size() - BUTTON_KEY_SIZE;
+    int buttonsBufLimitHi = buttonsBuf.size() - BUTTON_KEY_SIZE + 1;
     bool isValid;
 
     for (int i = 0; i < buttonsBufLimitHi; i++)
@@ -395,7 +431,7 @@ byte pollRfidReader()
 
     if (!tagId.length())
     {
-        return;
+        return RFID_TAG_NONE;
     }
 
     Serial.print(F("Tag :: "));
