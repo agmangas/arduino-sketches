@@ -260,20 +260,21 @@ void onMorseCompleted()
 
 void onPressMorseButton(int idx, int v, int up)
 {
-    Serial.print(F("Button: "));
-    Serial.println(idx);
-
     unsigned long now = millis();
     morseBuf.push(MorseItem{now, idx});
 
     if (idx == MORSE_DOT)
     {
+        Serial.print(now);
+        Serial.println(F(":Dot"));
         tone(BUZZ_PIN_DOT, BUZZ_FREQ);
         delay(BUZZ_MS_DOT);
         noTone(BUZZ_PIN_DOT);
     }
     else if (idx == MORSE_DASH)
     {
+        Serial.print(now);
+        Serial.println(F(":Dash"));
         tone(BUZZ_PIN_DASH, BUZZ_FREQ);
         delay(BUZZ_MS_DASH);
         noTone(BUZZ_PIN_DASH);
