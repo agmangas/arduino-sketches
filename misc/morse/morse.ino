@@ -1,5 +1,17 @@
 #include <Automaton.h>
 #include <CircularBuffer.h>
+#include <Wire.h>
+#include <LCD.h>
+#include <LiquidCrystal_I2C.h>
+
+/**
+ * LCD display.
+ */
+
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
+Atm_timer lcdTimer;
+const int LCD_TIMER_MS = 1000;
 
 /**
  * Morse buffer.
@@ -14,8 +26,8 @@ typedef struct morseItem
 const byte MORSE_DOT = 0;
 const byte MORSE_DASH = 1;
 
-const int MORSE_LETTER_TIMEOUT_MS = 1500;
-const int MORSE_BUF_SIZE = 140;
+const int MORSE_LETTER_TIMEOUT_MS = 800;
+const int MORSE_BUF_SIZE = 100;
 
 CircularBuffer<MorseItem, MORSE_BUF_SIZE> morseBuf;
 
@@ -24,11 +36,9 @@ CircularBuffer<MorseItem, MORSE_BUF_SIZE> morseBuf;
  */
 
 String strMorseDecoded = String("");
-String strMorseKey = String("mono");
+String strMorseKey = String("leon");
 String strVictory = String("OK");
 bool isComplete = false;
-unsigned long printCounter = 0;
-const unsigned long PRINT_MOD = 2000;
 
 /**
  * Audio FX.
@@ -227,28 +237,10 @@ bool isDecodedStringValid()
     return strMorseDecoded.indexOf(strMorseKey) > -1;
 }
 
-void decodeAndCheck()
-{
-    decodeMorseString();
-
-    printCounter++;
-
-    if (printCounter % PRINT_MOD == 0)
-    {
-        Serial.print(millis());
-        Serial.print(F(":'"));
-        Serial.print(strMorseDecoded);
-        Serial.println(F("'"));
-    }
-
-    if (isComplete == false && isDecodedStringValid())
-    {
-        onMorseCompleted();
-    }
-}
-
 void onMorseCompleted()
 {
+    Serial.println(F("Completed"));
+
     const unsigned long msShort = 500;
     const unsigned long msLong = 2000;
 
@@ -356,6 +348,54 @@ void resetAudio()
 }
 
 /**
+ * LCD display functions.
+ */
+
+void onLcdTimer(int idx, int v, int up)
+{
+    decodeMorseString();
+
+    Serial.print(millis());
+    Serial.print(F(":'"));
+    Serial.print(strMorseDecoded);
+    Serial.println(F("'"));
+
+    updateLcd();
+
+    if (isComplete == false && isDecodedStringValid())
+    {
+        onMorseCompleted();
+    }
+}
+
+void initLcd()
+{
+    Serial.println(F("Init LCD"));
+
+    lcd.begin(16, 2);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.setBacklight(HIGH);
+
+    lcdTimer
+        .begin(LCD_TIMER_MS)
+        .repeat(-1)
+        .onTimer(onLcdTimer)
+        .start();
+}
+
+void updateLcd()
+{
+    const int lcdCols = 16;
+    int len = strMorseDecoded.length();
+    String strTrim = String("");
+    int from = strMorseDecoded.length() - lcdCols;
+    from = from < 0 ? 0 : from;
+    lcd.setCursor(0, 0);
+    lcd.print(strMorseDecoded.substring(from));
+}
+
+/**
  * Entrypoint.
  */
 
@@ -366,6 +406,7 @@ void setup()
     initMorseButtons();
     initAudioPins();
     resetAudio();
+    initLcd();
 
     Serial.println(F(">> Starting Morse program"));
 }
@@ -373,5 +414,4 @@ void setup()
 void loop()
 {
     automaton.run();
-    decodeAndCheck();
 }
