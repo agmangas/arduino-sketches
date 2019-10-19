@@ -116,11 +116,8 @@ const char UNKNOWN_CHAR = '?';
 const int BTN_DOT_PIN = 2;
 const int BTN_DASH_PIN = 3;
 
-const int BUZZ_PIN_DOT = 9;
-const int BUZZ_PIN_DASH = 10;
-
+const int BUZZ_PIN = 9;
 const unsigned int BUZZ_FREQ = 1000;
-
 const unsigned long BUZZ_MS_DOT = 100;
 const unsigned long BUZZ_MS_DASH = 300;
 
@@ -171,32 +168,6 @@ int findMorseEntryIndex(int idxStart, int idxEnd)
     }
 
     int idxDelta = idxEnd - idxStart + 1;
-
-    // Debug
-    ////////
-
-    // Serial.print(F("F:"));
-    // Serial.print(idxStart);
-    // Serial.print(F(":T:"));
-    // Serial.println(idxEnd);
-
-    // for (int j = 0; j < idxDelta; j++)
-    // {
-    //     if (morseBuf[idxStart + j].val == MORSE_DOT)
-    //     {
-    //         Serial.print(F("."));
-    //     }
-    //     else if (morseBuf[idxStart + j].val == MORSE_DASH)
-    //     {
-    //         Serial.print(F("-"));
-    //     }
-    // }
-
-    // Serial.println("");
-
-    // Debug
-    ////////
-
     bool isValid;
 
     for (int i = 0; i < MORSE_DICT_NUM; i++)
@@ -210,16 +181,6 @@ int findMorseEntryIndex(int idxStart, int idxEnd)
 
         for (int j = 0; j < idxDelta; j++)
         {
-            // Debug
-            ////////
-
-            // Serial.print(morseDict[i].def[j]);
-            // Serial.print(F(" vs "));
-            // Serial.println(morseBuf[idxStart + j].val);
-
-            // Debug
-            ////////
-
             if (morseDict[i].def[j] !=
                 morseBuf[idxStart + j].val)
             {
@@ -230,26 +191,9 @@ int findMorseEntryIndex(int idxStart, int idxEnd)
 
         if (isValid)
         {
-            // Debug
-            ////////
-
-            // Serial.print(F("Res:"));
-            // Serial.println(morseDict[i].val);
-
-            // Debug
-            ////////
-
             return i;
         }
     }
-
-    // Debug
-    ////////
-
-    // Serial.println(F("Res:?"));
-
-    // Debug
-    ////////
 
     return -1;
 }
@@ -332,22 +276,22 @@ void onPressMorseButton(int idx, int v, int up)
     unsigned long now = millis();
     morseBuf.push(MorseItem{now, idx});
 
+    tone(BUZZ_PIN, BUZZ_FREQ);
+
     if (idx == MORSE_DOT)
     {
         Serial.print(now);
         Serial.println(F(":Dot"));
-        tone(BUZZ_PIN_DOT, BUZZ_FREQ);
         delay(BUZZ_MS_DOT);
-        noTone(BUZZ_PIN_DOT);
     }
     else if (idx == MORSE_DASH)
     {
         Serial.print(now);
         Serial.println(F(":Dash"));
-        tone(BUZZ_PIN_DASH, BUZZ_FREQ);
         delay(BUZZ_MS_DASH);
-        noTone(BUZZ_PIN_DASH);
     }
+
+    noTone(BUZZ_PIN);
 }
 
 void initMorseButtons()
@@ -360,8 +304,7 @@ void initMorseButtons()
         .begin(BTN_DASH_PIN)
         .onPress(onPressMorseButton, MORSE_DASH);
 
-    pinMode(BUZZ_PIN_DOT, OUTPUT);
-    pinMode(BUZZ_PIN_DASH, OUTPUT);
+    pinMode(BUZZ_PIN, OUTPUT);
 }
 
 /**
