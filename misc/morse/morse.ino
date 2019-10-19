@@ -27,6 +27,8 @@ String strMorseDecoded = String("");
 String strMorseKey = String("mono");
 String strVictory = String("OK");
 bool isComplete = false;
+unsigned long printCounter = 0;
+const unsigned long PRINT_MOD = 2000;
 
 /**
  * Audio FX.
@@ -139,27 +141,24 @@ int findLetterEnd(int idxStart)
         return -1;
     }
 
-    unsigned long timeStart = morseBuf[idxStart].time;
+    int idxPivot = idxStart;
+    unsigned long diff;
 
-    int idxNext;
-    unsigned long timeDiff;
-
-    for (int i = idxStart; i < morseBuf.size(); i++)
+    for (int i = (idxStart + 1); i < morseBuf.size(); i++)
     {
-        idxNext = i + 1;
+        diff = morseBuf[i].time - morseBuf[i - 1].time;
 
-        if (idxNext >= morseBuf.size())
+        if (diff >= MORSE_LETTER_TIMEOUT_MS)
         {
-            return i;
+            break;
         }
-
-        timeDiff = morseBuf[idxNext].time - timeStart;
-
-        if (timeDiff >= MORSE_LETTER_TIMEOUT_MS)
+        else
         {
-            return i;
+            idxPivot = i;
         }
     }
+
+    return idxPivot;
 }
 
 int findMorseEntryIndex(int idxStart, int idxEnd)
@@ -173,8 +172,37 @@ int findMorseEntryIndex(int idxStart, int idxEnd)
 
     int idxDelta = idxEnd - idxStart + 1;
 
+    // Debug
+    ////////
+
+    // Serial.print(F("F:"));
+    // Serial.print(idxStart);
+    // Serial.print(F(":T:"));
+    // Serial.println(idxEnd);
+
+    // for (int j = 0; j < idxDelta; j++)
+    // {
+    //     if (morseBuf[idxStart + j].val == MORSE_DOT)
+    //     {
+    //         Serial.print(F("."));
+    //     }
+    //     else if (morseBuf[idxStart + j].val == MORSE_DASH)
+    //     {
+    //         Serial.print(F("-"));
+    //     }
+    // }
+
+    // Serial.println("");
+
+    // Debug
+    ////////
+
+    bool isValid;
+
     for (int i = 0; i < MORSE_DICT_NUM; i++)
     {
+        isValid = true;
+
         if (morseDict[i].size != idxDelta)
         {
             continue;
@@ -182,15 +210,46 @@ int findMorseEntryIndex(int idxStart, int idxEnd)
 
         for (int j = 0; j < idxDelta; j++)
         {
+            // Debug
+            ////////
+
+            // Serial.print(morseDict[i].def[j]);
+            // Serial.print(F(" vs "));
+            // Serial.println(morseBuf[idxStart + j].val);
+
+            // Debug
+            ////////
+
             if (morseDict[i].def[j] !=
                 morseBuf[idxStart + j].val)
             {
+                isValid = false;
                 break;
             }
         }
 
-        return i;
+        if (isValid)
+        {
+            // Debug
+            ////////
+
+            // Serial.print(F("Res:"));
+            // Serial.println(morseDict[i].val);
+
+            // Debug
+            ////////
+
+            return i;
+        }
     }
+
+    // Debug
+    ////////
+
+    // Serial.println(F("Res:?"));
+
+    // Debug
+    ////////
 
     return -1;
 }
@@ -227,6 +286,16 @@ bool isDecodedStringValid()
 void decodeAndCheck()
 {
     decodeMorseString();
+
+    printCounter++;
+
+    if (printCounter % PRINT_MOD == 0)
+    {
+        Serial.print(millis());
+        Serial.print(F(":'"));
+        Serial.print(strMorseDecoded);
+        Serial.println(F("'"));
+    }
 
     if (isComplete == false && isDecodedStringValid())
     {
