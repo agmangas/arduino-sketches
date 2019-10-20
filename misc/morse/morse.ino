@@ -11,7 +11,11 @@
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 
 Atm_timer lcdTimer;
-const int LCD_TIMER_MS = 1000;
+const int LCD_TIMER_MS = 500;
+
+const String STR_DEFAULT = String("Enter morse code");
+const String STR_SUCCESS = String("Access granted");
+const String STR_KEY = String("espacioleon");
 
 /**
  * Morse buffer.
@@ -26,7 +30,7 @@ typedef struct morseItem
 const byte MORSE_DOT = 0;
 const byte MORSE_DASH = 1;
 
-const int MORSE_LETTER_TIMEOUT_MS = 800;
+const int MORSE_LETTER_TIMEOUT_MS = 1000;
 const int MORSE_BUF_SIZE = 100;
 
 CircularBuffer<MorseItem, MORSE_BUF_SIZE> morseBuf;
@@ -36,9 +40,8 @@ CircularBuffer<MorseItem, MORSE_BUF_SIZE> morseBuf;
  */
 
 String strMorseDecoded = String("");
-String strMorseKey = String("leon");
-String strVictory = String("OK");
 bool isComplete = false;
+bool isTouched = false;
 
 /**
  * Audio FX.
@@ -127,7 +130,7 @@ const int BTN_DOT_PIN = 2;
 const int BTN_DASH_PIN = 3;
 
 const int BUZZ_PIN = 9;
-const unsigned int BUZZ_FREQ = 1000;
+const unsigned int BUZZ_FREQ = 2000;
 const unsigned long BUZZ_MS_DOT = 100;
 const unsigned long BUZZ_MS_DASH = 300;
 
@@ -234,28 +237,40 @@ void decodeMorseString()
 
 bool isDecodedStringValid()
 {
-    return strMorseDecoded.indexOf(strMorseKey) > -1;
+    return strMorseDecoded.indexOf(STR_KEY) > -1;
 }
 
 void onMorseCompleted()
 {
+    const unsigned long msShort = 500;
+    const unsigned long msLong = 5000;
+    const unsigned long msTimeout = 10000;
+
     Serial.println(F("Completed"));
 
-    const unsigned long msShort = 500;
-    const unsigned long msLong = 2000;
-
-    // ToDo: Write victory message
-
     isComplete = true;
+    updateLcd();
     delay(msShort);
     playTrack(PIN_TRACK_SUCCESS_ONE);
 
-    while (isTrackPlaying())
+    Serial.println(F("Wait for track #1"));
+
+    unsigned long ini = millis();
+
+    while (isTrackPlaying() &&
+           (millis() - ini) < msTimeout)
     {
         continue;
     }
 
+    Serial.print(F("Waiting "));
+    Serial.print(msLong);
+    Serial.println(F(" secs"));
+
     delay(msLong);
+
+    Serial.println(F("Playing track #2"));
+
     playTrack(PIN_TRACK_SUCCESS_TWO);
 }
 
@@ -265,6 +280,8 @@ void onMorseCompleted()
 
 void onPressMorseButton(int idx, int v, int up)
 {
+    isTouched = true;
+
     unsigned long now = millis();
     morseBuf.push(MorseItem{now, idx});
 
@@ -387,12 +404,29 @@ void initLcd()
 void updateLcd()
 {
     const int lcdCols = 16;
-    int len = strMorseDecoded.length();
-    String strTrim = String("");
-    int from = strMorseDecoded.length() - lcdCols;
+
+    String theStr;
+
+    if (strMorseDecoded.length() == 0 && !isTouched)
+    {
+        theStr = STR_DEFAULT;
+    }
+    else if (isComplete)
+    {
+        theStr = STR_SUCCESS;
+    }
+    else
+    {
+        theStr = strMorseDecoded;
+    }
+
+    int len = theStr.length();
+    int from = theStr.length() - lcdCols;
     from = from < 0 ? 0 : from;
+
+    lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print(strMorseDecoded.substring(from));
+    lcd.print(theStr.substring(from));
 }
 
 /**
