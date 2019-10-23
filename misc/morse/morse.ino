@@ -282,6 +282,13 @@ void onPressMorseButton(int idx, int v, int up)
 {
     isTouched = true;
 
+    if (v > 1)
+    {
+        Serial.println(F("Clearing morse buffer"));
+        morseBuf.clear();
+        return;
+    }
+
     unsigned long now = millis();
     morseBuf.push(MorseItem{now, idx});
 
@@ -305,12 +312,17 @@ void onPressMorseButton(int idx, int v, int up)
 
 void initMorseButtons()
 {
+    const int longPressMax = 2;
+    const int longPressDelay = 3000;
+
     btnDot
         .begin(BTN_DOT_PIN)
+        .longPress(longPressMax, longPressDelay)
         .onPress(onPressMorseButton, MORSE_DOT);
 
     btnDash
         .begin(BTN_DASH_PIN)
+        .longPress(longPressMax, longPressDelay)
         .onPress(onPressMorseButton, MORSE_DASH);
 
     pinMode(BUZZ_PIN, OUTPUT);
