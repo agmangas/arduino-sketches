@@ -4,10 +4,10 @@
  * LED strips.
  */
 
-const int LED_BRIGHTNESS = 150;
+const int LED_BRIGHTNESS = 200;
 // From 10 (very fast) to 5000 (very slow)
-const int LED_SPEED = 200;
-const int LED_NUM = 10;
+const int LED_SPEED = 1000;
+const int LED_NUM = 20;
 const int LED_PIN = 10;
 
 WS2812FX ws2812fx = WS2812FX(
@@ -25,7 +25,7 @@ void initLed()
     ws2812fx.setBrightness(LED_BRIGHTNESS);
     ws2812fx.setSpeed(LED_SPEED);
     ws2812fx.setColor(RED);
-    ws2812fx.setMode(FX_MODE_FIRE_FLICKER);
+    ws2812fx.setMode(FX_MODE_FIRE_FLICKER_INTENSE);
     ws2812fx.start();
 }
 
