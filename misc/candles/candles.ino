@@ -1,11 +1,11 @@
 #include <CircularBuffer.h>
 
-const bool PRINT_CANDLE_VOLTS = true;
-const int SAMPLE_WINDOW_MS = 50;
+const bool PRINT_CANDLE_VOLTS = false;
 const int NUM_CANDLES = 4;
 const int VOLTS_BUF_SIZE = 25;
-const double PEAK_PEAK_THRESHOLD_VOLTS = 0.5;
-const int PEAK_PEAK_THRESHOLD_NUM = 5;
+const int SAMPLE_WINDOW_MS = 30;
+const double PEAK_PEAK_THRESHOLD_VOLTS = 0.8;
+const int PEAK_PEAK_THRESHOLD_NUM = 3;
 
 const int CANDLE_MIC_PINS[NUM_CANDLES] = {
     A0, A1, A2, A3};
@@ -13,7 +13,103 @@ const int CANDLE_MIC_PINS[NUM_CANDLES] = {
 const int CANDLE_RELAY_PINS[NUM_CANDLES] = {
     2, 3, 4, 5};
 
+const int BOX_RELAY_PIN = 6;
+
+bool candleRelayStates[NUM_CANDLES] = {
+    false, false, false, false};
+
+const int CANDLE_ACTIVATION_KEY[NUM_CANDLES] = {
+    2, 3, 0, 1};
+
+int candleActivationOrder[NUM_CANDLES];
+
 CircularBuffer<double, VOLTS_BUF_SIZE> voltsBufs[NUM_CANDLES];
+
+void emptyActivation()
+{
+    if (isActivationEmpty() == false)
+    {
+        Serial.println(F("Clearing activation buffer"));
+    }
+
+    for (int i = 0; i < NUM_CANDLES; i++)
+    {
+        candleActivationOrder[i] = -1;
+    }
+}
+
+void resetIfAllOut()
+{
+    for (int i = 0; i < NUM_CANDLES; i++)
+    {
+        if (candleRelayStates[i] == true)
+        {
+            return;
+        }
+    }
+
+    emptyActivation();
+    lockRelay(BOX_RELAY_PIN);
+}
+
+bool isActivationFull()
+{
+    for (int i = 0; i < NUM_CANDLES; i++)
+    {
+        if (candleActivationOrder[i] == -1)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool isActivationEmpty()
+{
+    for (int i = 0; i < NUM_CANDLES; i++)
+    {
+        if (candleActivationOrder[i] != -1)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool isValidActivation()
+{
+    for (int i = 0; i < NUM_CANDLES; i++)
+    {
+        if (CANDLE_ACTIVATION_KEY[i] != candleActivationOrder[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void pushActivation(int idx)
+{
+    for (int i = 0; i < NUM_CANDLES; i++)
+    {
+        if (candleActivationOrder[i] == -1)
+        {
+            Serial.print(F("Activation: "));
+            Serial.println(idx);
+            candleActivationOrder[i] = idx;
+            break;
+        }
+    }
+
+    if (isActivationFull() && isValidActivation())
+    {
+        Serial.println(F("Opening box relay"));
+        openRelay(BOX_RELAY_PIN);
+    }
+}
 
 bool isMicActivated(int micIdx)
 {
@@ -46,9 +142,23 @@ void checkMics()
     {
         if (isMicActivated(i))
         {
-            openRelay(CANDLE_RELAY_PINS[i]);
+            if (candleRelayStates[i] == true)
+            {
+                lockRelay(CANDLE_RELAY_PINS[i]);
+                candleRelayStates[i] = false;
+            }
+            else
+            {
+                openRelay(CANDLE_RELAY_PINS[i]);
+                candleRelayStates[i] = true;
+                pushActivation(i);
+            }
+
+            voltsBufs[i].clear();
         }
     }
+
+    resetIfAllOut();
 }
 
 void sampleMics()
@@ -122,12 +232,18 @@ void initRelays()
         pinMode(CANDLE_RELAY_PINS[i], OUTPUT);
         lockRelay(CANDLE_RELAY_PINS[i]);
     }
+
+    pinMode(BOX_RELAY_PIN, OUTPUT);
+    lockRelay(BOX_RELAY_PIN);
 }
 
 void setup()
 {
     Serial.begin(9600);
+
+    emptyActivation();
     initRelays();
+
     Serial.println(F(">> Starting candles program"));
 }
 
