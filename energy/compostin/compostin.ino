@@ -16,18 +16,15 @@ Atm_button buttons[BUTTONS_NUM];
 const int BUTTONS_BUF_SIZE = 10;
 CircularBuffer<int, BUTTONS_BUF_SIZE> buttonBuf;
 
-const int BUTTONS_BOUNCE_MS = 100;
-
 /**
  * LED strips.
  */
 
 const int LED_BRIGHTNESS = 230;
 const int LED_PIN = 2;
-const int LED_NUM = BUTTONS_NUM;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(
-    LED_NUM, LED_PIN, NEO_RGB + NEO_KHZ800);
+    BUTTONS_NUM, LED_PIN, NEO_RGB + NEO_KHZ800);
 
 const int LED_COLOR_PALETTE_SIZE = 6;
 
@@ -49,24 +46,20 @@ const int RELAY_PIN = 3;
  * Program state.
  */
 
+Atm_timer timerState;
+
+const int STATE_TIMER_MS = 50;
+
 const int FINAL_PHASE = 4;
 
-const int SUCCESS_STREAK_LONG = 6;
-const int SUCCESS_STREAK_MEDIUM = 4;
-const int SUCCESS_STREAK_SHORT = 3;
-
-const unsigned long MILLIS_SPAN_LONG = 6000;
-const unsigned long MILLIS_SPAN_MEDIUM = 3000;
-const unsigned long MILLIS_SPAN_SHORT = 1500;
-
-const int TARGETS_SIZE = BUTTONS_NUM;
-
-int targetButtonIdxs[TARGETS_SIZE];
+int targetButtonIdxs[BUTTONS_NUM];
+uint32_t targetColors[BUTTONS_NUM];
 
 typedef struct programState
 {
     unsigned long startMillis;
     int *targetButtonIdxs;
+    uint32_t *targetColors;
     int currPhase;
     int hitStreak;
     bool isFinished;
@@ -82,89 +75,28 @@ void initState()
 
     progState.startMillis = 0;
     progState.targetButtonIdxs = targetButtonIdxs;
+    progState.targetColors = targetColors;
     progState.currPhase = 0;
     progState.hitStreak = 0;
     progState.isFinished = false;
 }
 
 /**
- * Functions to deal with game state progress.
+ * Functions to interface with the targets array.
  */
-
-int getPhaseHitStreak(int phase)
-{
-    if (phase == 0)
-    {
-        return SUCCESS_STREAK_LONG;
-    }
-    else if (phase == 1)
-    {
-        return SUCCESS_STREAK_MEDIUM;
-    }
-    else
-    {
-        return SUCCESS_STREAK_SHORT;
-    }
-}
-
-unsigned long getPhaseMaxSpanMillis(int phase)
-{
-    if (phase == 0)
-    {
-        return MILLIS_SPAN_LONG;
-    }
-    else if (phase == 1)
-    {
-        return MILLIS_SPAN_MEDIUM;
-    }
-    else
-    {
-        return MILLIS_SPAN_SHORT;
-    }
-}
-
-int getPhaseNumTargets(int phase)
-{
-    phase = phase + 1;
-
-    int maxNum = phase + 2;
-    int minNum = phase;
-
-    maxNum = maxNum > BUTTONS_NUM ? BUTTONS_NUM : maxNum;
-    maxNum = maxNum < 2 ? 2 : maxNum;
-
-    minNum = minNum < 1 ? 1 : minNum;
-    minNum = minNum > (BUTTONS_NUM - 1) ? (BUTTONS_NUM - 1) : minNum;
-
-    if (minNum > maxNum)
-    {
-        minNum = maxNum;
-    }
-
-    return random(minNum, maxNum);
-}
-
-uint32_t getPhaseValidColor(int phase)
-{
-    return Adafruit_NeoPixel::Color(0, 0, 255);
-}
-
-uint32_t getPhaseInvalidColor(int phase)
-{
-    return Adafruit_NeoPixel::Color(255, 0, 0);
-}
 
 void emptyTargets()
 {
-    for (int i = 0; i < TARGETS_SIZE; i++)
+    for (int i = 0; i < BUTTONS_NUM; i++)
     {
         targetButtonIdxs[i] = -1;
+        targetColors[i] = 0;
     }
 }
 
 bool isTarget(int idx)
 {
-    for (int i = 0; i < TARGETS_SIZE; i++)
+    for (int i = 0; i < BUTTONS_NUM; i++)
     {
         if (progState.targetButtonIdxs[i] == -1)
         {
@@ -179,9 +111,9 @@ bool isTarget(int idx)
     return false;
 }
 
-bool addTarget(int idx)
+bool pushTarget(int idx)
 {
-    if (idx < 0 || idx >= LED_NUM)
+    if (idx < 0 || idx >= BUTTONS_NUM)
     {
         Serial.println(F("Target should be in [0, numLeds)"));
         return false;
@@ -192,7 +124,7 @@ bool addTarget(int idx)
         return false;
     }
 
-    for (int i = 0; i < TARGETS_SIZE; i++)
+    for (int i = 0; i < BUTTONS_NUM; i++)
     {
         if (progState.targetButtonIdxs[i] == -1)
         {
@@ -208,12 +140,12 @@ bool addTarget(int idx)
 
 int pickRandomTarget()
 {
-    int randPivot = random(0, TARGETS_SIZE * 10) % TARGETS_SIZE;
+    int randPivot = random(0, BUTTONS_NUM * 10) % BUTTONS_NUM;
     int counter = 0;
 
-    while (isTarget(randPivot) && counter <= TARGETS_SIZE)
+    while (isTarget(randPivot) && counter <= BUTTONS_NUM)
     {
-        randPivot = (randPivot + 1) % TARGETS_SIZE;
+        randPivot = (randPivot + 1) % BUTTONS_NUM;
         counter++;
     }
 
@@ -222,7 +154,7 @@ int pickRandomTarget()
 
 void randomizeTargets(int num)
 {
-    num = (num > (TARGETS_SIZE)) ? TARGETS_SIZE : num;
+    num = (num > (BUTTONS_NUM)) ? BUTTONS_NUM : num;
 
     emptyTargets();
 
@@ -238,9 +170,27 @@ void randomizeTargets(int num)
             break;
         }
 
-        addTarget(randTarget);
+        pushTarget(randTarget);
     }
 }
+
+void updateColorsFromTargets()
+{
+    uint32_t color;
+
+    for (int i = 0; i < BUTTONS_NUM; i++)
+    {
+        color = isTarget(i)
+                    ? getPhaseRandomColorValid(progState.currPhase)
+                    : getPhaseRandomColorError(progState.currPhase);
+
+        progState.targetColors[i] = color;
+    }
+}
+
+/**
+ * Functions to interface with the button presses buffer.
+ */
 
 bool isButtonBufferError()
 {
@@ -255,11 +205,24 @@ bool isButtonBufferError()
     return false;
 }
 
+bool inButtonBuffer(int val)
+{
+    for (int i = 0; i < buttonBuf.size(); i++)
+    {
+        if (buttonBuf[i] == val)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool isButtonBufferMatch()
 {
     int targetSize = 0;
 
-    for (int i = 0; i < TARGETS_SIZE; i++)
+    for (int i = 0; i < BUTTONS_NUM; i++)
     {
         if (progState.targetButtonIdxs[i] == -1)
         {
@@ -298,6 +261,111 @@ bool isButtonBufferMatch()
     return true;
 }
 
+/**
+ * Functions to get the dynamic config that depends on the current phase.
+ */
+
+int getPhaseHitStreak(int phase)
+{
+    const int streakLong = 6;
+    const int streakMedium = 4;
+    const int streakShort = 3;
+
+    if (phase == 0)
+    {
+        return streakLong;
+    }
+    else if (phase == 1)
+    {
+        return streakMedium;
+    }
+    else
+    {
+        return streakShort;
+    }
+}
+
+unsigned long getPhaseMaxSpanMillis(int phase)
+{
+    const unsigned long millisLong = 6000;
+    const unsigned long millisMedium = 3000;
+    const unsigned long millisShort = 1500;
+
+    if (phase == 0)
+    {
+        return millisLong;
+    }
+    else if (phase == 1)
+    {
+        return millisMedium;
+    }
+    else
+    {
+        return millisShort;
+    }
+}
+
+int getPhaseNumTargets(int phase)
+{
+    phase = phase + 1;
+
+    int maxNum = phase + 2;
+    int minNum = phase;
+
+    maxNum = maxNum > BUTTONS_NUM ? BUTTONS_NUM : maxNum;
+    maxNum = maxNum < 2 ? 2 : maxNum;
+
+    minNum = minNum < 1 ? 1 : minNum;
+    minNum = minNum > (BUTTONS_NUM - 1) ? (BUTTONS_NUM - 1) : minNum;
+
+    if (minNum > maxNum)
+    {
+        minNum = maxNum;
+    }
+
+    return random(minNum, maxNum);
+}
+
+int getPhaseColorDivider(int phase)
+{
+    const int idxOne = 1;
+    const int idxFew = 2;
+    const int idxLots = 3;
+
+    if (phase == 0)
+    {
+        return idxOne;
+    }
+    else if (phase == 1)
+    {
+        return idxFew;
+    }
+    else
+    {
+        return idxLots;
+    }
+}
+
+uint32_t getPhaseRandomColorValid(int phase)
+{
+    int idxDivider = getPhaseColorDivider(phase);
+    int idxColor = random(0, idxDivider);
+
+    return LED_COLOR_PALETTE[idxColor];
+}
+
+uint32_t getPhaseRandomColorError(int phase)
+{
+    int idxDivider = getPhaseColorDivider(phase);
+    int idxColor = random(idxDivider, LED_COLOR_PALETTE_SIZE);
+
+    return LED_COLOR_PALETTE[idxColor];
+}
+
+/**
+ * Functions to deal with game state progress.
+ */
+
 bool isExpired()
 {
     if (progState.startMillis == 0)
@@ -321,10 +389,9 @@ bool isExpired()
 
 void updateTargets()
 {
-    clearLeds();
-    delay(BUTTONS_BOUNCE_MS);
     int numTargets = getPhaseNumTargets(progState.currPhase);
     randomizeTargets(numTargets);
+    updateColorsFromTargets();
     showTargetLeds();
     progState.startMillis = millis();
     buttonBuf.clear();
@@ -341,8 +408,6 @@ void advanceProgress()
         progState.hitStreak = 0;
         progState.currPhase++;
     }
-
-    updateTargets();
 }
 
 bool hasStarted()
@@ -353,6 +418,16 @@ bool hasStarted()
 bool hasFinished()
 {
     return progState.currPhase >= FINAL_PHASE;
+}
+
+void errorAndRestart()
+{
+    if (hasStarted())
+    {
+        showErrorLedsPattern();
+    }
+
+    initState();
 }
 
 void updateState()
@@ -378,29 +453,22 @@ void updateState()
     else if (isButtonBufferError())
     {
         Serial.println(F("Knock pattern error: restart"));
-
-        if (hasStarted())
-        {
-            showErrorLedsPattern();
-        }
-
-        initState();
+        errorAndRestart();
     }
     else if (isExpired())
     {
         Serial.println(F("Time expired: restart"));
-
-        if (hasStarted())
-        {
-            showErrorLedsPattern();
-        }
-
-        initState();
+        errorAndRestart();
     }
     else if (isButtonBufferMatch())
     {
         Serial.println(F("OK: advancing progress"));
         advanceProgress();
+        updateTargets();
+    }
+    else
+    {
+        showTargetLeds();
     }
 }
 
@@ -412,35 +480,7 @@ void initLeds()
 {
     ledStrip.begin();
     ledStrip.setBrightness(LED_BRIGHTNESS);
-    ledStrip.show();
-    clearLeds();
-}
-
-void clearLeds()
-{
     ledStrip.clear();
-    ledStrip.show();
-}
-
-uint32_t randomColor()
-{
-    int randVal = random(0, 3);
-    int r = randVal == 0 ? 0 : random(100, 250);
-    int g = randVal == 1 ? 0 : random(100, 250);
-    int b = randVal == 2 ? 0 : random(100, 250);
-
-    return Adafruit_NeoPixel::Color(r, g, b);
-}
-
-void showTargetLeds()
-{
-    ledStrip.clear();
-
-    for (int i = 0; i < TARGETS_SIZE; i++)
-    {
-        ledStrip.setPixelColor(progState.targetButtonIdxs[i], randomColor());
-    }
-
     ledStrip.show();
 }
 
@@ -452,11 +492,7 @@ void showErrorLedsPattern()
 
     for (int i = 0; i < numIters; i++)
     {
-        for (int j = 0; j < LED_NUM; j++)
-        {
-            ledStrip.setPixelColor(j, red);
-        }
-
+        ledStrip.fill(red);
         ledStrip.show();
 
         delay(delayMs);
@@ -466,6 +502,19 @@ void showErrorLedsPattern()
 
         delay(delayMs);
     }
+}
+
+void showTargetLeds()
+{
+    uint32_t color;
+
+    for (int i = 0; i < BUTTONS_NUM; i++)
+    {
+        color = inButtonBuffer(i) ? 0 : progState.targetColors[i];
+        ledStrip.setPixelColor(i, color);
+    }
+
+    ledStrip.show();
 }
 
 /**
@@ -531,6 +580,20 @@ void initButtons()
  * Entrypoint.
  */
 
+void onStateTimer(int idx, int v, int up)
+{
+    updateState();
+}
+
+void initStateTimer()
+{
+    timerState
+        .begin(STATE_TIMER_MS)
+        .repeat(-1)
+        .onTimer(onStateTimer)
+        .start();
+}
+
 void setup()
 {
     Serial.begin(9600);
@@ -539,6 +602,7 @@ void setup()
     initButtons();
     initLeds();
     initRelay();
+    initStateTimer();
 
     Serial.println(F(">> Starting whac-a-mole program"));
 }
@@ -546,5 +610,4 @@ void setup()
 void loop()
 {
     automaton.run();
-    updateState();
 }
