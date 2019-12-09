@@ -14,9 +14,6 @@ const int BUTTONS_PINS[BUTTONS_NUM] = {
 
 Atm_button buttons[BUTTONS_NUM];
 
-const int BUTTONS_BUF_SIZE = 10;
-CircularBuffer<int, BUTTONS_BUF_SIZE> buttonBuf;
-
 /**
  * LED strips.
  */
@@ -44,22 +41,27 @@ const uint32_t LED_COLOR_PALETTE[LED_COLOR_PALETTE_SIZE] = {
 const int RELAY_PIN = 3;
 
 /**
+ * Constant that determines the final phase 
+ * (a phase is a series of stages where the same amount of buttons light up).
+ */
+
+const int FINAL_PHASE = 4;
+
+/**
  * Program state.
  */
 
 Atm_timer timerState;
 
 const int STATE_TIMER_MS = 50;
+const int BUTTONS_BUF_SIZE = 10;
 
-const int FINAL_PHASE = 4;
-
-int targetButtonIdxs[BUTTONS_NUM];
-uint32_t targetColors[BUTTONS_NUM];
+CircularBuffer<int, BUTTONS_BUF_SIZE> bufButtonPresses;
+CircularBuffer<int, BUTTONS_NUM> bufButtonTargets;
+CircularBuffer<uint32_t, BUTTONS_NUM> bufButtonColors;
 
 typedef struct programState {
     unsigned long startMillis;
-    int* targetButtonIdxs;
-    uint32_t* targetColors;
     int currPhase;
     int hitStreak;
     bool isFinished;
@@ -139,14 +141,14 @@ int getPhaseColorDivider(int phase)
 {
     const int idxOne = 1;
     const int idxFew = 2;
-    const int idxLots = 3;
+    const int idxMany = 3;
 
     if (phase == 0) {
         return idxOne;
     } else if (phase == 1) {
         return idxFew;
     } else {
-        return idxLots;
+        return idxMany;
     }
 }
 
@@ -170,20 +172,16 @@ uint32_t getPhaseRandomColorError(int phase)
  * Functions to interface with the targets array.
  */
 
-void emptyTargets()
+void clearTargets()
 {
-    for (int i = 0; i < BUTTONS_NUM; i++) {
-        targetButtonIdxs[i] = -1;
-        targetColors[i] = 0;
-    }
+    bufButtonTargets.clear();
+    bufButtonColors.clear();
 }
 
-bool isTarget(int idx)
+bool inTargetsBuffer(int idx)
 {
-    for (int i = 0; i < BUTTONS_NUM; i++) {
-        if (progState.targetButtonIdxs[i] == -1) {
-            return false;
-        } else if (progState.targetButtonIdxs[i] == idx) {
+    for (int i = 0; i < bufButtonTargets.size(); i++) {
+        if (bufButtonTargets[i] == idx) {
             return true;
         }
     }
@@ -198,17 +196,15 @@ bool pushTarget(int idx)
         return false;
     }
 
-    if (isTarget(idx)) {
+    if (inTargetsBuffer(idx)) {
         return false;
     }
 
-    for (int i = 0; i < BUTTONS_NUM; i++) {
-        if (progState.targetButtonIdxs[i] == -1) {
-            Serial.print(F("Adding target: "));
-            Serial.println(idx);
-            progState.targetButtonIdxs[i] = idx;
-            return true;
-        }
+    if (!bufButtonTargets.isFull()) {
+        Serial.print(F("Adding target: "));
+        Serial.println(idx);
+        bufButtonTargets.push(idx);
+        return true;
     }
 
     return false;
@@ -219,19 +215,19 @@ int pickRandomTarget()
     int randPivot = random(0, BUTTONS_NUM * 10) % BUTTONS_NUM;
     int counter = 0;
 
-    while (isTarget(randPivot) && counter <= BUTTONS_NUM) {
+    while (inTargetsBuffer(randPivot) && counter <= BUTTONS_NUM) {
         randPivot = (randPivot + 1) % BUTTONS_NUM;
         counter++;
     }
 
-    return isTarget(randPivot) ? -1 : randPivot;
+    return inTargetsBuffer(randPivot) ? -1 : randPivot;
 }
 
 void randomizeTargets(int num)
 {
     num = (num > (BUTTONS_NUM)) ? BUTTONS_NUM : num;
 
-    emptyTargets();
+    clearTargets();
 
     int randTarget;
 
@@ -251,11 +247,14 @@ void updateColorsFromTargets()
 {
     uint32_t color;
 
-    for (int i = 0; i < BUTTONS_NUM; i++) {
-        color = isTarget(i) ? getPhaseRandomColorValid(progState.currPhase)
-                            : getPhaseRandomColorError(progState.currPhase);
+    bufButtonColors.clear();
 
-        progState.targetColors[i] = color;
+    for (int i = 0; i < BUTTONS_NUM; i++) {
+        color = inTargetsBuffer(i)
+            ? getPhaseRandomColorValid(progState.currPhase)
+            : getPhaseRandomColorError(progState.currPhase);
+
+        bufButtonColors.push(color);
     }
 }
 
@@ -265,13 +264,11 @@ void updateColorsFromTargets()
 
 void initState()
 {
-    buttonBuf.clear();
+    bufButtonPresses.clear();
 
-    emptyTargets();
+    clearTargets();
 
     progState.startMillis = 0;
-    progState.targetButtonIdxs = targetButtonIdxs;
-    progState.targetColors = targetColors;
     progState.currPhase = 0;
     progState.hitStreak = 0;
     progState.isFinished = false;
@@ -281,10 +278,10 @@ void initState()
  * Functions to interface with the button presses buffer.
  */
 
-bool isButtonBufferError()
+bool isPressesBufferError()
 {
-    for (int i = 0; i < buttonBuf.size(); i++) {
-        if (!isTarget(buttonBuf[i])) {
+    for (int i = 0; i < bufButtonPresses.size(); i++) {
+        if (!inTargetsBuffer(bufButtonPresses[i])) {
             return true;
         }
     }
@@ -292,10 +289,10 @@ bool isButtonBufferError()
     return false;
 }
 
-bool inButtonBuffer(int val)
+bool inPressesBuffer(int val)
 {
-    for (int i = 0; i < buttonBuf.size(); i++) {
-        if (buttonBuf[i] == val) {
+    for (int i = 0; i < bufButtonPresses.size(); i++) {
+        if (bufButtonPresses[i] == val) {
             return true;
         }
     }
@@ -303,35 +300,14 @@ bool inButtonBuffer(int val)
     return false;
 }
 
-bool isButtonBufferMatch()
+bool isPressesBufferMatch()
 {
-    int targetSize = 0;
-
-    for (int i = 0; i < BUTTONS_NUM; i++) {
-        if (progState.targetButtonIdxs[i] == -1) {
-            break;
-        }
-
-        targetSize++;
-    }
-
-    if (targetSize != buttonBuf.size()) {
+    if (bufButtonTargets.size() != bufButtonPresses.size()) {
         return false;
     }
 
-    bool bufHasTarget;
-
-    for (int i = 0; i < targetSize; i++) {
-        bufHasTarget = false;
-
-        for (int j = 0; j < buttonBuf.size(); j++) {
-            if (buttonBuf[j] == progState.targetButtonIdxs[i]) {
-                bufHasTarget = true;
-                break;
-            }
-        }
-
-        if (!bufHasTarget) {
+    for (int i = 0; i < bufButtonTargets.size(); i++) {
+        if (!inPressesBuffer(bufButtonTargets[i])) {
             return false;
         }
     }
@@ -373,9 +349,11 @@ void showErrorLedsPattern()
 void showTargetLeds()
 {
     uint32_t color;
+    bool colorExists;
 
     for (int i = 0; i < BUTTONS_NUM; i++) {
-        color = inButtonBuffer(i) ? 0 : progState.targetColors[i];
+        colorExists = bufButtonColors.size() >= (i + 1);
+        color = inPressesBuffer(i) || !colorExists ? 0 : bufButtonColors[i];
         ledStrip.setPixelColor(i, color);
     }
 
@@ -412,7 +390,7 @@ void updateTargets()
     updateColorsFromTargets();
     showTargetLeds();
     progState.startMillis = millis();
-    buttonBuf.clear();
+    bufButtonPresses.clear();
 }
 
 void advanceProgress()
@@ -443,6 +421,12 @@ void errorAndRestart()
     initState();
 }
 
+void onFinish()
+{
+    Serial.println(F("Game completed"));
+    openRelay();
+}
+
 void updateState()
 {
     if (progState.isFinished) {
@@ -450,22 +434,21 @@ void updateState()
     }
 
     if (hasFinished()) {
-        Serial.println(F("Game completed"));
+        onFinish();
         progState.isFinished = true;
-        openRelay();
         return;
     }
 
     if (progState.startMillis == 0) {
         Serial.println(F("First target update"));
         updateTargets();
-    } else if (isButtonBufferError()) {
+    } else if (isPressesBufferError()) {
         Serial.println(F("Knock pattern error: restart"));
         errorAndRestart();
     } else if (isExpired()) {
         Serial.println(F("Time expired: restart"));
         errorAndRestart();
-    } else if (isButtonBufferMatch()) {
+    } else if (isPressesBufferMatch()) {
         Serial.println(F("OK: advancing progress"));
         advanceProgress();
         updateTargets();
@@ -485,8 +468,8 @@ void onPress(int idx, int v, int up)
 
     bool isDup = false;
 
-    for (int i = 0; i < buttonBuf.size(); i++) {
-        if (buttonBuf[i] == idx) {
+    for (int i = 0; i < bufButtonPresses.size(); i++) {
+        if (bufButtonPresses[i] == idx) {
             isDup = true;
             break;
         }
@@ -496,7 +479,7 @@ void onPress(int idx, int v, int up)
         Serial.print(F("Pushing:"));
         Serial.println(idx);
 
-        buttonBuf.push(idx);
+        bufButtonPresses.push(idx);
     }
 }
 
