@@ -12,7 +12,10 @@ const int BUTTONS_PINS[BUTTONS_NUM] = {
     4, 5, 6, 7, 8, 9, 10, 11
 };
 
+const int BUTTON_PHASE_PIN = 12;
+
 Atm_button buttons[BUTTONS_NUM];
+Atm_button buttonPhase;
 
 /**
  * LED strips.
@@ -65,6 +68,7 @@ typedef struct programState {
     int currPhase;
     int hitStreak;
     bool isFinished;
+    bool isLocked;
 } ProgramState;
 
 ProgramState progState;
@@ -272,6 +276,7 @@ void initState()
     progState.currPhase = 0;
     progState.hitStreak = 0;
     progState.isFinished = false;
+    progState.isLocked = true;
 }
 
 /**
@@ -402,6 +407,7 @@ void advanceProgress()
     if (progState.hitStreak >= minHitStreak) {
         progState.hitStreak = 0;
         progState.currPhase++;
+        progState.isLocked = true;
     }
 }
 
@@ -429,6 +435,12 @@ void onFinish()
 
 void updateState()
 {
+    if (progState.isLocked) {
+        ledStrip.clear();
+        ledStrip.show();
+        return;
+    }
+
     if (progState.isFinished) {
         return;
     }
@@ -458,11 +470,15 @@ void updateState()
 }
 
 /**
- * Knock sensor functions.
+ * Button functions.
  */
 
 void onPress(int idx, int v, int up)
 {
+    if (progState.isLocked) {
+        return;
+    }
+
     Serial.print(F("Press:"));
     Serial.println(idx);
 
@@ -483,11 +499,23 @@ void onPress(int idx, int v, int up)
     }
 }
 
+void onPhasePress(int idx, int v, int up)
+{
+    Serial.println(F("Phase press"));
+    progState.isLocked = false;
+}
+
 void initButtons()
 {
     for (int i = 0; i < BUTTONS_NUM; i++) {
-        buttons[i].begin(BUTTONS_PINS[i]).onPress(onPress, i);
+        buttons[i]
+            .begin(BUTTONS_PINS[i])
+            .onPress(onPress, i);
     }
+
+    buttonPhase
+        .begin(BUTTON_PHASE_PIN)
+        .onPress(onPhasePress);
 }
 
 /**
