@@ -357,6 +357,8 @@ void initLcd()
     lcd.setCursor(0, 0);
     lcd.setBacklight(HIGH);
 
+    Serial.println(F("LCD initialized"));
+
     lcdTimer
         .begin(LCD_TIMER_MS)
         .repeat(-1)
