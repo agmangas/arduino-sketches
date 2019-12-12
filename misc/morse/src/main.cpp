@@ -15,7 +15,7 @@ const int LCD_TIMER_MS = 500;
 
 const String STR_DEFAULT = String("Enter morse code");
 const String STR_SUCCESS = String("Access granted");
-const String STR_KEY = String("espacioleon");
+const String STR_KEY = String("nevaria");
 
 /**
  * Morse buffer.
@@ -370,6 +370,10 @@ void initLcd()
 
 void onPressMorseButton(int idx, int v, int up)
 {
+    if (v < 1) {
+        return;
+    }
+
     isTouched = true;
 
     if (v > 1) {
