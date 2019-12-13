@@ -21,21 +21,22 @@ Atm_button buttonPhase;
  * LED strips.
  */
 
-const int LED_BRIGHTNESS = 230;
+const int LED_BRIGHTNESS = 200;
 const int LED_PIN = 2;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(BUTTONS_NUM, LED_PIN, NEO_RGB + NEO_KHZ800);
 
-const int LED_COLOR_PALETTE_SIZE = 6;
+const int LED_COLOR_PALETTE_SIZE = 5;
 
 const uint32_t LED_COLOR_PALETTE[LED_COLOR_PALETTE_SIZE] = {
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 0)),
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 255, 0)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 0, 255)),
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 0)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 255)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 255, 255))
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 0)),
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 0, 255)),
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 255))
 };
+
+CircularBuffer<uint8_t, LED_COLOR_PALETTE_SIZE> bufErrorPalette;
 
 /**
  * Relay.
@@ -48,7 +49,7 @@ const int RELAY_PIN = 3;
  * (a phase is a series of stages where the same amount of buttons light up).
  */
 
-const int FINAL_PHASE = 4;
+const int FINAL_PHASE = 3;
 
 /**
  * Program state.
@@ -77,9 +78,15 @@ ProgramState progState;
  * Relay functions.
  */
 
-void lockRelay() { digitalWrite(RELAY_PIN, LOW); }
+void lockRelay()
+{
+    digitalWrite(RELAY_PIN, LOW);
+}
 
-void openRelay() { digitalWrite(RELAY_PIN, HIGH); }
+void openRelay()
+{
+    digitalWrite(RELAY_PIN, HIGH);
+}
 
 void initRelay()
 {
@@ -108,9 +115,9 @@ int getPhaseHitStreak(int phase)
 
 unsigned long getPhaseMaxSpanMillis(int phase)
 {
-    const unsigned long millisLong = 6000;
-    const unsigned long millisMedium = 3000;
-    const unsigned long millisShort = 1500;
+    const unsigned long millisLong = 10000;
+    const unsigned long millisMedium = 6000;
+    const unsigned long millisShort = 5000;
 
     if (phase == 0) {
         return millisLong;
@@ -123,53 +130,65 @@ unsigned long getPhaseMaxSpanMillis(int phase)
 
 int getPhaseNumTargets(int phase)
 {
-    phase = phase + 1;
+    const int minNum = 5;
+    const int maxNum = 7;
 
-    int maxNum = phase + 2;
-    int minNum = phase;
-
-    maxNum = maxNum > BUTTONS_NUM ? BUTTONS_NUM : maxNum;
-    maxNum = maxNum < 2 ? 2 : maxNum;
-
-    minNum = minNum < 1 ? 1 : minNum;
-    minNum = minNum > (BUTTONS_NUM - 1) ? (BUTTONS_NUM - 1) : minNum;
-
-    if (minNum > maxNum) {
-        minNum = maxNum;
+    if (maxNum > BUTTONS_NUM) {
+        Serial.println(F("WARN :: Unexpected number of buttons"));
+        return random(1, BUTTONS_NUM);
+    } else {
+        return random(minNum, maxNum);
     }
-
-    return random(minNum, maxNum);
 }
 
-int getPhaseColorDivider(int phase)
+void refreshErrorPaletteBuffer(int phase)
 {
-    const int idxOne = 1;
-    const int idxFew = 2;
-    const int idxMany = 3;
+    bufErrorPalette.clear();
 
     if (phase == 0) {
-        return idxOne;
+        bufErrorPalette.push(3);
     } else if (phase == 1) {
-        return idxFew;
+        bufErrorPalette.push(1);
+        bufErrorPalette.push(2);
     } else {
-        return idxMany;
+        bufErrorPalette.push(2);
+        bufErrorPalette.push(3);
+        bufErrorPalette.push(4);
     }
+}
+
+int getRandomColorIndex(int phase, bool isError)
+{
+    refreshErrorPaletteBuffer(phase);
+
+    int idx;
+    bool found;
+
+    do {
+        idx = random(0, LED_COLOR_PALETTE_SIZE - 1);
+        found = false;
+
+        for (int i = 0; i < bufErrorPalette.size(); i++) {
+            if (bufErrorPalette[i] == idx) {
+                found = true;
+                break;
+            }
+        }
+    } while (found != isError);
+
+    return idx;
 }
 
 uint32_t getPhaseRandomColorValid(int phase)
 {
-    int idxDivider = getPhaseColorDivider(phase);
-    int idxColor = random(0, idxDivider);
-
-    return LED_COLOR_PALETTE[idxColor];
+    int idx = getRandomColorIndex(phase, false);
+    return LED_COLOR_PALETTE[idx];
 }
 
 uint32_t getPhaseRandomColorError(int phase)
 {
-    int idxDivider = getPhaseColorDivider(phase);
-    int idxColor = random(idxDivider, LED_COLOR_PALETTE_SIZE);
-
-    return LED_COLOR_PALETTE[idxColor];
+    int idx = getRandomColorIndex(phase, true);
+    return LED_COLOR_PALETTE[idx];
 }
 
 /**
@@ -328,8 +347,8 @@ void initLeds()
 {
     ledStrip.begin();
     ledStrip.setBrightness(LED_BRIGHTNESS);
-    ledStrip.clear();
     ledStrip.show();
+    ledStrip.clear();
 }
 
 void showErrorLedsPattern()
@@ -348,6 +367,26 @@ void showErrorLedsPattern()
         ledStrip.show();
 
         delay(delayMs);
+    }
+}
+
+void showFinishLedsPattern()
+{
+    const int delayMs = 250;
+
+    while (true) {
+        ledStrip.clear();
+
+        for (unsigned int i = 0; i < ledStrip.numPixels(); i++) {
+            ledStrip.setPixelColor(
+                i,
+                random(0, 255),
+                random(0, 255),
+                random(0, 255));
+
+            ledStrip.show();
+            delay(delayMs);
+        }
     }
 }
 
@@ -403,11 +442,14 @@ void advanceProgress()
     progState.hitStreak++;
 
     int minHitStreak = getPhaseHitStreak(progState.currPhase);
+    bool isNewPhase = progState.hitStreak >= minHitStreak;
 
-    if (progState.hitStreak >= minHitStreak) {
+    if (isNewPhase) {
         progState.hitStreak = 0;
         progState.currPhase++;
         progState.isLocked = true;
+    } else {
+        updateTargets();
     }
 }
 
@@ -416,7 +458,10 @@ bool hasStarted()
     return progState.currPhase != 0 || progState.hitStreak != 0;
 }
 
-bool hasFinished() { return progState.currPhase >= FINAL_PHASE; }
+bool hasFinished()
+{
+    return progState.currPhase >= FINAL_PHASE;
+}
 
 void errorAndRestart()
 {
@@ -431,16 +476,11 @@ void onFinish()
 {
     Serial.println(F("Game completed"));
     openRelay();
+    showFinishLedsPattern();
 }
 
 void updateState()
 {
-    if (progState.isLocked) {
-        ledStrip.clear();
-        ledStrip.show();
-        return;
-    }
-
     if (progState.isFinished) {
         return;
     }
@@ -448,6 +488,12 @@ void updateState()
     if (hasFinished()) {
         onFinish();
         progState.isFinished = true;
+        return;
+    }
+
+    if (progState.isLocked) {
+        ledStrip.clear();
+        ledStrip.show();
         return;
     }
 
@@ -463,7 +509,6 @@ void updateState()
     } else if (isPressesBufferMatch()) {
         Serial.println(F("OK: advancing progress"));
         advanceProgress();
-        updateTargets();
     } else {
         showTargetLeds();
     }
@@ -501,8 +546,13 @@ void onPress(int idx, int v, int up)
 
 void onPhasePress(int idx, int v, int up)
 {
+    if (!progState.isLocked) {
+        return;
+    }
+
     Serial.println(F("Phase press"));
     progState.isLocked = false;
+    updateTargets();
 }
 
 void initButtons()
@@ -522,7 +572,10 @@ void initButtons()
  * Entrypoint.
  */
 
-void onStateTimer(int idx, int v, int up) { updateState(); }
+void onStateTimer(int idx, int v, int up)
+{
+    updateState();
+}
 
 void initStateTimer()
 {
@@ -543,7 +596,10 @@ void setup()
     initRelay();
     initStateTimer();
 
-    Serial.println(F(">> Starting whac-a-mole program"));
+    Serial.println(F(">> Starting compostin program"));
 }
 
-void loop() { automaton.run(); }
+void loop()
+{
+    automaton.run();
+}
