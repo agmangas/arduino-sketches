@@ -1,6 +1,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <Automaton.h>
 #include <CircularBuffer.h>
+#include <limits.h>
 
 /**
  * Buttons.
@@ -13,9 +14,11 @@ const int BUTTONS_PINS[BUTTONS_NUM] = {
 };
 
 const int BUTTON_PHASE_PIN = 12;
+const int LED_BUTTON_PHASE_PIN = A0;
 
 Atm_button buttons[BUTTONS_NUM];
 Atm_button buttonPhase;
+Atm_led ledButtonPhase;
 
 /**
  * LED strips.
@@ -146,11 +149,14 @@ void refreshErrorPaletteBuffer(int phase)
     bufErrorPalette.clear();
 
     if (phase == 0) {
+        // Blue
         bufErrorPalette.push(3);
     } else if (phase == 1) {
+        // Yellow, Red
         bufErrorPalette.push(1);
         bufErrorPalette.push(2);
     } else {
+        // Red, Blue, White
         bufErrorPalette.push(2);
         bufErrorPalette.push(3);
         bufErrorPalette.push(4);
@@ -165,7 +171,7 @@ int getRandomColorIndex(int phase, bool isError)
     bool found;
 
     do {
-        idx = random(0, LED_COLOR_PALETTE_SIZE - 1);
+        idx = random(0, LED_COLOR_PALETTE_SIZE);
         found = false;
 
         for (int i = 0; i < bufErrorPalette.size(); i++) {
@@ -266,7 +272,7 @@ void randomizeTargets(int num)
     }
 }
 
-void updateColorsFromTargets()
+void updateButtonColorsBuffer()
 {
     uint32_t color;
 
@@ -295,7 +301,22 @@ void initState()
     progState.currPhase = 0;
     progState.hitStreak = 0;
     progState.isFinished = false;
+
     progState.isLocked = true;
+    ledButtonPhase.trigger(Atm_led::EVT_ON);
+}
+
+void resetStateToPhaseStart()
+{
+    bufButtonPresses.clear();
+
+    clearTargets();
+
+    progState.startMillis = 0;
+    progState.hitStreak = 0;
+
+    progState.isLocked = true;
+    ledButtonPhase.trigger(Atm_led::EVT_ON);
 }
 
 /**
@@ -351,7 +372,7 @@ void initLeds()
     ledStrip.clear();
 }
 
-void showErrorLedsPattern()
+void showErrorLedEffect()
 {
     const int numIters = 3;
     const int delayMs = 250;
@@ -370,20 +391,25 @@ void showErrorLedsPattern()
     }
 }
 
-void showFinishLedsPattern()
+uint32_t randomColor()
+{
+    return Adafruit_NeoPixel::Color(
+        random(0, 255),
+        random(0, 255),
+        random(0, 255));
+}
+
+void showSuccessLedEffect(int numLoops = 1)
 {
     const int delayMs = 250;
 
-    while (true) {
+    numLoops = numLoops < 1 ? INT_MAX : numLoops;
+
+    for (int k = 0; k < numLoops; k++) {
         ledStrip.clear();
 
         for (unsigned int i = 0; i < ledStrip.numPixels(); i++) {
-            ledStrip.setPixelColor(
-                i,
-                random(0, 255),
-                random(0, 255),
-                random(0, 255));
-
+            ledStrip.setPixelColor(i, randomColor());
             ledStrip.show();
             delay(delayMs);
         }
@@ -431,7 +457,7 @@ void updateTargets()
 {
     int numTargets = getPhaseNumTargets(progState.currPhase);
     randomizeTargets(numTargets);
-    updateColorsFromTargets();
+    updateButtonColorsBuffer();
     showTargetLeds();
     progState.startMillis = millis();
     bufButtonPresses.clear();
@@ -445,17 +471,14 @@ void advanceProgress()
     bool isNewPhase = progState.hitStreak >= minHitStreak;
 
     if (isNewPhase) {
+        showSuccessLedEffect();
         progState.hitStreak = 0;
         progState.currPhase++;
         progState.isLocked = true;
+        ledButtonPhase.trigger(Atm_led::EVT_ON);
     } else {
         updateTargets();
     }
-}
-
-bool hasStarted()
-{
-    return progState.currPhase != 0 || progState.hitStreak != 0;
 }
 
 bool hasFinished()
@@ -465,18 +488,15 @@ bool hasFinished()
 
 void errorAndRestart()
 {
-    if (hasStarted()) {
-        showErrorLedsPattern();
-    }
-
-    initState();
+    showErrorLedEffect();
+    resetStateToPhaseStart();
 }
 
 void onFinish()
 {
     Serial.println(F("Game completed"));
     openRelay();
-    showFinishLedsPattern();
+    showSuccessLedEffect(0);
 }
 
 void updateState()
@@ -501,7 +521,7 @@ void updateState()
         Serial.println(F("First target update"));
         updateTargets();
     } else if (isPressesBufferError()) {
-        Serial.println(F("Knock pattern error: restart"));
+        Serial.println(F("Error: restart"));
         errorAndRestart();
     } else if (isExpired()) {
         Serial.println(F("Time expired: restart"));
@@ -552,6 +572,7 @@ void onPhasePress(int idx, int v, int up)
 
     Serial.println(F("Phase press"));
     progState.isLocked = false;
+    ledButtonPhase.trigger(Atm_led::EVT_OFF);
     updateTargets();
 }
 
@@ -566,6 +587,10 @@ void initButtons()
     buttonPhase
         .begin(BUTTON_PHASE_PIN)
         .onPress(onPhasePress);
+
+    ledButtonPhase
+        .begin(LED_BUTTON_PHASE_PIN)
+        .trigger(Atm_led::EVT_OFF);
 }
 
 /**
