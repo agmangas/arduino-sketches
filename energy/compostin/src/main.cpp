@@ -78,6 +78,22 @@ typedef struct programState {
 ProgramState progState;
 
 /**
+ * Utility to check for existence in a circular buffer.
+ */
+
+template <typename T, size_t S>
+bool inBuffer(const CircularBuffer<T, S>& buf, T val)
+{
+    for (int i = 0; i < buf.size(); i++) {
+        if (buf[i] == val) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Relay functions.
  */
 
@@ -167,19 +183,12 @@ int getRandomColorIndex(int phase, bool isError)
 {
     refreshErrorPaletteBuffer(phase);
 
-    int idx;
+    uint8_t idx;
     bool found;
 
     do {
         idx = random(0, LED_COLOR_PALETTE_SIZE);
-        found = false;
-
-        for (int i = 0; i < bufErrorPalette.size(); i++) {
-            if (bufErrorPalette[i] == idx) {
-                found = true;
-                break;
-            }
-        }
+        found = inBuffer(bufErrorPalette, idx);
     } while (found != isError);
 
     return idx;
@@ -209,13 +218,7 @@ void clearTargets()
 
 bool inTargetsBuffer(int idx)
 {
-    for (int i = 0; i < bufButtonTargets.size(); i++) {
-        if (bufButtonTargets[i] == idx) {
-            return true;
-        }
-    }
-
-    return false;
+    return inBuffer(bufButtonTargets, idx);
 }
 
 bool pushTarget(int idx)
@@ -323,21 +326,15 @@ void resetStateToPhaseStart()
  * Functions to interface with the button presses buffer.
  */
 
+bool inPressesBuffer(int val)
+{
+    return inBuffer(bufButtonPresses, val);
+}
+
 bool isPressesBufferError()
 {
     for (int i = 0; i < bufButtonPresses.size(); i++) {
         if (!inTargetsBuffer(bufButtonPresses[i])) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool inPressesBuffer(int val)
-{
-    for (int i = 0; i < bufButtonPresses.size(); i++) {
-        if (bufButtonPresses[i] == val) {
             return true;
         }
     }
@@ -547,14 +544,7 @@ void onPress(int idx, int v, int up)
     Serial.print(F("Press:"));
     Serial.println(idx);
 
-    bool isDup = false;
-
-    for (int i = 0; i < bufButtonPresses.size(); i++) {
-        if (bufButtonPresses[i] == idx) {
-            isDup = true;
-            break;
-        }
-    }
+    bool isDup = inBuffer(bufButtonPresses, idx);
 
     if (!isDup) {
         Serial.print(F("Pushing:"));
