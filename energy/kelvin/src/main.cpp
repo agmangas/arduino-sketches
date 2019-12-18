@@ -7,15 +7,17 @@
  */
 
 const uint8_t LED_ENERGY_BRIGHTNESS = 200;
-const uint16_t LED_ENERGY_NUM = 30;
+const uint16_t LED_ENERGY_NUM = 79;
 const uint16_t LED_ENERGY_PIN = 2;
 const uint16_t LED_ENERGY_BLOB_SIZE = 10;
 
 Adafruit_NeoPixel ledEnergy = Adafruit_NeoPixel(
-    LED_ENERGY_NUM, LED_ENERGY_PIN, NEO_GRB + NEO_KHZ800);
+    LED_ENERGY_NUM,
+    LED_ENERGY_PIN,
+    NEO_GRB + NEO_KHZ800);
 
-const uint16_t LED_ENERGY_SURFACE_SEGMENT_INI = 10;
-const uint16_t LED_ENERGY_SURFACE_SEGMENT_END = 20;
+const uint16_t LED_ENERGY_SURFACE_SEGMENT_INI = 20;
+const uint16_t LED_ENERGY_SURFACE_SEGMENT_END = 60;
 
 const uint32_t COLOR_COLD = Adafruit_NeoPixel::gamma32(
     Adafruit_NeoPixel::Color(0, 0, 255));
@@ -34,6 +36,19 @@ Atm_timer timerLedEnergy;
 const int LED_ENERGY_TIMER_MS = 20;
 
 /**
+ * Progress LED strip.
+ */
+
+const uint8_t LED_PROGRESS_BRIGHTNESS = 150;
+const uint16_t LED_PROGRESS_NUM = 30;
+const uint16_t LED_PROGRESS_PIN = A1;
+
+Adafruit_NeoPixel ledProgress = Adafruit_NeoPixel(
+    LED_PROGRESS_NUM,
+    LED_PROGRESS_PIN,
+    NEO_GRB + NEO_KHZ800);
+
+/**
  * Indicator LED strips.
  */
 
@@ -49,13 +64,21 @@ const uint16_t LED_INDICATOR_PIN[SIZE_LED_INDICATOR] = {
 };
 
 Adafruit_NeoPixel ledIndicators[SIZE_LED_INDICATOR] = {
-    Adafruit_NeoPixel(LED_INDICATOR_NUM[0], LED_INDICATOR_PIN[0],
+    Adafruit_NeoPixel(
+        LED_INDICATOR_NUM[0],
+        LED_INDICATOR_PIN[0],
         NEO_GRB + NEO_KHZ800),
-    Adafruit_NeoPixel(LED_INDICATOR_NUM[1], LED_INDICATOR_PIN[1],
+    Adafruit_NeoPixel(
+        LED_INDICATOR_NUM[1],
+        LED_INDICATOR_PIN[1],
         NEO_GRB + NEO_KHZ800),
-    Adafruit_NeoPixel(LED_INDICATOR_NUM[2], LED_INDICATOR_PIN[2],
+    Adafruit_NeoPixel(
+        LED_INDICATOR_NUM[2],
+        LED_INDICATOR_PIN[2],
         NEO_GRB + NEO_KHZ800),
-    Adafruit_NeoPixel(LED_INDICATOR_NUM[3], LED_INDICATOR_PIN[3],
+    Adafruit_NeoPixel(
+        LED_INDICATOR_NUM[3],
+        LED_INDICATOR_PIN[3],
         NEO_GRB + NEO_KHZ800)
 };
 
@@ -133,6 +156,18 @@ void initState()
 }
 
 /**
+ * Progress functions.
+ */
+
+void initLedProgress()
+{
+    ledProgress.begin();
+    ledProgress.setBrightness(LED_PROGRESS_BRIGHTNESS);
+    ledProgress.clear();
+    ledProgress.show();
+}
+
+/**
  * Energy functions.
  */
 
@@ -151,9 +186,15 @@ uint32_t getEnergyPixelColor(uint16_t idx)
         : COLOR_HOT;
 }
 
-uint16_t getCurrentEnergyTickModulo() { return LED_ENERGY_MODULO_SLOW; }
+uint16_t getCurrentEnergyTickModulo()
+{
+    return LED_ENERGY_MODULO_SLOW;
+}
 
-void onEnergyCatch() { Serial.println(F("Catch")); }
+void onEnergyCatch()
+{
+    Serial.println(F("Catch"));
+}
 
 void onEnergyPress(int idx, int v, int up)
 {
@@ -179,7 +220,10 @@ void ledEnergyRefreshTick()
     progState.ledEnergyTickCounter = progState.ledEnergyTickCounter % mod;
 }
 
-bool shouldRefreshLedEnergy() { return progState.ledEnergyTickCounter == 0; }
+bool shouldRefreshLedEnergy()
+{
+    return progState.ledEnergyTickCounter == 0;
+}
 
 void refreshLedEnergy()
 {
@@ -251,9 +295,13 @@ void initLedIndicators()
 
 void refreshLedIndicators()
 {
+    uint32_t color;
+
     for (int i = 0; i < SIZE_LED_INDICATOR; i++) {
+        color = COLORS_INDICATOR[progState.ledIndicatorColorIdx[i]];
+
         ledIndicators[i].clear();
-        ledIndicators[i].fill(COLORS_INDICATOR[progState.ledIndicatorColorIdx[i]]);
+        ledIndicators[i].fill(color);
         ledIndicators[i].show();
     }
 }
@@ -269,7 +317,10 @@ bool isIndicatorCorrect()
     return true;
 }
 
-void onIndicatorCorrect() { Serial.println(F("Indicator OK")); }
+void onIndicatorCorrect()
+{
+    Serial.println(F("Indicator OK"));
+}
 
 void onLedIndicatorTimer(int idx, int v, int up)
 {
@@ -283,7 +334,8 @@ void onLedIndicatorTimer(int idx, int v, int up)
 
 void initLedIndicatorTimer()
 {
-    timerLedIndicator.begin(LED_INDICATOR_TIMER_MS)
+    timerLedIndicator
+        .begin(LED_INDICATOR_TIMER_MS)
         .repeat(-1)
         .onTimer(onLedIndicatorTimer)
         .start();
@@ -295,7 +347,6 @@ void onIndicatorPress(int idx, int v, int up)
     Serial.println(idx);
 
     progState.ledIndicatorColorIdx[idx]++;
-
     progState.ledIndicatorColorIdx[idx] = progState.ledIndicatorColorIdx[idx] % SIZE_COLORS_INDICATOR;
 }
 
@@ -303,6 +354,36 @@ void initIndicatorButtons()
 {
     for (int i = 0; i < BTN_INDICATOR_NUM; i++) {
         btnsIndicator[i].begin(BTN_INDICATOR_PINS[i]).onPress(onIndicatorPress, i);
+    }
+}
+
+/**
+ * Misc.
+ */
+
+void showStartEffect()
+{
+    const uint16_t delayMs = 300;
+    const uint32_t color = Adafruit_NeoPixel::Color(0, 255, 0);
+
+    ledProgress.fill(color);
+    ledProgress.show();
+    delay(delayMs);
+    ledProgress.clear();
+    ledProgress.show();
+
+    ledEnergy.fill(color);
+    ledEnergy.show();
+    delay(delayMs);
+    ledEnergy.clear();
+    ledEnergy.show();
+
+    for (int i = 0; i < SIZE_LED_INDICATOR; i++) {
+        ledIndicators[i].fill(color);
+        ledIndicators[i].show();
+        delay(delayMs);
+        ledIndicators[i].clear();
+        ledIndicators[i].show();
     }
 }
 
@@ -315,6 +396,7 @@ void setup()
     Serial.begin(9600);
 
     initState();
+    initLedProgress();
     initLedEnergy();
     initLedIndicators();
     initIndicatorButtons();
@@ -322,6 +404,11 @@ void setup()
     initEnergyButtons();
 
     Serial.println(F(">> Starting Kelvin program"));
+
+    showStartEffect();
 }
 
-void loop() { automaton.run(); }
+void loop()
+{
+    automaton.run();
+}
