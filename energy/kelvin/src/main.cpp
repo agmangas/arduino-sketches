@@ -1,5 +1,4 @@
 #include <Adafruit_NeoPixel.h>
-#include <Arduino.h>
 #include <Automaton.h>
 
 /**
@@ -389,7 +388,7 @@ void initIndicatorButtons()
 
 void showStartEffect()
 {
-    const uint16_t delayMs = 300;
+    const uint16_t delayMs = 500;
     const uint32_t color = Adafruit_NeoPixel::Color(0, 255, 0);
 
     ledProgress.fill(color);
