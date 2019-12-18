@@ -122,7 +122,12 @@ const uint8_t BTN_ENERGY_PINS[BTN_ENERGY_NUM] = {
     11, 12, A0
 };
 
+const uint8_t BTN_ENERGY_LED_PINS[BTN_ENERGY_NUM] = {
+    A2, A3, A4
+};
+
 Atm_button btnsEnergy[BTN_ENERGY_NUM];
+Atm_led btnsEnergyLeds[BTN_ENERGY_NUM];
 
 /**
  * Program state.
@@ -181,9 +186,10 @@ void initLedEnergy()
 
 uint32_t getEnergyPixelColor(uint16_t idx)
 {
-    return idx >= LED_ENERGY_SURFACE_SEGMENT_INI && idx <= LED_ENERGY_SURFACE_SEGMENT_END
-        ? COLOR_COLD
-        : COLOR_HOT;
+    bool isOverSurface = idx >= LED_ENERGY_SURFACE_SEGMENT_INI
+        && idx <= LED_ENERGY_SURFACE_SEGMENT_END;
+
+    return isOverSurface ? COLOR_COLD : COLOR_HOT;
 }
 
 uint16_t getCurrentEnergyTickModulo()
@@ -198,7 +204,7 @@ void onEnergyCatch()
 
 void onEnergyPress(int idx, int v, int up)
 {
-    Serial.print(F("BE :: "));
+    Serial.print(F("Energy button: "));
     Serial.println(idx);
 
     if (progState.ledEnergyHiddenCountdown > 0) {
@@ -209,7 +215,21 @@ void onEnergyPress(int idx, int v, int up)
 void initEnergyButtons()
 {
     for (int i = 0; i < BTN_ENERGY_NUM; i++) {
-        btnsEnergy[i].begin(BTN_ENERGY_PINS[i]).onPress(onEnergyPress, i);
+        btnsEnergy[i]
+            .begin(BTN_ENERGY_PINS[i])
+            .onPress(onEnergyPress, i);
+
+        btnsEnergyLeds[i]
+            .begin(BTN_ENERGY_LED_PINS[i])
+            .trigger(Atm_led::EVT_OFF);
+    }
+}
+
+void setEnergyButtonLeds(bool on)
+{
+    for (int i = 0; i < BTN_ENERGY_NUM; i++) {
+        btnsEnergyLeds[i]
+            .trigger(on ? Atm_led::EVT_ON : Atm_led::EVT_OFF);
     }
 }
 
@@ -230,10 +250,13 @@ void refreshLedEnergy()
     ledEnergy.clear();
 
     if (progState.ledEnergyHiddenCountdown > 0) {
+        setEnergyButtonLeds(true);
         progState.ledEnergyHiddenCountdown--;
         ledEnergy.show();
         return;
     }
+
+    setEnergyButtonLeds(false);
 
     uint16_t numPix = ledEnergy.numPixels();
 
@@ -251,6 +274,7 @@ void refreshLedEnergy()
         progState.ledEnergyPivot = 0;
         progState.ledEnergyLoop++;
         progState.ledEnergyHiddenCountdown = LED_ENERGY_HIDDEN_PATCH_SIZE;
+        setEnergyButtonLeds(true);
     }
 
     ledEnergy.show();
@@ -353,7 +377,9 @@ void onIndicatorPress(int idx, int v, int up)
 void initIndicatorButtons()
 {
     for (int i = 0; i < BTN_INDICATOR_NUM; i++) {
-        btnsIndicator[i].begin(BTN_INDICATOR_PINS[i]).onPress(onIndicatorPress, i);
+        btnsIndicator[i]
+            .begin(BTN_INDICATOR_PINS[i])
+            .onPress(onIndicatorPress, i);
     }
 }
 
