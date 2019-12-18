@@ -6,7 +6,7 @@
  */
 
 const uint8_t LED_ENERGY_BRIGHTNESS = 200;
-const uint16_t LED_ENERGY_NUM = 79;
+const uint16_t LED_ENERGY_NUM = 89;
 const uint16_t LED_ENERGY_PIN = 2;
 const uint16_t LED_ENERGY_BLOB_SIZE = 10;
 
@@ -15,8 +15,8 @@ Adafruit_NeoPixel ledEnergy = Adafruit_NeoPixel(
     LED_ENERGY_PIN,
     NEO_GRB + NEO_KHZ800);
 
-const uint16_t LED_ENERGY_SURFACE_SEGMENT_INI = 20;
-const uint16_t LED_ENERGY_SURFACE_SEGMENT_END = 60;
+const uint16_t LED_ENERGY_SURFACE_SEGMENT_INI = 27;
+const uint16_t LED_ENERGY_SURFACE_SEGMENT_END = 61;
 
 const uint32_t COLOR_COLD = Adafruit_NeoPixel::gamma32(
     Adafruit_NeoPixel::Color(0, 0, 255));
@@ -24,11 +24,11 @@ const uint32_t COLOR_COLD = Adafruit_NeoPixel::gamma32(
 const uint32_t COLOR_HOT = Adafruit_NeoPixel::gamma32(
     Adafruit_NeoPixel::Color(255, 0, 0));
 
-const uint16_t LED_ENERGY_MODULO_SLOW = 10;
-const uint16_t LED_ENERGY_MODULO_MEDIUM = 5;
-const uint16_t LED_ENERGY_MODULO_FAST = 2;
+const uint16_t LED_ENERGY_MODULO_SLOW = 1;
+const uint16_t LED_ENERGY_MODULO_MEDIUM = 1;
+const uint16_t LED_ENERGY_MODULO_FAST = 1;
 
-const uint16_t LED_ENERGY_HIDDEN_PATCH_SIZE = 20;
+const uint16_t LED_ENERGY_HIDDEN_PATCH_SIZE = 6;
 
 Atm_timer timerLedEnergy;
 
@@ -55,7 +55,7 @@ const uint8_t SIZE_LED_INDICATOR = 4;
 const uint8_t LED_INDICATOR_BRIGHTNESS = 150;
 
 const uint16_t LED_INDICATOR_NUM[SIZE_LED_INDICATOR] = {
-    10, 10, 10, 10
+    23, 23, 23, 23
 };
 
 const uint16_t LED_INDICATOR_PIN[SIZE_LED_INDICATOR] = {
@@ -81,14 +81,13 @@ Adafruit_NeoPixel ledIndicators[SIZE_LED_INDICATOR] = {
         NEO_GRB + NEO_KHZ800)
 };
 
-const uint8_t SIZE_COLORS_INDICATOR = 5;
+const uint8_t SIZE_COLORS_INDICATOR = 4;
 
 const uint32_t COLORS_INDICATOR[SIZE_COLORS_INDICATOR] = {
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 0)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 255, 0)),
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 0, 255)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 255)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 255, 255))
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 0)),
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 255))
 };
 
 const uint8_t COLORS_INDICATOR_KEY[SIZE_LED_INDICATOR] = {
@@ -252,6 +251,11 @@ void refreshLedEnergy()
         setEnergyButtonLeds(true);
         progState.ledEnergyHiddenCountdown--;
         ledEnergy.show();
+
+        if (progState.ledEnergyHiddenCountdown == 0) {
+            Serial.println(F("Hidden patch: exit"));
+        }
+
         return;
     }
 
@@ -274,6 +278,7 @@ void refreshLedEnergy()
         progState.ledEnergyLoop++;
         progState.ledEnergyHiddenCountdown = LED_ENERGY_HIDDEN_PATCH_SIZE;
         setEnergyButtonLeds(true);
+        Serial.println(F("Hidden patch: enter"));
     }
 
     ledEnergy.show();
@@ -366,11 +371,12 @@ void initLedIndicatorTimer()
 
 void onIndicatorPress(int idx, int v, int up)
 {
-    Serial.print(F("BI :: "));
+    Serial.print(F("Indicator button: "));
     Serial.println(idx);
 
     progState.ledIndicatorColorIdx[idx]++;
-    progState.ledIndicatorColorIdx[idx] = progState.ledIndicatorColorIdx[idx] % SIZE_COLORS_INDICATOR;
+    uint8_t remainder = progState.ledIndicatorColorIdx[idx] % SIZE_COLORS_INDICATOR;
+    progState.ledIndicatorColorIdx[idx] = remainder;
 }
 
 void initIndicatorButtons()
@@ -388,7 +394,7 @@ void initIndicatorButtons()
 
 void showStartEffect()
 {
-    const uint16_t delayMs = 500;
+    const uint16_t delayMs = 600;
     const uint32_t color = Adafruit_NeoPixel::Color(0, 255, 0);
 
     ledProgress.fill(color);
@@ -427,6 +433,7 @@ void setup()
     initIndicatorButtons();
     initLedIndicatorTimer();
     initEnergyButtons();
+    initLedEnergyTimer();
 
     Serial.println(F(">> Starting Kelvin program"));
 
