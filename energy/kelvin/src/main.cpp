@@ -1,5 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <Automaton.h>
+#include <limits.h>
 
 /**
  * Energy LED strip.
@@ -46,6 +47,10 @@ Adafruit_NeoPixel ledProgress = Adafruit_NeoPixel(
     LED_PROGRESS_NUM,
     LED_PROGRESS_PIN,
     NEO_GRB + NEO_KHZ800);
+
+const uint8_t PROGRESS_LEVEL_MAX = 10;
+const uint8_t PROGRESS_LEVEL_ADD = 2;
+const uint8_t PROGRESS_LEVEL_REMOVE = 1;
 
 /**
  * Indicator LED strips.
@@ -139,6 +144,7 @@ typedef struct programState {
     uint16_t ledEnergyTickCounter;
     uint16_t ledEnergyHiddenCountdown;
     uint8_t* ledIndicatorColorIdx;
+    int16_t progressLevel;
     bool indicatorOk;
 } ProgramState;
 
@@ -151,10 +157,83 @@ void initState()
     progState.ledEnergyTickCounter = 0;
     progState.ledEnergyHiddenCountdown = 0;
     progState.ledIndicatorColorIdx = ledIndicatorColorIdx;
+    progState.progressLevel = 0;
     progState.indicatorOk = false;
 
     for (int i = 0; i < SIZE_LED_INDICATOR; i++) {
         ledIndicatorColorIdx[i] = 0;
+    }
+}
+
+/**
+ * LED effects.
+ */
+
+uint32_t randomColor()
+{
+    return Adafruit_NeoPixel::Color(
+        random(0, 255),
+        random(0, 255),
+        random(0, 255));
+}
+
+void showStartEffect()
+{
+    const uint16_t delayMs = 500;
+    const uint32_t color = Adafruit_NeoPixel::Color(0, 255, 0);
+
+    ledProgress.fill(color);
+    ledProgress.show();
+    delay(delayMs);
+    ledProgress.clear();
+    ledProgress.show();
+
+    ledEnergy.fill(color);
+    ledEnergy.show();
+    delay(delayMs);
+    ledEnergy.clear();
+    ledEnergy.show();
+
+    for (int i = 0; i < SIZE_LED_INDICATOR; i++) {
+        ledIndicators[i].fill(color);
+        ledIndicators[i].show();
+        delay(delayMs);
+        ledIndicators[i].clear();
+        ledIndicators[i].show();
+    }
+}
+
+void showFinishEffect(int numLoops = 2)
+{
+    const uint16_t delayMs = 100;
+
+    numLoops = numLoops <= 0 ? INT_MAX : numLoops;
+
+    for (int i = 0; i < numLoops; i++) {
+        ledProgress.fill(randomColor());
+        ledProgress.show();
+        delay(delayMs);
+
+        ledEnergy.fill(randomColor());
+        ledEnergy.show();
+        delay(delayMs);
+
+        for (int j = 0; j < SIZE_LED_INDICATOR; j++) {
+            ledIndicators[j].fill(randomColor());
+            ledIndicators[j].show();
+            delay(delayMs);
+        }
+    }
+
+    ledProgress.clear();
+    ledProgress.show();
+
+    ledEnergy.clear();
+    ledEnergy.show();
+
+    for (int j = 0; j < SIZE_LED_INDICATOR; j++) {
+        ledIndicators[j].clear();
+        ledIndicators[j].show();
     }
 }
 
@@ -168,6 +247,49 @@ void initLedProgress()
     ledProgress.setBrightness(LED_PROGRESS_BRIGHTNESS);
     ledProgress.clear();
     ledProgress.show();
+}
+
+void refreshLedProgress()
+{
+    uint16_t pixelsPerLevel = ceil(ledProgress.numPixels() / PROGRESS_LEVEL_MAX);
+    uint16_t totalPixels = progState.progressLevel * pixelsPerLevel;
+
+    totalPixels = totalPixels > ledProgress.numPixels()
+        ? ledProgress.numPixels()
+        : totalPixels;
+
+    ledProgress.clear();
+    ledProgress.fill(COLOR_COLD, 0, totalPixels);
+    ledProgress.show();
+}
+
+void addProgress()
+{
+    progState.progressLevel += PROGRESS_LEVEL_ADD;
+
+    progState.progressLevel = progState.progressLevel > PROGRESS_LEVEL_MAX
+        ? PROGRESS_LEVEL_MAX
+        : progState.progressLevel;
+
+    Serial.print(F("Progress + :: "));
+    Serial.println(progState.progressLevel);
+}
+
+void removeProgress()
+{
+    progState.progressLevel -= PROGRESS_LEVEL_REMOVE;
+
+    progState.progressLevel = progState.progressLevel < 0
+        ? 0
+        : progState.progressLevel;
+
+    Serial.print(F("Progress - :: "));
+    Serial.println(progState.progressLevel);
+}
+
+bool isMaxProgress()
+{
+    return progState.progressLevel >= PROGRESS_LEVEL_MAX;
 }
 
 /**
@@ -195,18 +317,23 @@ uint16_t getCurrentEnergyTickModulo()
     return LED_ENERGY_MODULO_SLOW;
 }
 
-void onEnergyCatch()
-{
-    Serial.println(F("Catch"));
-}
-
 void onEnergyPress(int idx, int v, int up)
 {
     Serial.print(F("Energy button: "));
     Serial.println(idx);
 
     if (progState.ledEnergyHiddenCountdown > 0) {
-        onEnergyCatch();
+        addProgress();
+        progState.ledEnergyHiddenCountdown = 0;
+    } else {
+        removeProgress();
+    }
+
+    refreshLedProgress();
+
+    if (isMaxProgress()) {
+        Serial.println(F("Max progress"));
+        showFinishEffect(0);
     }
 }
 
@@ -251,11 +378,6 @@ void refreshLedEnergy()
         setEnergyButtonLeds(true);
         progState.ledEnergyHiddenCountdown--;
         ledEnergy.show();
-
-        if (progState.ledEnergyHiddenCountdown == 0) {
-            Serial.println(F("Hidden patch: exit"));
-        }
-
         return;
     }
 
@@ -385,36 +507,6 @@ void initIndicatorButtons()
         btnsIndicator[i]
             .begin(BTN_INDICATOR_PINS[i])
             .onPress(onIndicatorPress, i);
-    }
-}
-
-/**
- * Misc.
- */
-
-void showStartEffect()
-{
-    const uint16_t delayMs = 600;
-    const uint32_t color = Adafruit_NeoPixel::Color(0, 255, 0);
-
-    ledProgress.fill(color);
-    ledProgress.show();
-    delay(delayMs);
-    ledProgress.clear();
-    ledProgress.show();
-
-    ledEnergy.fill(color);
-    ledEnergy.show();
-    delay(delayMs);
-    ledEnergy.clear();
-    ledEnergy.show();
-
-    for (int i = 0; i < SIZE_LED_INDICATOR; i++) {
-        ledIndicators[i].fill(color);
-        ledIndicators[i].show();
-        delay(delayMs);
-        ledIndicators[i].clear();
-        ledIndicators[i].show();
     }
 }
 
