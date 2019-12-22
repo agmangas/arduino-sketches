@@ -1,3 +1,4 @@
+#include <Adafruit_NeoPixel.h>
 #include <SerialRFID.h>
 #include <SoftwareSerial.h>
 
@@ -6,8 +7,14 @@
  */
 
 const uint8_t RFID_NUM = 3;
-const uint8_t RFID_PINS_RX[RFID_NUM] = { 2, 4, 6 };
-const uint8_t RFID_PINS_TX[RFID_NUM] = { 3, 5, 7 };
+
+const uint8_t RFID_PINS_RX[RFID_NUM] = {
+    2, 4, 6
+};
+
+const uint8_t RFID_PINS_TX[RFID_NUM] = {
+    3, 5, 7
+};
 
 SoftwareSerial rfidSoftSerials[RFID_NUM] = {
     SoftwareSerial(RFID_PINS_RX[0], RFID_PINS_TX[0]),
@@ -30,6 +37,27 @@ char keyTags[RFID_NUM][RFID_VALID_OPTIONS][SIZE_TAG_ID] = {
 };
 
 /**
+ * LED strip.
+ */
+
+const uint16_t LED_NUM = 60;
+const uint16_t LED_PIN = 8;
+const uint8_t LED_BRIGHTNESS = 200;
+
+Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(
+    LED_NUM,
+    LED_PIN,
+    NEO_GRB + NEO_KHZ800);
+
+/**
+ * Relays.
+ */
+
+const uint8_t RELAY_PINS[RFID_NUM] = {
+    9, 10, 11
+};
+
+/**
  * Program state.
  */
 
@@ -46,6 +74,28 @@ void initState()
 {
     for (int i = 0; i < RFID_NUM; i++) {
         progState.rfidsUnlocked[i] = false;
+    }
+}
+
+/**
+ * Relay functions.
+ */
+
+void lockRelay(uint8_t idx)
+{
+    digitalWrite(RELAY_PINS[idx], LOW);
+}
+
+void openRelay(uint8_t idx)
+{
+    digitalWrite(RELAY_PINS[idx], HIGH);
+}
+
+void initRelays()
+{
+    for (uint8_t i = 0; i < RFID_NUM; i++) {
+        pinMode(RELAY_PINS[i], OUTPUT);
+        lockRelay(RELAY_PINS[i]);
     }
 }
 
@@ -84,6 +134,7 @@ void onValidTag(uint8_t readerIdx)
     Serial.println(readerIdx);
 
     progState.rfidsUnlocked[readerIdx] = true;
+    openRelay(RELAY_PINS[readerIdx]);
 }
 
 void rfidLoop()
@@ -126,6 +177,38 @@ void rfidLoop()
 }
 
 /**
+ * LED functions.
+ */
+
+void initLeds()
+{
+    ledStrip.begin();
+    ledStrip.setBrightness(LED_BRIGHTNESS);
+    ledStrip.show();
+    ledStrip.clear();
+}
+
+void showStartEffect()
+{
+    const uint16_t delayMsFill = 1000;
+    const uint16_t delayMsClear = 200;
+    const uint16_t numLoops = 2;
+    const uint32_t color = Adafruit_NeoPixel::Color(0, 255, 0);
+
+    for (uint16_t i = 0; i < numLoops; i++) {
+        ledStrip.fill(color);
+        ledStrip.show();
+        delay(delayMsFill);
+        ledStrip.clear();
+        ledStrip.show();
+        delay(delayMsClear);
+    }
+
+    ledStrip.clear();
+    ledStrip.show();
+}
+
+/**
  * Entrypoint.
  */
 
@@ -135,8 +218,12 @@ void setup()
 
     initState();
     initRfids();
+    initLeds();
+    initRelays();
 
     Serial.println(F(">> Starting zephyr"));
+
+    showStartEffect();
 }
 
 void loop()
