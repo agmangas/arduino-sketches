@@ -29,16 +29,8 @@ SerialRFID rfids[RFID_NUM] = {
     SerialRFID(rfidSoftSerials[2])
 };
 
-const uint8_t RFID_VALID_OPTIONS = 3;
-
-char keyTags[RFID_NUM][RFID_VALID_OPTIONS][SIZE_TAG_ID] = {
-    { "1D0027A729B4", "1D0027A729B4", "1D0027A729B4" },
-    { "1D00279848EA", "1D00279848EA", "1D00279848EA" },
-    { "1D0027E11DC6", "1D0027E11DC6", "1D0027E11DC6" }
-};
-
 /**
- * Machines representing the Tag in Range pins.
+ * Machines representing the Tag in Range signals.
  */
 
 Atm_digital tirDigitals[RFID_NUM];
@@ -51,9 +43,9 @@ const uint8_t TIR_PINS[RFID_NUM] = {
  * LED strip.
  */
 
-const uint16_t LED_NUM = 60;
+const uint16_t LED_NUM = 9;
 const uint16_t LED_PIN = 8;
-const uint8_t LED_BRIGHTNESS = 200;
+const uint8_t LED_BRIGHTNESS = 180;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(
     LED_NUM,
@@ -64,6 +56,8 @@ Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(
  * Relays.
  */
 
+const unsigned long RELAY_UNLOCK_MIN_MS = 3000;
+
 const uint8_t RELAY_PINS[RFID_NUM] = {
     9, 10, 11
 };
@@ -73,12 +67,15 @@ const uint8_t RELAY_PINS[RFID_NUM] = {
  */
 
 char tagBuffer[SIZE_TAG_ID];
+
 bool rfidsUnlocked[RFID_NUM];
 bool tagsInRange[RFID_NUM];
+unsigned long unlockMillis[RFID_NUM];
 
 typedef struct programState {
     bool* rfidsUnlocked;
     bool* tagsInRange;
+    unsigned long* unlockMillis;
 } ProgramState;
 
 ProgramState progState;
@@ -87,10 +84,62 @@ void initState()
 {
     progState.rfidsUnlocked = rfidsUnlocked;
     progState.tagsInRange = tagsInRange;
+    progState.unlockMillis = unlockMillis;
 
     for (int i = 0; i < RFID_NUM; i++) {
         progState.rfidsUnlocked[i] = false;
         progState.tagsInRange[i] = false;
+        progState.unlockMillis[i] = 0;
+    }
+}
+
+/**
+ * LED functions.
+ */
+
+void initLeds()
+{
+    ledStrip.begin();
+    ledStrip.setBrightness(LED_BRIGHTNESS);
+    ledStrip.show();
+    ledStrip.clear();
+}
+
+void showStartEffect()
+{
+    const uint16_t delayMsFill = 500;
+    const uint16_t delayMsClear = 100;
+    const uint16_t numLoops = 3;
+    const uint32_t color = Adafruit_NeoPixel::Color(0, 255, 0);
+
+    for (uint16_t i = 0; i < numLoops; i++) {
+        ledStrip.fill(color);
+        ledStrip.show();
+        delay(delayMsFill);
+        ledStrip.clear();
+        ledStrip.show();
+        delay(delayMsClear);
+    }
+
+    ledStrip.clear();
+    ledStrip.show();
+}
+
+void showUnlockEffect(uint8_t idx)
+{
+    const uint32_t color = Adafruit_NeoPixel::Color(0, 250, 250);
+    const unsigned long delayMs = 80;
+
+    uint16_t numPixels = ledStrip.numPixels();
+    uint16_t pixelsPerRfid = ceil(numPixels / RFID_NUM);
+    uint16_t idxIni = pixelsPerRfid * idx;
+    uint16_t idxEnd = idxIni + pixelsPerRfid;
+    idxEnd = idxEnd > numPixels ? numPixels : idxEnd;
+
+    for (uint16_t i = idxIni; i < idxEnd; i++) {
+        ledStrip.setPixelColor(i, color);
+        ledStrip.show();
+        delay(delayMs);
     }
 }
 
@@ -100,11 +149,21 @@ void initState()
 
 void lockRelay(uint8_t idx)
 {
+    if (digitalRead(RELAY_PINS[idx]) == HIGH) {
+        Serial.print(F("Locking relay #"));
+        Serial.println(idx);
+    }
+
     digitalWrite(RELAY_PINS[idx], LOW);
 }
 
 void openRelay(uint8_t idx)
 {
+    if (digitalRead(RELAY_PINS[idx]) == LOW) {
+        Serial.print(F("Opening relay #"));
+        Serial.println(idx);
+    }
+
     digitalWrite(RELAY_PINS[idx], HIGH);
 }
 
@@ -116,19 +175,32 @@ void initRelays()
     }
 }
 
+bool canLockRelay(uint8_t idx)
+{
+    unsigned long now = millis();
+
+    if (progState.unlockMillis[idx] == 0
+        || progState.unlockMillis[idx] > now) {
+        return true;
+    }
+
+    unsigned long diff = now - progState.unlockMillis[idx];
+
+    return diff >= RELAY_UNLOCK_MIN_MS;
+}
+
 void relayLoop()
 {
-    bool isUnlocked;
-    bool isPresent;
+    unsigned long now = millis();
 
     for (int i = 0; i < RFID_NUM; i++) {
-        isUnlocked = progState.rfidsUnlocked[i] == true;
-        isPresent = progState.tagsInRange[i] == true;
-
-        if (isUnlocked && isPresent) {
+        if (progState.tagsInRange[i]) {
+            progState.unlockMillis[i] = now;
             openRelay(i);
         } else {
-            lockRelay(i);
+            if (canLockRelay(i)) {
+                lockRelay(i);
+            }
         }
     }
 }
@@ -139,17 +211,26 @@ void relayLoop()
 
 void onTirChange(int idx, int v, int up)
 {
+    bool isInRange = v == 1;
+
     Serial.print(F("TIR #"));
     Serial.print(idx);
     Serial.print(F(": "));
-    Serial.println(v);
+    Serial.println(isInRange);
 
-    progState.tagsInRange[idx] = v == 1;
+    progState.tagsInRange[idx] = isInRange;
+
+    if (isInRange && progState.rfidsUnlocked[idx] == false) {
+        Serial.print(F("Unlocked #"));
+        Serial.println(idx);
+        progState.rfidsUnlocked[idx] = true;
+        showUnlockEffect(idx);
+    }
 }
 
 void initRfidsTagInRange()
 {
-    const uint16_t debounceMs = 100;
+    const uint16_t debounceMs = 200;
     const bool activeLow = false;
     const bool pullUp = false;
 
@@ -166,39 +247,12 @@ void initRfids()
         rfidSoftSerials[i].begin(9600);
     }
 
-    rfidSoftSerials[0].listen();
-    Serial.println(F("Listening on #0"));
-
     initRfidsTagInRange();
-}
-
-uint8_t activeRfidIndex()
-{
-    for (int i = 0; i < RFID_NUM; i++) {
-        if (progState.rfidsUnlocked[i] == false) {
-            return i;
-        }
-    }
-
-    return 0;
-}
-
-void onValidTag(uint8_t readerIdx)
-{
-    if (progState.rfidsUnlocked[readerIdx]) {
-        return;
-    }
-
-    Serial.print(F("Valid tag on #"));
-    Serial.println(readerIdx);
-
-    progState.rfidsUnlocked[readerIdx] = true;
-    openRelay(readerIdx);
 }
 
 void rfidLoop()
 {
-    uint8_t activeIdx = activeRfidIndex();
+    const uint8_t activeIdx = 0;
 
     bool isReplaced = rfidSoftSerials[activeIdx].listen();
 
@@ -219,54 +273,6 @@ void rfidLoop()
     Serial.print(activeIdx);
     Serial.print(F(": "));
     Serial.println(tagBuffer);
-
-    bool isValidTag = false;
-
-    for (int opt = 0; opt < RFID_VALID_OPTIONS; opt++) {
-        isValidTag = SerialRFID::isEqualTag(
-            tagBuffer,
-            keyTags[activeIdx][opt]);
-
-        if (isValidTag) {
-            break;
-        }
-    }
-
-    if (isValidTag) {
-        onValidTag(activeIdx);
-    }
-}
-
-/**
- * LED functions.
- */
-
-void initLeds()
-{
-    ledStrip.begin();
-    ledStrip.setBrightness(LED_BRIGHTNESS);
-    ledStrip.show();
-    ledStrip.clear();
-}
-
-void showStartEffect()
-{
-    const uint16_t delayMsFill = 1000;
-    const uint16_t delayMsClear = 200;
-    const uint16_t numLoops = 2;
-    const uint32_t color = Adafruit_NeoPixel::Color(0, 255, 0);
-
-    for (uint16_t i = 0; i < numLoops; i++) {
-        ledStrip.fill(color);
-        ledStrip.show();
-        delay(delayMsFill);
-        ledStrip.clear();
-        ledStrip.show();
-        delay(delayMsClear);
-    }
-
-    ledStrip.clear();
-    ledStrip.show();
 }
 
 /**
@@ -282,9 +288,9 @@ void setup()
     initLeds();
     initRelays();
 
-    Serial.println(F(">> Starting zephyr"));
-
     showStartEffect();
+
+    Serial.println(F(">> Starting Zephyr"));
 }
 
 void loop()
