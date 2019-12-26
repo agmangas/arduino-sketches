@@ -1,4 +1,5 @@
 #include <Adafruit_NeoPixel.h>
+#include <Automaton.h>
 #include <SerialRFID.h>
 #include <SoftwareSerial.h>
 
@@ -28,12 +29,22 @@ SerialRFID rfids[RFID_NUM] = {
     SerialRFID(rfidSoftSerials[2])
 };
 
-const uint8_t RFID_VALID_OPTIONS = 2;
+const uint8_t RFID_VALID_OPTIONS = 3;
 
 char keyTags[RFID_NUM][RFID_VALID_OPTIONS][SIZE_TAG_ID] = {
-    { "5C00CADB5A19", "5C00CADB5A19" },
-    { "5C00CADB5A19", "5C00CADB5A19" },
-    { "5C00CADB5A19", "5C00CADB5A19" }
+    { "1D0027A729B4", "1D0027A729B4", "1D0027A729B4" },
+    { "1D00279848EA", "1D00279848EA", "1D00279848EA" },
+    { "1D0027E11DC6", "1D0027E11DC6", "1D0027E11DC6" }
+};
+
+/**
+ * Machines representing the Tag in Range pins.
+ */
+
+Atm_digital tirDigitals[RFID_NUM];
+
+const uint8_t TIR_PINS[RFID_NUM] = {
+    A0, A1, A2
 };
 
 /**
@@ -63,17 +74,23 @@ const uint8_t RELAY_PINS[RFID_NUM] = {
 
 char tagBuffer[SIZE_TAG_ID];
 bool rfidsUnlocked[RFID_NUM];
+bool tagsInRange[RFID_NUM];
 
 typedef struct programState {
     bool* rfidsUnlocked;
+    bool* tagsInRange;
 } ProgramState;
 
 ProgramState progState;
 
 void initState()
 {
+    progState.rfidsUnlocked = rfidsUnlocked;
+    progState.tagsInRange = tagsInRange;
+
     for (int i = 0; i < RFID_NUM; i++) {
         progState.rfidsUnlocked[i] = false;
+        progState.tagsInRange[i] = false;
     }
 }
 
@@ -93,15 +110,55 @@ void openRelay(uint8_t idx)
 
 void initRelays()
 {
-    for (uint8_t i = 0; i < RFID_NUM; i++) {
+    for (int i = 0; i < RFID_NUM; i++) {
         pinMode(RELAY_PINS[i], OUTPUT);
-        lockRelay(RELAY_PINS[i]);
+        lockRelay(i);
+    }
+}
+
+void relayLoop()
+{
+    bool isUnlocked;
+    bool isPresent;
+
+    for (int i = 0; i < RFID_NUM; i++) {
+        isUnlocked = progState.rfidsUnlocked[i] == true;
+        isPresent = progState.tagsInRange[i] == true;
+
+        if (isUnlocked && isPresent) {
+            openRelay(i);
+        } else {
+            lockRelay(i);
+        }
     }
 }
 
 /**
  * RFID functions.
  */
+
+void onTirChange(int idx, int v, int up)
+{
+    Serial.print(F("TIR #"));
+    Serial.print(idx);
+    Serial.print(F(": "));
+    Serial.println(v);
+
+    progState.tagsInRange[idx] = v == 1;
+}
+
+void initRfidsTagInRange()
+{
+    const uint16_t debounceMs = 100;
+    const bool activeLow = false;
+    const bool pullUp = false;
+
+    for (int i = 0; i < RFID_NUM; i++) {
+        tirDigitals[i]
+            .begin(TIR_PINS[i], debounceMs, activeLow, pullUp)
+            .onChange(onTirChange, i);
+    }
+}
 
 void initRfids()
 {
@@ -110,7 +167,9 @@ void initRfids()
     }
 
     rfidSoftSerials[0].listen();
-    Serial.print(F("Listening on #0"));
+    Serial.println(F("Listening on #0"));
+
+    initRfidsTagInRange();
 }
 
 uint8_t activeRfidIndex()
@@ -134,7 +193,7 @@ void onValidTag(uint8_t readerIdx)
     Serial.println(readerIdx);
 
     progState.rfidsUnlocked[readerIdx] = true;
-    openRelay(RELAY_PINS[readerIdx]);
+    openRelay(readerIdx);
 }
 
 void rfidLoop()
@@ -156,8 +215,10 @@ void rfidLoop()
         return;
     }
 
-    Serial.print("Tag: ");
-    Serial.print(tagBuffer);
+    Serial.print(F("Tag on #"));
+    Serial.print(activeIdx);
+    Serial.print(F(": "));
+    Serial.println(tagBuffer);
 
     bool isValidTag = false;
 
@@ -229,4 +290,6 @@ void setup()
 void loop()
 {
     rfidLoop();
+    relayLoop();
+    automaton.run();
 }
