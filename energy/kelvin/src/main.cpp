@@ -89,14 +89,15 @@ Adafruit_NeoPixel ledIndicators[SIZE_LED_INDICATOR] = {
 const uint8_t SIZE_COLORS_INDICATOR = 4;
 
 const uint32_t COLORS_INDICATOR[SIZE_COLORS_INDICATOR] = {
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 0)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 0, 255)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 0)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 255))
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 140, 0)),
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 255)),
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 255, 0)),
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(128, 0, 128))
 };
 
+// Green, Orange, Purple, White
 const uint8_t COLORS_INDICATOR_KEY[SIZE_LED_INDICATOR] = {
-    0, 1, 2, 3
+    2, 0, 3, 1
 };
 
 Atm_timer timerLedIndicator;
