@@ -46,33 +46,16 @@ const int AUDIO_EFFECT_DELAY_MS = 500;
  * LED strip.
  */
 
-const uint16_t NUM_LEDS = 60;
-const uint16_t NUM_LEDS_STATIC = 25;
-
-const uint8_t PIN_LEDS_01 = 3;
-const uint8_t PIN_LEDS_02 = 4;
-const uint8_t PIN_LEDS_STATIC = A5;
+const uint16_t NUM_LEDS = 10;
+const uint16_t PIN_LEDS = 4;
 
 const int LED_EFFECT_STEP_MS = 3;
 const int LED_BRIGHTNESS = 250;
 
-Adafruit_NeoPixel pixelStrip01 = Adafruit_NeoPixel(
+Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(
     NUM_LEDS,
-    PIN_LEDS_01,
+    PIN_LEDS,
     NEO_GRB + NEO_KHZ800);
-
-Adafruit_NeoPixel pixelStrip02 = Adafruit_NeoPixel(
-    NUM_LEDS,
-    PIN_LEDS_02,
-    NEO_GRB + NEO_KHZ800);
-
-Adafruit_NeoPixel pixelStatic = Adafruit_NeoPixel(
-    NUM_LEDS_STATIC,
-    PIN_LEDS_STATIC,
-    NEO_GRB + NEO_KHZ800);
-
-const uint32_t COLOR_STATIC = Adafruit_NeoPixel::gamma32(
-    Adafruit_NeoPixel::Color(200, 200, 200));
 
 const uint32_t AUDIO_TRACK_COLORS[NUM_TRACKS] = {
     Adafruit_NeoPixel::gamma32(
@@ -140,11 +123,8 @@ void resetAudio()
 
 void clearLeds()
 {
-    pixelStrip01.clear();
-    pixelStrip01.show();
-
-    pixelStrip02.clear();
-    pixelStrip02.show();
+    pixelStrip.clear();
+    pixelStrip.show();
 }
 
 void displayAudioLedEffect(int tagIdx)
@@ -168,18 +148,14 @@ void displayAudioLedEffect(int tagIdx)
         clearLeds();
 
         for (int i = 0; i < currTarget; i++) {
-            pixelStrip01.setPixelColor(i, trackColor);
-            pixelStrip01.show();
-            pixelStrip02.setPixelColor(i, trackColor);
-            pixelStrip02.show();
+            pixelStrip.setPixelColor(i, trackColor);
+            pixelStrip.show();
             delay(LED_EFFECT_STEP_MS);
         }
 
         for (int i = (currTarget - 1); i >= 0; i--) {
-            pixelStrip01.setPixelColor(i, 0);
-            pixelStrip01.show();
-            pixelStrip02.setPixelColor(i, 0);
-            pixelStrip02.show();
+            pixelStrip.setPixelColor(i, 0);
+            pixelStrip.show();
             delay(LED_EFFECT_STEP_MS);
         }
 
@@ -199,46 +175,11 @@ void displayAudioLedEffect(int tagIdx)
 
 void initLeds()
 {
-    pixelStrip01.begin();
-    pixelStrip01.setBrightness(LED_BRIGHTNESS);
-    pixelStrip01.show();
-
-    pixelStrip02.begin();
-    pixelStrip02.setBrightness(LED_BRIGHTNESS);
-    pixelStrip02.show();
-
-    pixelStatic.begin();
-    pixelStatic.setBrightness(LED_BRIGHTNESS);
-    pixelStatic.show();
+    pixelStrip.begin();
+    pixelStrip.setBrightness(LED_BRIGHTNESS);
+    pixelStrip.show();
 
     clearLeds();
-}
-
-void playLedStartupPattern()
-{
-    clearLeds();
-
-    const int delayMs = 5;
-    const uint32_t color = Adafruit_NeoPixel::Color(200, 200, 200);
-
-    for (uint16_t i = 0; i < NUM_LEDS; i++) {
-        pixelStrip01.setPixelColor(i, color);
-        pixelStrip01.show();
-        delay(delayMs);
-    }
-
-    clearLeds();
-}
-
-void showStaticLed()
-{
-    pixelStatic.clear();
-
-    for (uint16_t i = 0; i < NUM_LEDS_STATIC; i++) {
-        pixelStatic.setPixelColor(i, COLOR_STATIC);
-    }
-
-    pixelStatic.show();
 }
 
 /**
@@ -293,7 +234,6 @@ void setup()
     initAudioPins();
     resetAudio();
     initLeds();
-    playLedStartupPattern();
     sSerial.listen();
 
     Serial.println(F(">> Starting Cerebrofono program"));
@@ -302,6 +242,5 @@ void setup()
 void loop()
 {
     readTagAndPlayAudio();
-    showStaticLed();
     delay(100);
 }
