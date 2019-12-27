@@ -1,3 +1,4 @@
+#include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 #include <CircularBuffer.h>
 
@@ -30,12 +31,20 @@ const int CANDLE_ACTIVATION_KEY[NUM_CANDLES] = {
     2, 3, 0, 1
 };
 
-int candleActivationOrder[NUM_CANDLES];
-
 const int VOLTS_BUF_SIZE = 25;
 
 CircularBuffer<int, NUM_CANDLES> candleActivationBuf;
 CircularBuffer<double, VOLTS_BUF_SIZE> voltsBufs[NUM_CANDLES];
+
+const uint16_t LED_NUM = NUM_CANDLES;
+const uint16_t LED_PIN = 8;
+const uint8_t LED_BRIGHTNESS = 160;
+const uint32_t COLOR_FIRE = Adafruit_NeoPixel::Color(255, 0, 0);
+
+Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(
+    LED_NUM,
+    LED_PIN,
+    NEO_RGB + NEO_KHZ800);
 
 void lockRelay(int pin)
 {
@@ -55,14 +64,39 @@ void initRelays()
 
 void initLeds()
 {
+    ledStrip.begin();
+    ledStrip.setBrightness(LED_BRIGHTNESS);
+    ledStrip.clear();
+    ledStrip.show();
 }
 
 void refreshLeds()
 {
+    ledStrip.clear();
+
+    for (int i = 0; i < NUM_CANDLES; i++) {
+        if (candleActivationStates[i]) {
+            ledStrip.setPixelColor(i, COLOR_FIRE);
+        }
+    }
+
+    ledStrip.show();
 }
 
 void showLedStartEffect()
 {
+    const int delayFillMs = 800;
+    const int delayClearMs = 200;
+    const int numLoops = 2;
+
+    for (int i = 0; i < numLoops; i++) {
+        ledStrip.fill(COLOR_FIRE);
+        ledStrip.show();
+        delay(delayFillMs);
+        ledStrip.clear();
+        ledStrip.show();
+        delay(delayClearMs);
+    }
 }
 
 void clearActivation()
@@ -211,9 +245,9 @@ void setup()
     initRelays();
     initLeds();
 
-    Serial.println(F(">> Starting candles program"));
-
     showLedStartEffect();
+
+    Serial.println(F(">> Starting candles program"));
 }
 
 void loop()
