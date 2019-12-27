@@ -50,7 +50,7 @@ const uint16_t NUM_LEDS = 10;
 const uint16_t PIN_LEDS = 4;
 
 const int LED_EFFECT_STEP_MS = 3;
-const int LED_BRIGHTNESS = 250;
+const int LED_BRIGHTNESS = 180;
 
 Adafruit_NeoPixel pixelStrip = Adafruit_NeoPixel(
     NUM_LEDS,
