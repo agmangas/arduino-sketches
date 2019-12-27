@@ -29,7 +29,7 @@ const uint16_t LED_ENERGY_MODULO_SLOW = 1;
 const uint16_t LED_ENERGY_MODULO_MEDIUM = 1;
 const uint16_t LED_ENERGY_MODULO_FAST = 1;
 
-const uint16_t LED_ENERGY_HIDDEN_PATCH_SIZE = 6;
+const uint16_t LED_ENERGY_HIDDEN_PATCH_SIZE = 7;
 
 Atm_timer timerLedEnergy;
 
@@ -259,7 +259,11 @@ void refreshLedProgress()
         : totalPixels;
 
     ledProgress.clear();
-    ledProgress.fill(COLOR_COLD, 0, totalPixels);
+
+    if (totalPixels > 0) {
+        ledProgress.fill(COLOR_COLD, 0, totalPixels);
+    }
+
     ledProgress.show();
 }
 
