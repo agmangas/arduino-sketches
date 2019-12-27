@@ -18,14 +18,18 @@ char tag[SIZE_TAG_ID];
  * Valid tag IDs.
  */
 
-const int NUM_TRACKS = 4;
+const int NUM_TRACKS = 8;
 const int NUM_IDS_PER_TRACK = 2;
 
 char TRACK_TAG_IDS[NUM_TRACKS][NUM_IDS_PER_TRACK][SIZE_TAG_ID] = {
     { "1D0027A729B4", "1D0027A729B4" },
     { "1D00279848EA", "1D00279848EA" },
     { "1D0027E11DC6", "1D0027E11DC6" },
-    { "1D0027A2AE36", "1D0027A2AE36" }
+    { "1D0027A2AE36", "1D0027A2AE36" },
+    { "10007A3FAAFF", "10007A3FAAFF" },
+    { "100079DA3083", "100079DA3083" },
+    { "100078F3E279", "100078F3E279" },
+    { "10007963171D", "10007963171D" }
 };
 
 /**
@@ -35,8 +39,9 @@ char TRACK_TAG_IDS[NUM_TRACKS][NUM_IDS_PER_TRACK][SIZE_TAG_ID] = {
 const byte PIN_AUDIO_RST = 12;
 const byte PIN_AUDIO_ACT = 7;
 
+// T00, T01, T02, ..., T07
 const byte AUDIO_TRACK_PINS[NUM_TRACKS] = {
-    8, 9, 10, 11
+    11, 10, 9, 8, 6, 5, 4, 3
 };
 
 const unsigned long AUDIO_TRACK_MAX_MS = 50000;
@@ -47,7 +52,7 @@ const int AUDIO_EFFECT_DELAY_MS = 500;
  */
 
 const uint16_t NUM_LEDS = 10;
-const uint16_t PIN_LEDS = 4;
+const uint16_t PIN_LEDS = 2;
 
 const int LED_EFFECT_STEP_MS = 3;
 const int LED_BRIGHTNESS = 180;
@@ -61,11 +66,19 @@ const uint32_t AUDIO_TRACK_COLORS[NUM_TRACKS] = {
     Adafruit_NeoPixel::gamma32(
         Adafruit_NeoPixel::Color(0, 50, 255)),
     Adafruit_NeoPixel::gamma32(
-        Adafruit_NeoPixel::Color(0, 100, 255)),
+        Adafruit_NeoPixel::Color(0, 50, 255)),
     Adafruit_NeoPixel::gamma32(
-        Adafruit_NeoPixel::Color(0, 150, 255)),
+        Adafruit_NeoPixel::Color(0, 50, 255)),
     Adafruit_NeoPixel::gamma32(
-        Adafruit_NeoPixel::Color(0, 200, 255))
+        Adafruit_NeoPixel::Color(0, 50, 255)),
+    Adafruit_NeoPixel::gamma32(
+        Adafruit_NeoPixel::Color(0, 50, 255)),
+    Adafruit_NeoPixel::gamma32(
+        Adafruit_NeoPixel::Color(0, 50, 255)),
+    Adafruit_NeoPixel::gamma32(
+        Adafruit_NeoPixel::Color(0, 50, 255)),
+    Adafruit_NeoPixel::gamma32(
+        Adafruit_NeoPixel::Color(0, 50, 255))
 };
 
 /**
@@ -230,13 +243,13 @@ void setup()
 {
     Serial.begin(9600);
     sSerial.begin(9600);
+    sSerial.listen();
 
     initAudioPins();
     resetAudio();
     initLeds();
-    sSerial.listen();
 
-    Serial.println(F(">> Starting Cerebrofono program"));
+    Serial.println(F(">> Starting Zephyr Speaker program"));
 }
 
 void loop()
