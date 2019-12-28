@@ -43,7 +43,7 @@ const uint8_t TIR_PINS[RFID_NUM] = {
  * LED strip.
  */
 
-const uint16_t LED_NUM = 9;
+const uint16_t LED_NUM = 28;
 const uint16_t LED_PIN = 8;
 const uint8_t LED_BRIGHTNESS = 180;
 
