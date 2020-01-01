@@ -52,6 +52,10 @@ Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(
     LED_PIN,
     NEO_GRB + NEO_KHZ800);
 
+Atm_timer timerLed;
+
+const int LED_TIMER_MS = 250;
+
 /**
  * Relays.
  */
@@ -93,9 +97,38 @@ void initState()
     }
 }
 
+uint16_t getNumUnlocked()
+{
+    uint16_t ret = 0;
+
+    for (int i = 0; i < RFID_NUM; i++) {
+        if (progState.rfidsUnlocked[i]) {
+            ret++;
+        }
+    }
+
+    return ret;
+}
+
 /**
  * LED functions.
  */
+
+uint32_t randomColor()
+{
+    return Adafruit_NeoPixel::Color(
+        random(0, 255),
+        random(0, 255),
+        random(0, 255));
+}
+
+void onLedTimer(int idx, int v, int up)
+{
+    if (getNumUnlocked() >= RFID_NUM) {
+        ledStrip.fill(randomColor());
+        ledStrip.show();
+    }
+}
 
 void initLeds()
 {
@@ -103,6 +136,12 @@ void initLeds()
     ledStrip.setBrightness(LED_BRIGHTNESS);
     ledStrip.show();
     ledStrip.clear();
+
+    timerLed
+        .begin(LED_TIMER_MS)
+        .repeat(-1)
+        .onTimer(onLedTimer)
+        .start();
 }
 
 void showStartEffect()
@@ -130,6 +169,12 @@ void showUnlockEffect(uint8_t idx)
     const uint32_t color = Adafruit_NeoPixel::Color(0, 250, 250);
     const unsigned long delayMs = 80;
 
+    if (idx >= RFID_NUM) {
+        Serial.print(F("WARN: Unlock effect for #"));
+        Serial.println(idx);
+        return;
+    }
+
     uint16_t numPixels = ledStrip.numPixels();
     uint16_t pixelsPerRfid = ceil(numPixels / RFID_NUM);
     uint16_t idxIni = pixelsPerRfid * idx;
@@ -138,6 +183,17 @@ void showUnlockEffect(uint8_t idx)
 
     for (uint16_t i = idxIni; i < idxEnd; i++) {
         ledStrip.setPixelColor(i, color);
+        ledStrip.show();
+        delay(delayMs);
+    }
+}
+
+void ledLoop()
+{
+    const unsigned long delayMs = 100;
+
+    if (getNumUnlocked() >= RFID_NUM) {
+        ledStrip.fill(randomColor());
         ledStrip.show();
         delay(delayMs);
     }
@@ -223,14 +279,15 @@ void onTirChange(int idx, int v, int up)
     if (isInRange && progState.rfidsUnlocked[idx] == false) {
         Serial.print(F("Unlocked #"));
         Serial.println(idx);
+        uint16_t numUnlocked = getNumUnlocked();
         progState.rfidsUnlocked[idx] = true;
-        showUnlockEffect(idx);
+        showUnlockEffect(numUnlocked);
     }
 }
 
 void initRfidsTagInRange()
 {
-    const uint16_t debounceMs = 200;
+    const uint16_t debounceMs = 50;
     const bool activeLow = false;
     const bool pullUp = false;
 
