@@ -53,9 +53,8 @@ const uint32_t UNLOCK_COLORS[UNLOCK_COLOR_NUM] = {
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(200, 200, 200)) // 6: Grey
 };
 
-// Green, Purple, Green, Green, Blue, Red, Yellow
 const int UNLOCK_COLORS_KEY[BUTTONS_NUM] = {
-    2, 5, 2, 2, 0, 1, 1, 3
+    1, 0, 1, 2, 4, 2, 1, 0
 };
 
 /**
