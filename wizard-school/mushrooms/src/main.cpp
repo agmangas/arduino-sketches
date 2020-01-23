@@ -7,10 +7,10 @@
  * Buttons.
  */
 
-const int BUTTONS_NUM = 7;
+const int BUTTONS_NUM = 8;
 
 const int BUTTONS_PINS[BUTTONS_NUM] = {
-    3, 4, 5, 6, 7, 8, 9
+    2, 3, 4, 5, 6, 7, 8, 9
 };
 
 Atm_button buttons[BUTTONS_NUM];
@@ -44,17 +44,18 @@ CircularBuffer<uint8_t, LED_COLOR_PALETTE_SIZE> bufErrorPalette;
 const int UNLOCK_COLOR_NUM = 7;
 
 const uint32_t UNLOCK_COLORS[UNLOCK_COLOR_NUM] = {
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 0, 255)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 0)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 255, 0)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 0)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(231, 84, 128)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(125, 60, 152)),
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(200, 200, 200))
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 0, 255)), // 0: Blue
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 0)), // 1: Red
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 255, 0)), // 2: Green
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 0)), // 3: Yellow
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(231, 84, 128)), // 4: Pink
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(125, 60, 152)), // 5: Purple
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(200, 200, 200)) // 6: Grey
 };
 
+// Green, Purple, Green, Green, Blue, Red, Yellow
 const int UNLOCK_COLORS_KEY[BUTTONS_NUM] = {
-    2, 5, 2, 2, 0, 1, 1
+    2, 5, 2, 2, 0, 1, 1, 3
 };
 
 /**
