@@ -41,16 +41,15 @@ CircularBuffer<uint8_t, LED_COLOR_PALETTE_SIZE> bufErrorPalette;
  * Colors for the unlock phase.
  */
 
-const int UNLOCK_COLOR_NUM = 7;
+const int UNLOCK_COLOR_NUM = 6;
 
 const uint32_t UNLOCK_COLORS[UNLOCK_COLOR_NUM] = {
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 0, 255)), // 0: Blue
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 0, 0)), // 1: Red
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(0, 255, 0)), // 2: Green
     Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(255, 255, 0)), // 3: Yellow
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(231, 84, 128)), // 4: Pink
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(125, 60, 152)), // 5: Purple
-    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(200, 200, 200)) // 6: Grey
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(125, 60, 152)), // 4: Purple
+    Adafruit_NeoPixel::gamma32(Adafruit_NeoPixel::Color(200, 200, 200)) // 5: Grey
 };
 
 const int UNLOCK_COLORS_KEY[BUTTONS_NUM] = {
