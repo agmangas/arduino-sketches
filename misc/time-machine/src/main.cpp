@@ -60,7 +60,7 @@ Adafruit_NeoPixel ledsBar[BARS_NUM] = {
  */
 
 const uint16_t LED_NUM_WHEEL = 120;
-const uint8_t LED_PIN_WHEEL = 4;
+const uint8_t LED_PIN_WHEEL = 11;
 
 Adafruit_NeoPixel ledWheel = Adafruit_NeoPixel(
     LED_NUM_WHEEL,
@@ -81,7 +81,7 @@ const uint16_t TIMER_MODULO_WHEEL = 1;
  * LED unlock button.
  */
 
-const uint8_t BUTTON_UNLOCK_PIN = 11;
+const uint8_t BUTTON_UNLOCK_PIN = 12;
 
 Atm_button buttonUnlock;
 
