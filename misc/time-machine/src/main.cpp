@@ -31,7 +31,7 @@ const String TRACK_LED_EFFECT = String("/effect.mp3");
  * Number of wheel bars.
  */
 
-const uint8_t BARS_NUM = 4;
+const uint8_t BARS_NUM = 3;
 
 /**
  * Default LED brightness
@@ -44,13 +44,15 @@ const uint8_t LED_BRIGHTNESS = 180;
  */
 
 const uint16_t LED_NUM_BARS = 20;
-const uint8_t LED_NUM_PINS[BARS_NUM] = { A2, A3, A4, A5 };
+
+const uint8_t LED_NUM_PINS[BARS_NUM] = {
+    A2, A3, A4
+};
 
 Adafruit_NeoPixel ledsBar[BARS_NUM] = {
     Adafruit_NeoPixel(LED_NUM_BARS, LED_NUM_PINS[0], NEO_GRB + NEO_KHZ800),
     Adafruit_NeoPixel(LED_NUM_BARS, LED_NUM_PINS[1], NEO_GRB + NEO_KHZ800),
-    Adafruit_NeoPixel(LED_NUM_BARS, LED_NUM_PINS[2], NEO_GRB + NEO_KHZ800),
-    Adafruit_NeoPixel(LED_NUM_BARS, LED_NUM_PINS[3], NEO_GRB + NEO_KHZ800)
+    Adafruit_NeoPixel(LED_NUM_BARS, LED_NUM_PINS[2], NEO_GRB + NEO_KHZ800)
 };
 
 /**
