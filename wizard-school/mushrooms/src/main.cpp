@@ -95,6 +95,8 @@ typedef struct programState {
 
 ProgramState progState;
 
+const uint8_t IDX_IGNORED = 7;
+
 /**
  * Utility to check for existence in a circular buffer.
  */
@@ -252,12 +254,15 @@ int pickRandomTarget()
     int randPivot = random(0, BUTTONS_NUM * 10) % BUTTONS_NUM;
     int counter = 0;
 
-    while (inTargetsBuffer(randPivot) && counter <= BUTTONS_NUM) {
+    while ((inTargetsBuffer(randPivot) || randPivot == IDX_IGNORED)
+        && counter <= BUTTONS_NUM) {
         randPivot = (randPivot + 1) % BUTTONS_NUM;
         counter++;
     }
 
-    return inTargetsBuffer(randPivot) ? -1 : randPivot;
+    return (inTargetsBuffer(randPivot) || randPivot == IDX_IGNORED)
+        ? -1
+        : randPivot;
 }
 
 void randomizeTargets(int num)
@@ -579,6 +584,11 @@ void onUnlockPhasePress(int idx)
 
 void onPress(int idx, int v, int up)
 {
+    if (idx == IDX_IGNORED) {
+        Serial.println(F("Ignored"));
+        return;
+    }
+
     if (!progState.isUnlocked) {
         onUnlockPhasePress(idx);
         return;
@@ -634,7 +644,7 @@ void setup()
     initRelay();
     initStateTimer();
 
-    Serial.println(F(">> Starting compostin program"));
+    Serial.println(F(">> Mushrooms"));
 }
 
 void loop()
