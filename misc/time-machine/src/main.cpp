@@ -59,7 +59,7 @@ Adafruit_NeoPixel ledsBar[BARS_NUM] = {
  * Wheel LED strip.
  */
 
-const uint16_t LED_NUM_WHEEL = 120;
+const uint16_t LED_NUM_WHEEL = 50;
 const uint8_t LED_PIN_WHEEL = 11;
 
 Adafruit_NeoPixel ledWheel = Adafruit_NeoPixel(
@@ -74,7 +74,7 @@ Adafruit_NeoPixel ledWheel = Adafruit_NeoPixel(
 Atm_timer timerLed;
 
 const uint16_t TIMER_LED_MS = 20;
-const uint16_t TIMER_MODULO_BARS = 2;
+const uint16_t TIMER_MODULO_BARS = 5;
 const uint16_t TIMER_MODULO_WHEEL = 1;
 
 /**
@@ -91,6 +91,10 @@ Atm_button buttonUnlock;
 
 const uint16_t LED_NUM_BOARD = 1;
 const uint8_t LED_PIN_BOARD = 8;
+
+const uint32_t COLOR_RED = Adafruit_NeoPixel::Color(255, 0, 0);
+const uint32_t COLOR_GREEN = Adafruit_NeoPixel::Color(0, 255, 0);
+const uint32_t COLOR_BLUE = Adafruit_NeoPixel::Color(0, 0, 255);
 
 Adafruit_NeoPixel boardPixel = Adafruit_NeoPixel(
     LED_NUM_BOARD,
@@ -147,29 +151,40 @@ void printDirectory(File dir, int numTabs)
     }
 }
 
+void boardPixelBlink(uint32_t color, uint16_t numLoops = 2, unsigned long delayMs = 25)
+{
+    uint16_t counter = 0;
+
+    while (numLoops == 0 || counter < numLoops) {
+        boardPixel.fill(color);
+        boardPixel.show();
+        delay(delayMs);
+        boardPixel.clear();
+        boardPixel.show();
+        delay(delayMs);
+        counter++;
+    }
+}
+
 void initAudio()
 {
     const uint8_t volLeft = 0;
     const uint8_t volRight = 0;
 
     if (!musicPlayer.begin()) {
-        Serial.println(F("VS1053 not found"));
-        while (true) {
-            delay(1);
-        }
+        Serial.println("VS1053 not found");
+        boardPixelBlink(COLOR_RED, 0, 250);
     }
 
-    Serial.println(F("VS1053 OK"));
+    Serial.println("VS1053 OK");
 
     if (!SD.begin(CARDCS)) {
-        Serial.println(F("SD failer or not found"));
-        while (true) {
-            delay(1);
-        }
+        Serial.println("SD failed or not found");
+        boardPixelBlink(COLOR_RED, 0, 250);
     }
 
-    Serial.println(F("SD OK"));
-    Serial.println(F("Listing SD root"));
+    Serial.println("SD OK");
+    Serial.println("Listing SD root");
 
     printDirectory(SD.open("/"), 0);
 
@@ -182,10 +197,10 @@ void initAudio()
 void playTrack(String trackName)
 {
     if (!musicPlayer.stopped()) {
-        Serial.println(F("Cannot play track: musicPlayer.stopped() != false"));
+        Serial.println("Cannot play track: musicPlayer.stopped() != false");
     }
 
-    Serial.print(F("Playing: "));
+    Serial.print("Playing: ");
     Serial.println(trackName);
 
     musicPlayer.startPlayingFile(trackName.c_str());
@@ -235,7 +250,7 @@ void refreshLedBars()
     const uint32_t color = Adafruit_NeoPixel::Color(0, 0, 255);
 
     if (!progState.isLedBarsUnlocked) {
-        for (uint8_t i = 0; i < LED_NUM_BARS; i++) {
+        for (uint8_t i = 0; i < BARS_NUM; i++) {
             ledsBar[i].clear();
             ledsBar[i].show();
         }
@@ -245,7 +260,7 @@ void refreshLedBars()
 
     uint16_t fillCount;
 
-    for (uint8_t i = 0; i < LED_NUM_BARS; i++) {
+    for (uint8_t i = 0; i < BARS_NUM; i++) {
         fillCount = progState.ledPivotBars < ledsBar[i].numPixels()
             ? progState.ledPivotBars
             : ledsBar[i].numPixels();
@@ -260,7 +275,7 @@ void refreshLedBars()
 void refreshLedWheel()
 {
     const uint32_t color = Adafruit_NeoPixel::Color(0, 0, 255);
-    const uint16_t fillCount = 5;
+    const uint16_t fillCount = 7;
 
     if (!progState.isLedWheelUnlocked) {
         ledWheel.clear();
@@ -283,14 +298,14 @@ void updateUnlockState()
 
     uint16_t numPixelsBars = 0;
 
-    for (uint8_t i = 0; i < LED_NUM_BARS; i++) {
+    for (uint8_t i = 0; i < BARS_NUM; i++) {
         numPixelsBars = ledsBar[i].numPixels() > numPixelsBars
             ? ledsBar[i].numPixels()
             : numPixelsBars;
     }
 
     if (progState.ledPivotBars >= numPixelsBars) {
-        Serial.println(F("Unlocking wheel LED"));
+        Serial.println("Unlocking wheel LED");
         progState.isLedWheelUnlocked = true;
     }
 }
@@ -314,7 +329,12 @@ void initLedTimer()
 
 void onPressUnlock(int idx, int v, int up)
 {
-    Serial.println(F("Unlocking bars LED"));
+    if (progState.isLedBarsUnlocked) {
+        Serial.println("Bars LED unlocked already");
+        return;
+    }
+
+    Serial.println("Unlocking bars LED");
     progState.isLedBarsUnlocked = true;
     playTrack(TRACK_LED_EFFECT);
 }
@@ -329,6 +349,7 @@ void initButtons()
 void setup()
 {
     Serial.begin(9600);
+    Serial1.begin(9600);
 
     initState();
     initLeds();
@@ -336,10 +357,9 @@ void setup()
     initButtons();
     initAudio();
 
-    Serial.println(F(">> Time machine"));
+    Serial.println(">> Time machine");
 
-    boardPixel.fill(Adafruit_NeoPixel::Color(0, 255, 0));
-    boardPixel.show();
+    boardPixelBlink(COLOR_GREEN, 10, 50);
 }
 
 void loop()
