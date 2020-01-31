@@ -58,18 +58,24 @@ void pollRfid()
     }
 }
 
+bool allTagsOk()
+{
+    for (uint8_t i = 0; i < NUM_READERS; i++) {
+        if (currentTags[i].length() == 0
+            || validTags[i].compareTo(currentTags[i]) != 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void refreshLasers()
 {
-    bool isDefined;
-    bool isValid;
+    bool isOk = allTagsOk();
 
     for (uint8_t i = 0; i < NUM_READERS; i++) {
-        isDefined = currentTags[i].length() > 0;
-        isValid = validTags[i].compareTo(currentTags[i]) == 0;
-
-        digitalWrite(
-            LASER_PINS[i],
-            isDefined && isValid ? HIGH : LOW);
+        digitalWrite(LASER_PINS[i], isOk ? HIGH : LOW);
     }
 }
 
