@@ -27,6 +27,8 @@ Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(
 
 const String TRACK_LED_EFFECT = String("/effect.mp3");
 
+const uint16_t TRACK_MARK_MS_ONE = 8000;
+
 /**
  * Number of wheel bars.
  */
@@ -43,7 +45,7 @@ const uint8_t LED_BRIGHTNESS = 180;
  * Wheel bar LED strips.
  */
 
-const uint16_t LED_NUM_BARS = 20;
+const uint16_t LED_NUM_BARS = 12;
 
 const uint8_t LED_NUM_PINS[BARS_NUM] = {
     A2, A3, A4
@@ -59,7 +61,7 @@ Adafruit_NeoPixel ledsBar[BARS_NUM] = {
  * Wheel LED strip.
  */
 
-const uint16_t LED_NUM_WHEEL = 50;
+const uint16_t LED_NUM_WHEEL = 180;
 const uint8_t LED_PIN_WHEEL = 11;
 
 Adafruit_NeoPixel ledWheel = Adafruit_NeoPixel(
@@ -73,9 +75,9 @@ Adafruit_NeoPixel ledWheel = Adafruit_NeoPixel(
 
 Atm_timer timerLed;
 
-const uint16_t TIMER_LED_MS = 20;
-const uint16_t TIMER_MODULO_BARS = 5;
+const uint16_t TIMER_LED_MS = 25;
 const uint16_t TIMER_MODULO_WHEEL = 1;
+const uint16_t TIMER_MODULO_BLINK = 10;
 
 /**
  * LED unlock button.
@@ -92,9 +94,14 @@ Atm_button buttonUnlock;
 const uint16_t LED_NUM_BOARD = 1;
 const uint8_t LED_PIN_BOARD = 8;
 
-const uint32_t COLOR_RED = Adafruit_NeoPixel::Color(255, 0, 0);
-const uint32_t COLOR_GREEN = Adafruit_NeoPixel::Color(0, 255, 0);
-const uint32_t COLOR_BLUE = Adafruit_NeoPixel::Color(0, 0, 255);
+const uint32_t COLOR_RED = Adafruit_NeoPixel::gamma32(
+    Adafruit_NeoPixel::Color(255, 0, 0));
+
+const uint32_t COLOR_GREEN = Adafruit_NeoPixel::gamma32(
+    Adafruit_NeoPixel::Color(0, 255, 0));
+
+const uint32_t COLOR_ORANGE = Adafruit_NeoPixel::gamma32(
+    Adafruit_NeoPixel::Color(255, 165, 0));
 
 Adafruit_NeoPixel boardPixel = Adafruit_NeoPixel(
     LED_NUM_BOARD,
@@ -111,6 +118,8 @@ typedef struct programState {
 } ProgramState;
 
 ProgramState progState;
+
+uint16_t moduloBars = 0;
 
 void initState()
 {
@@ -226,12 +235,28 @@ void initLeds()
     boardPixel.show();
 }
 
+uint16_t getTimerModuloBars()
+{
+    if (moduloBars <= 0) {
+        uint16_t ticksMarkOne = ceil((double)TRACK_MARK_MS_ONE / (double)TIMER_LED_MS);
+        uint16_t ticksPerPixel = ceil((double)ticksMarkOne / (double)LED_NUM_BARS);
+        moduloBars = ticksPerPixel;
+
+        Serial.print("Modulo bars: ");
+        Serial.println(moduloBars);
+    }
+
+    return moduloBars;
+}
+
 void ledTick()
 {
+    uint16_t moduloBars = getTimerModuloBars();
+
     if (progState.isLedBarsUnlocked) {
         progState.ledTickBars++;
 
-        if (progState.ledTickBars % TIMER_MODULO_BARS == 0) {
+        if (progState.ledTickBars % moduloBars == 0) {
             progState.ledPivotBars++;
         }
     }
@@ -245,10 +270,21 @@ void ledTick()
     }
 }
 
+uint32_t randomColor()
+{
+    byte randVal = random(0, 3);
+
+    if (randVal == 0) {
+        return Adafruit_NeoPixel::Color(random(50, 250), 0, 0);
+    } else if (randVal == 1) {
+        return Adafruit_NeoPixel::Color(0, random(50, 250), 0);
+    } else {
+        return Adafruit_NeoPixel::Color(0, 0, random(50, 250));
+    }
+}
+
 void refreshLedBars()
 {
-    const uint32_t color = Adafruit_NeoPixel::Color(0, 0, 255);
-
     if (!progState.isLedBarsUnlocked) {
         for (uint8_t i = 0; i < BARS_NUM; i++) {
             ledsBar[i].clear();
@@ -258,15 +294,28 @@ void refreshLedBars()
         return;
     }
 
-    uint16_t fillCount;
+    if (!progState.isLedWheelUnlocked) {
+        uint16_t fillCount;
 
-    for (uint8_t i = 0; i < BARS_NUM; i++) {
-        fillCount = progState.ledPivotBars < ledsBar[i].numPixels()
-            ? progState.ledPivotBars
-            : ledsBar[i].numPixels();
+        for (uint8_t i = 0; i < BARS_NUM; i++) {
+            fillCount = progState.ledPivotBars < ledsBar[i].numPixels()
+                ? progState.ledPivotBars
+                : ledsBar[i].numPixels();
 
-        if (fillCount > 0) {
-            ledsBar[i].fill(color, 0, fillCount);
+            if (fillCount > 0) {
+                ledsBar[i].fill(COLOR_ORANGE, 0, fillCount);
+                ledsBar[i].show();
+            }
+        }
+
+        return;
+    }
+
+    if (progState.ledTickWheel % TIMER_MODULO_BLINK == 0) {
+        uint32_t color = randomColor();
+
+        for (uint8_t i = 0; i < BARS_NUM; i++) {
+            ledsBar[i].fill(color);
             ledsBar[i].show();
         }
     }
@@ -274,8 +323,7 @@ void refreshLedBars()
 
 void refreshLedWheel()
 {
-    const uint32_t color = Adafruit_NeoPixel::Color(0, 0, 255);
-    const uint16_t fillCount = 7;
+    const uint16_t fillCount = 45;
 
     if (!progState.isLedWheelUnlocked) {
         ledWheel.clear();
@@ -286,7 +334,7 @@ void refreshLedWheel()
     uint16_t fillFirst = progState.ledPivotWheel % ledWheel.numPixels();
 
     ledWheel.clear();
-    ledWheel.fill(color, fillFirst, fillCount);
+    ledWheel.fill(COLOR_ORANGE, fillFirst, fillCount);
     ledWheel.show();
 }
 
@@ -296,15 +344,7 @@ void updateUnlockState()
         return;
     }
 
-    uint16_t numPixelsBars = 0;
-
-    for (uint8_t i = 0; i < BARS_NUM; i++) {
-        numPixelsBars = ledsBar[i].numPixels() > numPixelsBars
-            ? ledsBar[i].numPixels()
-            : numPixelsBars;
-    }
-
-    if (progState.ledPivotBars >= numPixelsBars) {
+    if (progState.ledPivotBars >= LED_NUM_BARS) {
         Serial.println("Unlocking wheel LED");
         progState.isLedWheelUnlocked = true;
     }
