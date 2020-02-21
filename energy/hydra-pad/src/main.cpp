@@ -54,9 +54,9 @@ const int SOLUTION_SIZE = 4;
 
 char solutionKeys[SOLUTION_SIZE] = {
     '1',
-    '8',
-    '8',
-    '0',
+    '9',
+    '1',
+    '7  ',
 };
 
 /**

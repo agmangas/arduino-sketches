@@ -41,7 +41,7 @@ const byte PIN_AUDIO_ACT = 7;
 
 // T00, T01, T02, ..., T07
 const byte AUDIO_TRACK_PINS[NUM_TRACKS] = {
-    11, 10, 9, 8, 6, 5, 4, 3
+    11, 10, 9, 8, 6, 5, 4, 8
 };
 
 const unsigned long AUDIO_TRACK_MAX_MS = 50000;
