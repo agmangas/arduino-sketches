@@ -18,10 +18,10 @@ RDM6300 rfidReaders[NUM_READERS] = {
 String currentTags[NUM_READERS];
 
 String validTags[NUM_READERS] = {
-    "1D00278F8200",
-    "1D00277EC900",
-    "1D00278E7600",
-    "1D0027AA9B00"
+    "0C0031B18500",
+    "020001D82D00",
+    "62003BBF2100",
+    "0200017C3400"
 };
 
 const uint8_t LASER_PINS[NUM_READERS] = {
