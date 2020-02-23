@@ -29,6 +29,11 @@ bool FeatherWingTFT35::drawImage(String name, int16_t xOffset, int16_t yOffset)
     char buf[name.length() + 1];
     strcpy(buf, name.c_str());
     ImageReturnCode imgRet = reader.drawBMP(buf, tft, xOffset, yOffset);
+
+    if (imgRet != IMAGE_SUCCESS) {
+        reader.printStatus(imgRet);
+    }
+
     return imgRet == IMAGE_SUCCESS;
 }
 
@@ -42,22 +47,22 @@ String FeatherWingTFT35::frameName(String frameId, int frameNum)
     return name;
 }
 
-int FeatherWingTFT35::findNumFrames(String frameId)
+int FeatherWingTFT35::findSequenceLen(String frameId)
 {
     String name;
-    int ret = -1;
+    int currLen = -1;
 
     do {
-        ret++;
-        name = frameName(frameId, ret);
+        currLen++;
+        name = frameName(frameId, currLen);
     } while (sd.exists(name.c_str()));
 
-    return ret;
+    return currLen;
 }
 
-bool FeatherWingTFT35::drawFrames(String frameId)
+bool FeatherWingTFT35::drawSequence(String frameId)
 {
-    int num = findNumFrames(frameId);
+    int num = findSequenceLen(frameId);
 
     if (num <= 0) {
         return false;
@@ -74,11 +79,17 @@ bool FeatherWingTFT35::drawFrames(String frameId)
     imgRet = reader.bmpDimensions(firstNameBuf, &width, &height);
 
     if (imgRet != IMAGE_SUCCESS) {
+        reader.printStatus(imgRet);
         return false;
     }
 
-    int16_t xOffset = floor((double)(TFT35_WIDTH - width) / 2.0);
-    int16_t yOffset = floor((double)(TFT35_HEIGHT - height) / 2.0);
+    int16_t xOffset = width <= TFT35_WIDTH
+        ? floor((double)(TFT35_WIDTH - width) / 2.0)
+        : 0;
+
+    int16_t yOffset = height <= TFT35_HEIGHT
+        ? floor((double)(TFT35_HEIGHT - height) / 2.0)
+        : 0;
 
     for (int i = 0; i < num; i++) {
         if (!drawImage(frameName(frameId, i), xOffset, yOffset)) {

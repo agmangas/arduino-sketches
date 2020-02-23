@@ -64,8 +64,8 @@ public:
     FeatherWingTFT35();
     bool begin(int = -1);
     bool drawImage(String, int16_t = 0, int16_t = 0);
-    int findNumFrames(String);
-    bool drawFrames(String);
+    int findSequenceLen(String);
+    bool drawSequence(String);
     SdFat sd;
     Adafruit_HX8357 tft;
     Adafruit_ImageReader reader;

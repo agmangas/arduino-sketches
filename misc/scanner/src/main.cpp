@@ -18,5 +18,5 @@ void setup(void)
 
 void loop()
 {
-    tftWing.drawFrames("frame");
+    tftWing.drawSequence("frame");
 }
