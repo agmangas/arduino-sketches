@@ -60,11 +60,13 @@ int FeatherWingTFT35::findSequenceLen(String frameId)
     return currLen;
 }
 
-bool FeatherWingTFT35::drawSequence(String frameId)
+bool FeatherWingTFT35::drawSequence(String frameId, uint16_t clearColor)
 {
     int num = findSequenceLen(frameId);
 
     if (num <= 0) {
+        Serial.print(F("Sequence length == 0: "));
+        Serial.println(frameId);
         return false;
     }
 
@@ -83,6 +85,10 @@ bool FeatherWingTFT35::drawSequence(String frameId)
         return false;
     }
 
+    if (clearColor >= 0) {
+        tft.fillScreen(clearColor);
+    }
+
     int16_t xOffset = width <= TFT35_WIDTH
         ? floor((double)(TFT35_WIDTH - width) / 2.0)
         : 0;
@@ -95,6 +101,10 @@ bool FeatherWingTFT35::drawSequence(String frameId)
         if (!drawImage(frameName(frameId, i), xOffset, yOffset)) {
             return false;
         }
+    }
+
+    if (clearColor >= 0) {
+        tft.fillScreen(clearColor);
     }
 
     return true;

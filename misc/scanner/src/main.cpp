@@ -7,15 +7,15 @@ char tagBuf[SIZE_TAG_ID];
 const int NUM_TAGS = 3;
 
 char tagIds[NUM_TAGS][SIZE_TAG_ID] = {
-    "5C00CADB5A17",
-    "5C00CADB5A18",
-    "5C00CADB5A19"
+    "02000CF612EA",
+    "02000D18495E",
+    "020001607417"
 };
 
 String sequenceNames[NUM_TAGS] = {
-    String("sequence1"),
-    String("sequence2"),
-    String("sequence3")
+    String("frame"),
+    String("seq01"),
+    String("seq02")
 };
 
 int getCurrentTagIndex()
@@ -46,7 +46,7 @@ void drawTagSequence()
         return;
     }
 
-    Serial.print(F("Drawing sequence #"));
+    Serial.print(F("Drawing sequence "));
     Serial.println(sequenceNames[tagIdx]);
 
     tftWing.drawSequence(sequenceNames[tagIdx]);
@@ -64,7 +64,9 @@ void setup(void)
         }
     }
 
-    tftWing.tft.fillScreen(HX8357_CYAN);
+    tftWing.tft.fillScreen(0);
+
+    Serial.println(F(">> Starting scanner"));
 }
 
 void loop()

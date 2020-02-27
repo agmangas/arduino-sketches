@@ -65,7 +65,7 @@ public:
     bool begin(int = -1);
     bool drawImage(String, int16_t = 0, int16_t = 0);
     int findSequenceLen(String);
-    bool drawSequence(String);
+    bool drawSequence(String, uint16_t = 0);
     SdFat sd;
     Adafruit_HX8357 tft;
     Adafruit_ImageReader reader;
