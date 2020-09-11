@@ -39,6 +39,12 @@ const String tracksArr[NUM_CODES] = {
     String("/track03.mp3")
 };
 
+const String descriptionsArr[NUM_CODES] = {
+    String("Descripcion 01"),
+    String("Descripcion 02"),
+    String("Descripcion 03")
+};
+
 /**
  * Keypad.
  */
@@ -71,13 +77,33 @@ CircularBuffer<char, CODE_SIZE> keyBuffer;
 
 Adafruit_SH110X display = Adafruit_SH110X(64, 128, &Wire);
 
-typedef struct programState {
-} ProgramState;
-
-ProgramState progState;
-
-void initState()
+void printDisplay(String content)
 {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print(content.c_str());
+    display.display();
+}
+
+void initDisplay()
+{
+    Serial.println("Initializing OLED display");
+    // Address 0x3C by default
+    display.begin(0x3C, true);
+    display.setTextColor(SH110X_WHITE);
+    Serial.println("OLED display init OK");
+    printDisplay("¡Bienvenida!");
+}
+
+void displayKeyBuffer()
+{
+    String val = String("");
+
+    for (int i = 0; i < keyBuffer.size(); i++) {
+        val.concat(keyBuffer[i]);
+    }
+
+    printDisplay(val);
 }
 
 void updateKeyBuffer()
@@ -88,6 +114,7 @@ void updateKeyBuffer()
         Serial.print("Key: ");
         Serial.println(key);
         keyBuffer.push(key);
+        displayKeyBuffer();
     }
 }
 
@@ -97,7 +124,7 @@ bool inKeyBuffer(char* val, size_t valSize)
         return false;
     }
 
-    for (int i = 0; i < keyBuffer.size(); i++) {
+    for (uint16_t i = 0; i < valSize; i++) {
         if (keyBuffer[i] != val[i]) {
             return false;
         }
@@ -184,22 +211,6 @@ void playTrack(String trackName)
     musicPlayer.startPlayingFile(trackName.c_str());
 }
 
-void initDisplay()
-{
-    Serial.println("Initializing OLED display");
-
-    // Address 0x3C by default
-    display.begin(0x3C, true);
-
-    Serial.println("OLED display init OK");
-
-    display.setTextColor(SH110X_WHITE);
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Initialized");
-    display.display();
-}
-
 void findAndPlay()
 {
     if (!keyBuffer.isFull()) {
@@ -210,11 +221,20 @@ void findAndPlay()
 
     keyBuffer.clear();
 
-    if (codeIdx < 0 || !musicPlayer.stopped()) {
+    if (codeIdx < 0) {
+        Serial.println("Unknown code");
         return;
     }
 
+    Serial.print("Found code: ");
+    Serial.println(codeIdx);
+
+    if (!musicPlayer.stopped()) {
+        musicPlayer.stopPlaying();
+    }
+
     playTrack(tracksArr[codeIdx]);
+    printDisplay(descriptionsArr[codeIdx]);
 }
 
 void setup()
@@ -222,7 +242,6 @@ void setup()
     Serial.begin(9600);
     Serial1.begin(9600);
 
-    initState();
     initAudio();
     initDisplay();
 
