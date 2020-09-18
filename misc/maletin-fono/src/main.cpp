@@ -1,8 +1,8 @@
-#include <Adafruit_GFX.h>
-#include <Adafruit_SH110X.h>
 #include <Adafruit_VS1053.h>
 #include <CircularBuffer.h>
 #include <Keypad.h>
+#include <LCD.h>
+#include <LiquidCrystal_I2C.h>
 #include <SD.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -75,24 +75,31 @@ CircularBuffer<char, CODE_SIZE> keyBuffer;
  * OLED display.
  */
 
-Adafruit_SH110X display = Adafruit_SH110X(64, 128, &Wire);
+const uint8_t LCD_COLS = 16;
+const uint8_t LCD_LINES = 2;
+
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 
 void printDisplay(String content)
 {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print(content.c_str());
-    display.display();
+    int from = content.length() - LCD_COLS;
+    from = from < 0 ? 0 : from;
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(content.substring(from));
 }
 
 void initDisplay()
 {
-    Serial.println("Initializing OLED display");
-    // Address 0x3C by default
-    display.begin(0x3C, true);
-    display.setTextColor(SH110X_WHITE);
-    Serial.println("OLED display init OK");
-    printDisplay("¡Bienvenida!");
+    Serial.println("Initializing LCD");
+
+    lcd.begin(LCD_COLS, LCD_LINES);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.setBacklight(HIGH);
+
+    Serial.println("LCD initialized OK");
 }
 
 void displayKeyBuffer()
