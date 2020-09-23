@@ -50,17 +50,17 @@ const String descriptionsArr[NUM_CODES] = {
  */
 
 const uint16_t KEY_ROWS = 4;
-const uint16_t KEY_COLS = 3;
+const uint16_t KEY_COLS = 4;
 
 char keys[KEY_ROWS][KEY_COLS] = {
-    { '1', '2', '3' },
-    { '4', '5', '6' },
-    { '7', '8', '9' },
-    { '*', '0', '#' }
+    { '1', '2', '3', 'A' },
+    { '4', '5', '6', 'B' },
+    { '7', '8', '9', 'C' },
+    { '*', '0', '#', 'D' }
 };
 
-uint8_t keyRowPins[KEY_ROWS] = { 11, 12, 13, A2 };
-uint8_t keyColPins[KEY_COLS] = { A3, A4, A5 };
+uint8_t keyRowPins[KEY_ROWS] = { 1, 12, 11, A3 };
+uint8_t keyColPins[KEY_COLS] = { 4, A5, 0, A4 };
 
 Keypad kpd = Keypad(
     makeKeymap(keys),
@@ -70,6 +70,9 @@ Keypad kpd = Keypad(
     KEY_COLS);
 
 CircularBuffer<char, CODE_SIZE> keyBuffer;
+
+const uint8_t PIN_HANGUP = A2;
+const String MSG_DEFAULT = String("Telefono viejuno");
 
 /**
  * OLED display.
@@ -84,10 +87,27 @@ void printDisplay(String content)
 {
     int from = content.length() - LCD_COLS;
     from = from < 0 ? 0 : from;
+    String contentPrint = content.substring(from);
+
+    Serial.print("Print: ");
+    Serial.println(contentPrint);
 
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print(content.substring(from));
+    lcd.print(contentPrint);
+}
+
+/**
+ * Program state.
+ */
+
+bool hangState;
+unsigned long hangEdgeMillis;
+
+void initState()
+{
+    hangState = true;
+    hangEdgeMillis = 0;
 }
 
 void initDisplay()
@@ -100,6 +120,8 @@ void initDisplay()
     lcd.setBacklight(HIGH);
 
     Serial.println("LCD initialized OK");
+
+    printDisplay(MSG_DEFAULT);
 }
 
 void displayKeyBuffer()
@@ -244,13 +266,64 @@ void findAndPlay()
     printDisplay(descriptionsArr[codeIdx]);
 }
 
+bool isPhoneHungUp()
+{
+    return digitalRead(PIN_HANGUP) == LOW;
+}
+
+void onHangUp()
+{
+    Serial.print(millis());
+    Serial.print(": ");
+    Serial.println("Hang up");
+
+    if (!musicPlayer.stopped()) {
+        Serial.println("Stopping music");
+        musicPlayer.stopPlaying();
+    }
+
+    Serial.println("Clearing buffer");
+    keyBuffer.clear();
+
+    printDisplay(MSG_DEFAULT);
+}
+
+void updateHangState()
+{
+    const unsigned long debounceMs = 300;
+
+    bool currHangState = isPhoneHungUp();
+
+    if (hangState == currHangState) {
+        return;
+    }
+
+    unsigned long thresholdMillis = hangEdgeMillis + debounceMs;
+
+    if (millis() < thresholdMillis) {
+        return;
+    }
+
+    Serial.print(hangState ? "HUNG" : "ON");
+    Serial.print(" -> ");
+    Serial.println(currHangState ? "HUNG" : "ON");
+
+    if (currHangState == true) {
+        onHangUp();
+    }
+
+    hangState = currHangState;
+    hangEdgeMillis = millis();
+}
+
 void setup()
 {
     Serial.begin(9600);
-    Serial1.begin(9600);
 
+    initState();
     initAudio();
     initDisplay();
+    pinMode(PIN_HANGUP, INPUT_PULLUP);
 
     Serial.println(">> Maletin-fono");
 }
@@ -259,4 +332,5 @@ void loop()
 {
     updateKeyBuffer();
     findAndPlay();
+    updateHangState();
 }
