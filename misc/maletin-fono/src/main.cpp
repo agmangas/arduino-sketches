@@ -25,25 +25,28 @@ Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(
     CARDCS);
 
 const uint16_t NUM_CODES = 3;
-const uint16_t CODE_SIZE = 9;
+const uint16_t CODE_SIZE = 8;
 
 char codesArr[NUM_CODES][CODE_SIZE] = {
-    { '6', '0', '0', '9', '0', '0', '6', '0', '0' },
-    { '6', '0', '0', '9', '0', '0', '6', '0', '1' },
-    { '6', '0', '0', '9', '0', '0', '6', '0', '2' }
+    { '3', '1', '4', '5', '9', '6', '0', '0' },
+    { '3', '8', '7', '3', '0', '8', '5', '7' },
+    { '7', '5', '4', '4', '8', '3', '7', '7' }
 };
 
 const String tracksArr[NUM_CODES] = {
-    String("/track01.mp3"),
-    String("/track02.mp3"),
-    String("/track03.mp3")
+    String("/maletas.mp3"),
+    String("/picasso.mp3"),
+    String("/velaz.mp3")
 };
 
 const String descriptionsArr[NUM_CODES] = {
-    String("Descripcion 01"),
-    String("Descripcion 02"),
-    String("Descripcion 03")
+    String("Llamada en curso"),
+    String("Llamada en curso"),
+    String("Llamada en curso")
 };
+
+const String TRACK_UNKNOWN = String("/nada.mp3");
+const String DESCRIPTION_UNKNOWN = String("Num. desconocido");
 
 /**
  * Keypad.
@@ -250,20 +253,17 @@ void findAndPlay()
 
     keyBuffer.clear();
 
-    if (codeIdx < 0) {
-        Serial.println("Unknown code");
-        return;
-    }
-
-    Serial.print("Found code: ");
-    Serial.println(codeIdx);
-
     if (!musicPlayer.stopped()) {
         musicPlayer.stopPlaying();
     }
 
-    playTrack(tracksArr[codeIdx]);
-    printDisplay(descriptionsArr[codeIdx]);
+    if (codeIdx >= 0 && codeIdx < NUM_CODES) {
+        playTrack(tracksArr[codeIdx]);
+        printDisplay(descriptionsArr[codeIdx]);
+    } else {
+        playTrack(TRACK_UNKNOWN);
+        printDisplay(DESCRIPTION_UNKNOWN);
+    }
 }
 
 bool isPhoneHungUp()
