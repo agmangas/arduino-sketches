@@ -59,8 +59,8 @@ char keys[KEY_ROWS][KEY_COLS] = {
     { '*', '0', '#', 'D' }
 };
 
-uint8_t keyRowPins[KEY_ROWS] = { 1, 12, 11, A3 };
-uint8_t keyColPins[KEY_COLS] = { 4, A5, 0, A4 };
+uint8_t keyRowPins[KEY_ROWS] = { 12, 11, 4, 1 };
+uint8_t keyColPins[KEY_COLS] = { 0, A5, A4, A3 };
 
 Keypad kpd = Keypad(
     makeKeymap(keys),
@@ -291,6 +291,8 @@ void onHangUp()
 void updateHangState()
 {
     const unsigned long debounceMs = 300;
+    const String msgHang = "HUNG";
+    const String msgOn = "ON";
 
     bool currHangState = isPhoneHungUp();
 
@@ -304,9 +306,9 @@ void updateHangState()
         return;
     }
 
-    Serial.print(hangState ? "HUNG" : "ON");
+    Serial.print(hangState ? msgHang : msgOn);
     Serial.print(" -> ");
-    Serial.println(currHangState ? "HUNG" : "ON");
+    Serial.println(currHangState ? msgHang : msgOn);
 
     if (currHangState == true) {
         onHangUp();
