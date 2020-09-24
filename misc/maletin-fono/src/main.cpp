@@ -1,3 +1,4 @@
+#include <Adafruit_NeoPixel.h>
 #include <Adafruit_VS1053.h>
 #include <CircularBuffer.h>
 #include <Keypad.h>
@@ -12,6 +13,12 @@
 #define VS1053_DCS 10 // VS1053 Data/command select pin (output)
 #define CARDCS 5 // Card chip select pin
 #define VS1053_DREQ 9 // VS1053 Data request, ideally an Interrupt pin
+
+/**
+ * Board NeoPixel.
+ */
+
+Adafruit_NeoPixel boardPixel = Adafruit_NeoPixel(1, 8, NEO_GRB + NEO_KHZ800);
 
 /**
  * Audio player instance.
@@ -111,6 +118,15 @@ void initState()
 {
     hangState = true;
     hangEdgeMillis = 0;
+}
+
+void initBoardPixel()
+{
+    boardPixel.begin();
+    boardPixel.setBrightness(255);
+    boardPixel.clear();
+    boardPixel.fill(Adafruit_NeoPixel::Color(255, 255, 255));
+    boardPixel.show();
 }
 
 void initDisplay()
@@ -326,6 +342,7 @@ void setup()
     initAudio();
     initDisplay();
     pinMode(PIN_HANGUP, INPUT_PULLUP);
+    initBoardPixel();
 
     Serial.println(">> Maletin-fono");
 }
