@@ -2,6 +2,10 @@
 #include <SerialRFID.h>
 #include <SoftwareSerial.h>
 
+const uint8_t PIN_AUDIO_RST = 6;
+const uint8_t PIN_AUDIO_ACT = 7;
+const uint8_t PIN_AUDIO_TRACK_GUEST = 8;
+
 const uint8_t RFID_PIN_RX = 2;
 const uint8_t RFID_PIN_TX = 3;
 
@@ -118,6 +122,54 @@ GuestTag GUEST_TAGS[NUM_GUESTS] = {
 
 char tagBuffer[SIZE_TAG_ID];
 
+bool isTrackPlaying()
+{
+  return digitalRead(PIN_AUDIO_ACT) == LOW;
+}
+
+void playTrack(uint8_t trackPin)
+{
+  const uint16_t delayPlayMs = 200;
+
+  if (isTrackPlaying())
+  {
+    Serial.println(F("Skipping: Audio still playing"));
+    return;
+  }
+
+  Serial.print(F("Playing track on pin: "));
+  Serial.println(trackPin);
+
+  digitalWrite(trackPin, LOW);
+  pinMode(trackPin, OUTPUT);
+  delay(delayPlayMs);
+  pinMode(trackPin, INPUT);
+}
+
+void initAudioPins()
+{
+  pinMode(PIN_AUDIO_ACT, INPUT);
+  pinMode(PIN_AUDIO_RST, INPUT);
+  pinMode(PIN_AUDIO_TRACK_GUEST, INPUT);
+}
+
+void resetAudio()
+{
+  const uint16_t delayResetPinMs = 200;
+  const uint16_t delayWaitMs = 2000;
+
+  Serial.println(F("Audio FX reset"));
+
+  digitalWrite(PIN_AUDIO_RST, LOW);
+  pinMode(PIN_AUDIO_RST, OUTPUT);
+  delay(delayResetPinMs);
+  pinMode(PIN_AUDIO_RST, INPUT);
+
+  Serial.println(F("Waiting for Audio FX startup"));
+
+  delay(delayWaitMs);
+}
+
 void initLeds()
 {
   ledStrip.begin();
@@ -197,6 +249,8 @@ void showGuest(uint8_t idxGuest)
     return;
   }
 
+  playTrack(PIN_AUDIO_TRACK_GUEST);
+
   for (uint8_t i = 0; i < EFFECT_NUM_ITERS; i++)
   {
     ledStrip.clear();
@@ -241,6 +295,8 @@ void setup()
   rfidSoftSerial.listen();
 
   initLeds();
+  initAudioPins();
+  resetAudio();
 
   Serial.println(F(">> Seating plan"));
 
