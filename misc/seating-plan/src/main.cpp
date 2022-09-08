@@ -5,6 +5,7 @@
 const uint8_t PIN_AUDIO_RST = 6;
 const uint8_t PIN_AUDIO_ACT = 7;
 const uint8_t PIN_AUDIO_TRACK_GUEST = 8;
+const uint8_t PIN_AUDIO_TRACK_HOSTS = 9;
 
 const uint8_t RFID_PIN_RX = 2;
 const uint8_t RFID_PIN_TX = 3;
@@ -17,6 +18,8 @@ const int16_t TAG_UNKNOWN = -2;
 
 const uint8_t NUM_GUESTS = 90;
 const uint8_t NUM_TABLES = 11;
+
+const uint8_t HOSTS_TABLE_IDX = 0;
 
 const uint8_t LED_PER_TABLE = 7;
 const uint16_t LED_NUM = LED_PER_TABLE * NUM_TABLES;
@@ -162,6 +165,7 @@ void initAudioPins()
   pinMode(PIN_AUDIO_ACT, INPUT);
   pinMode(PIN_AUDIO_RST, INPUT);
   pinMode(PIN_AUDIO_TRACK_GUEST, INPUT);
+  pinMode(PIN_AUDIO_TRACK_HOSTS, INPUT);
 }
 
 void resetAudio()
@@ -262,7 +266,14 @@ void showGuest(uint8_t idxGuest)
     return;
   }
 
-  playTrack(PIN_AUDIO_TRACK_GUEST);
+  if (tableIdx == HOSTS_TABLE_IDX)
+  {
+    playTrack(PIN_AUDIO_TRACK_HOSTS);
+  }
+  else
+  {
+    playTrack(PIN_AUDIO_TRACK_GUEST);
+  }
 
   Serial.println(F("LED effect: start"));
 
