@@ -18,17 +18,17 @@ const int16_t TAG_UNKNOWN = -2;
 const uint8_t NUM_GUESTS = 90;
 const uint8_t NUM_TABLES = 11;
 
-const uint8_t LED_PER_TABLE = 8;
+const uint8_t LED_PER_TABLE = 7;
 const uint16_t LED_NUM = LED_PER_TABLE * NUM_TABLES;
 const uint16_t LED_PIN = 4;
-const uint8_t LED_BRIGHTNESS = 200;
+const uint8_t LED_BRIGHTNESS = 240;
 
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(LED_NUM, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 const uint8_t EFFECT_NUM_ITERS = 15;
 const uint16_t EFFECT_ITER_MS = 200;
-const uint32_t EFFECT_COLOR_RANDOM = Adafruit_NeoPixel::Color(180, 180, 180);
-const uint32_t EFFECT_COLOR_FINAL = Adafruit_NeoPixel::Color(0, 0, 180);
+const uint32_t EFFECT_COLOR_RANDOM = Adafruit_NeoPixel::Color(150, 150, 150);
+const uint32_t EFFECT_COLOR_FINAL = Adafruit_NeoPixel::Color(0, 240, 0);
 
 struct GuestTag
 {
@@ -127,6 +127,9 @@ GuestTag GUEST_TAGS[NUM_GUESTS] = {
     {"0C007DC1CF7F", 10},
     {"0C007D43E7D5", 10},
     {"0C007DF71D9B", 10}};
+
+const uint16_t CLEAR_DELAY_MS = 5000;
+uint32_t lastEventMillis = 0;
 
 char tagBuffer[SIZE_TAG_ID];
 
@@ -287,10 +290,22 @@ void showGuest(uint8_t idxGuest)
       LED_PER_TABLE);
 
   ledStrip.show();
+
+  lastEventMillis = millis();
 }
 
 void mainLoop()
 {
+  uint32_t diffLast = millis() - lastEventMillis;
+
+  if (lastEventMillis > 0 && diffLast >= CLEAR_DELAY_MS)
+  {
+    Serial.println(F("Clearing LED"));
+    lastEventMillis = 0;
+    ledStrip.clear();
+    ledStrip.show();
+  }
+
   int16_t idxGuest = readRfid();
 
   if (idxGuest == TAG_NOT_FOUND || idxGuest == TAG_UNKNOWN || idxGuest < 0)
@@ -312,9 +327,9 @@ void setup()
   initAudioPins();
   resetAudio();
 
-  Serial.println(F(">> Seating plan"));
-
   showStartupEffect();
+
+  Serial.println(F(">> Seating plan"));
 }
 
 void loop()
