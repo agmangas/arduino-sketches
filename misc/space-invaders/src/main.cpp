@@ -175,6 +175,11 @@ void showButtonLeds()
 
 bool isFirstPhaseConfigurationCorrect()
 {
+  if (progState.isSecondPhase)
+  {
+    return false;
+  }
+
   for (uint8_t idxButton = 0; idxButton < BUTTONS_NUM; idxButton++)
   {
     if (progState.buttonColorIdxs[idxButton] != COLORS_FIRST_PHASE_KEY[idxButton])
@@ -188,6 +193,11 @@ bool isFirstPhaseConfigurationCorrect()
 
 void checkTransitionToSecondPhase()
 {
+  if (progState.isSecondPhase)
+  {
+    return;
+  }
+
   if (isFirstPhaseConfigurationCorrect())
   {
     Serial.println(F("Transitioning to second phase"));
