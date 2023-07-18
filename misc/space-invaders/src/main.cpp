@@ -17,6 +17,27 @@ CircularBuffer<uint8_t, BUTTONS_BUF_SIZE> buttonBuf;
 const int BUTTONS_DEBOUNCE_MS = 100;
 
 /**
+ * Colors.
+ */
+
+const uint32_t RED = Adafruit_NeoPixel::Color(255, 0, 0);
+const uint32_t GREEN = Adafruit_NeoPixel::Color(0, 255, 0);
+const uint32_t BLUE = Adafruit_NeoPixel::Color(0, 0, 255);
+const uint32_t YELLOW = Adafruit_NeoPixel::Color(255, 255, 0);
+
+const uint8_t NUM_COLORS_FIRST_PHASE = 4;
+const uint8_t NUM_COLORS_SECOND_PHASE = 3;
+
+const uint32_t COLORS_FIRST_PHASE[NUM_COLORS_FIRST_PHASE] = {
+    RED, GREEN, BLUE, YELLOW};
+
+const uint8_t COLORS_FIRST_PHASE_KEY[BUTTONS_NUM] = {
+    0, 1, 0, 3, 2};
+
+const uint32_t COLORS_SECOND_PHASE[NUM_COLORS_SECOND_PHASE] = {
+    RED, GREEN, BLUE};
+
+/**
  * LEDs for the controller buttons.
  */
 
@@ -57,14 +78,27 @@ const uint32_t TIMER_STATE_MS = 200;
 
 Atm_timer timerState;
 
+uint8_t buttonColorIdxs[BUTTONS_NUM];
+
 typedef struct programState
 {
+  bool isSecondPhase;
+  uint8_t *buttonColorIdxs;
 } ProgramState;
 
-ProgramState progState = {};
+ProgramState progState = {
+    .isSecondPhase = false,
+    .buttonColorIdxs = buttonColorIdxs,
+};
 
 void cleanState()
 {
+  progState.isSecondPhase = false;
+
+  for (uint8_t i = 0; i < BUTTONS_NUM; i++)
+  {
+    progState.buttonColorIdxs[i] = 0;
+  }
 }
 
 void showLedStartEffect()
@@ -111,11 +145,74 @@ void initLeds()
   ledInvaders.show();
 }
 
+void showButtonLeds()
+{
+  for (uint8_t idxButton = 0; idxButton < BUTTONS_NUM; idxButton++)
+  {
+    const uint8_t colorIdx = progState.buttonColorIdxs[idxButton];
+
+    uint32_t color = Adafruit_NeoPixel::Color(0, 0, 0);
+
+    if (!progState.isSecondPhase && colorIdx < NUM_COLORS_FIRST_PHASE)
+    {
+      color = COLORS_FIRST_PHASE[colorIdx];
+    }
+    else if (progState.isSecondPhase && colorIdx < NUM_COLORS_SECOND_PHASE)
+    {
+      color = COLORS_SECOND_PHASE[colorIdx];
+    }
+
+    const uint8_t baseLedIdx = idxButton * LEDS_PER_BUTTON;
+
+    for (uint8_t pivot = 0; pivot < LEDS_PER_BUTTON; pivot++)
+    {
+      ledButtons.setPixelColor(baseLedIdx + pivot, color);
+    }
+  }
+
+  ledButtons.show();
+}
+
+bool isFirstPhaseConfigurationCorrect()
+{
+  for (uint8_t idxButton = 0; idxButton < BUTTONS_NUM; idxButton++)
+  {
+    if (progState.buttonColorIdxs[idxButton] != COLORS_FIRST_PHASE_KEY[idxButton])
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void checkTransitionToSecondPhase()
+{
+  if (isFirstPhaseConfigurationCorrect())
+  {
+    Serial.println(F("Transitioning to second phase"));
+
+    for (uint8_t idxButton = 0; idxButton < BUTTONS_NUM; idxButton++)
+    {
+      progState.buttonColorIdxs[idxButton] = 0;
+    }
+
+    progState.isSecondPhase = true;
+  }
+}
+
 void onPress(int idx, int v, int up)
 {
   Serial.print(F("Press:"));
   Serial.println(idx);
+
   buttonBuf.push(idx);
+
+  if (!progState.isSecondPhase)
+  {
+    progState.buttonColorIdxs[idx] =
+        (progState.buttonColorIdxs[idx] + 1) % NUM_COLORS_FIRST_PHASE;
+  }
 }
 
 void initButtons()
@@ -131,6 +228,8 @@ void initButtons()
 
 void onTimerState(int idx, int v, int up)
 {
+  showButtonLeds();
+  checkTransitionToSecondPhase();
 }
 
 void initTimerState()
