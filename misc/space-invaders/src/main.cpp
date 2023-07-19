@@ -8,11 +8,8 @@
  */
 
 const uint8_t BUTTONS_NUM = 5;
-const uint8_t BUTTONS_PINS[BUTTONS_NUM] = {3, 4, 5, 6, 7};
+const uint8_t BUTTONS_PINS[BUTTONS_NUM] = {A0, A1, A2, A3, A4};
 Atm_button buttons[BUTTONS_NUM];
-
-const uint8_t BUTTONS_BUF_SIZE = 10;
-CircularBuffer<uint8_t, BUTTONS_BUF_SIZE> buttonBuf;
 
 const int BUTTONS_DEBOUNCE_MS = 100;
 
@@ -84,8 +81,23 @@ Adafruit_NeoPixel ledSignal = Adafruit_NeoPixel(
     NEO_GRB + NEO_KHZ800);
 
 /**
+ * Audio FX.
+ */
+
+const uint8_t PIN_AUDIO_ACT = 11;
+const uint8_t PIN_AUDIO_RST = 12;
+const uint8_t PIN_AUDIO_TRACK_ERROR = 3;
+const unsigned long AUDIO_PLAY_DELAY_MS = 200;
+
+/**
  * Program state.
  */
+
+const uint8_t BUTTONS_BUF_SIZE = 5;
+CircularBuffer<uint8_t, BUTTONS_BUF_SIZE> buttonBuf;
+
+const uint8_t AUDIO_BUF_SIZE = 2;
+CircularBuffer<uint8_t, AUDIO_BUF_SIZE> audioPinsQueue;
 
 const uint32_t TIMER_GENERAL_MS = 200;
 Atm_timer timerGeneral;
@@ -104,6 +116,7 @@ typedef struct programState
   uint8_t *invaderColorIdxs;
   uint8_t signalColorIdx;
   bool *invaderFlags;
+  unsigned long audioPlayMillis;
 } ProgramState;
 
 ProgramState progState = {
@@ -111,12 +124,14 @@ ProgramState progState = {
     .buttonColorIdxs = buttonColorIdxs,
     .invaderColorIdxs = invaderColorIdxs,
     .signalColorIdx = 0,
-    .invaderFlags = invaderFlags};
+    .invaderFlags = invaderFlags,
+    .audioPlayMillis = 0};
 
 void cleanState()
 {
   progState.isSecondPhase = false;
   progState.signalColorIdx = 0;
+  progState.audioPlayMillis = 0;
 
   for (uint8_t i = 0; i < BUTTONS_NUM; i++)
   {
@@ -128,6 +143,95 @@ void cleanState()
     progState.invaderColorIdxs[i] = 0;
     progState.invaderFlags[i] = false;
   }
+
+  buttonBuf.clear();
+  audioPinsQueue.clear();
+}
+
+void initAudioPins()
+{
+  pinMode(PIN_AUDIO_TRACK_ERROR, INPUT);
+  pinMode(PIN_AUDIO_ACT, INPUT);
+  pinMode(PIN_AUDIO_RST, INPUT);
+}
+
+void resetAudio()
+{
+  const unsigned long resetDelayMs = 100;
+  const unsigned long waitDelayMs = 2000;
+
+  Serial.println(F("Audio FX reset"));
+
+  digitalWrite(PIN_AUDIO_RST, LOW);
+  pinMode(PIN_AUDIO_RST, OUTPUT);
+  delay(resetDelayMs);
+  pinMode(PIN_AUDIO_RST, INPUT);
+
+  Serial.println(F("Waiting for Audio FX startup"));
+
+  delay(waitDelayMs);
+}
+
+void initAudio()
+{
+  initAudioPins();
+  resetAudio();
+}
+
+bool isTrackPlaying()
+{
+  return progState.audioPlayMillis > 0 || digitalRead(PIN_AUDIO_ACT) == LOW;
+}
+
+void playTrack(uint8_t trackPin)
+{
+  if (isTrackPlaying())
+  {
+    Serial.println(F("Skipping: Audio still playing"));
+    return;
+  }
+
+  digitalWrite(trackPin, LOW);
+  pinMode(trackPin, OUTPUT);
+
+  progState.audioPlayMillis = millis();
+}
+
+void clearAudioPins()
+{
+  if (progState.audioPlayMillis == 0)
+  {
+    return;
+  }
+
+  unsigned long now = millis();
+  unsigned long diffMs = now - progState.audioPlayMillis;
+
+  if (diffMs >= AUDIO_PLAY_DELAY_MS)
+  {
+    Serial.println(F("Clearing audio pins"));
+    progState.audioPlayMillis = 0;
+    pinMode(PIN_AUDIO_TRACK_ERROR, INPUT);
+  }
+}
+
+void processAudioQueue()
+{
+  if (audioPinsQueue.isEmpty() || isTrackPlaying())
+  {
+    return;
+  }
+
+  Serial.print(F("Audio queue size: "));
+  Serial.println(audioPinsQueue.size());
+
+  int trackPin = audioPinsQueue.shift();
+  playTrack(trackPin);
+}
+
+void enqueueTrack(uint8_t trackPin)
+{
+  audioPinsQueue.push(trackPin);
 }
 
 void showLedStartEffect()
@@ -340,6 +444,7 @@ void setFlagForInvaderByColorIdx(uint8_t colorIdx)
 void runSecondPhaseErrorEffect()
 {
   Serial.println(F("Running second phase error"));
+  // ToDo
 }
 
 void rotateFirstPhaseButton(uint8_t idxButton)
@@ -386,6 +491,8 @@ void onTimerGeneral(int idx, int v, int up)
   checkTransitionToSecondPhase();
   showInvaderLeds();
   showSignalLeds();
+  clearAudioPins();
+  processAudioQueue();
 }
 
 void onTimerSecondPhase(int idx, int v, int up)
@@ -419,6 +526,7 @@ void setup()
   initButtons();
   initTimers();
   initLeds();
+  initAudio();
   showLedStartEffect();
 }
 
