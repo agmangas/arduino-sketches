@@ -95,6 +95,7 @@ Atm_timer timerSecondPhase;
 
 uint8_t buttonColorIdxs[BUTTONS_NUM];
 uint8_t invaderColorIdxs[INVADERS_TOTAL];
+bool invaderFlags[INVADERS_TOTAL];
 
 typedef struct programState
 {
@@ -102,13 +103,15 @@ typedef struct programState
   uint8_t *buttonColorIdxs;
   uint8_t *invaderColorIdxs;
   uint8_t signalColorIdx;
+  bool *invaderFlags;
 } ProgramState;
 
 ProgramState progState = {
     .isSecondPhase = false,
     .buttonColorIdxs = buttonColorIdxs,
     .invaderColorIdxs = invaderColorIdxs,
-    .signalColorIdx = 0};
+    .signalColorIdx = 0,
+    .invaderFlags = invaderFlags};
 
 void cleanState()
 {
@@ -123,6 +126,7 @@ void cleanState()
   for (uint8_t i = 0; i < INVADERS_TOTAL; i++)
   {
     progState.invaderColorIdxs[i] = 0;
+    progState.invaderFlags[i] = false;
   }
 }
 
@@ -190,7 +194,7 @@ void showInvaderLeds()
 
     uint32_t color = Adafruit_NeoPixel::Color(0, 0, 0);
 
-    if (colorIdx < NUM_COLORS_SECOND_PHASE)
+    if (colorIdx < NUM_COLORS_SECOND_PHASE && !progState.invaderFlags[idxInvader])
     {
       color = COLORS_SECOND_PHASE[colorIdx];
     }
@@ -313,17 +317,55 @@ void checkTransitionToSecondPhase()
   progState.isSecondPhase = true;
 }
 
-void onPress(int idx, int v, int up)
+bool isButtonSignalMatch(uint8_t idxButton)
 {
-  Serial.print(F("Press:"));
-  Serial.println(idx);
+  return progState.buttonColorIdxs[idxButton] == progState.signalColorIdx;
+}
 
-  buttonBuf.push(idx);
+void setFlagForInvaderByColorIdx(uint8_t colorIdx)
+{
+  Serial.print(F("Setting flag for invader with color: "));
+  Serial.println(colorIdx);
+
+  for (uint8_t idxInvader = 0; idxInvader < INVADERS_TOTAL; idxInvader++)
+  {
+    if (progState.invaderColorIdxs[idxInvader] == colorIdx)
+    {
+      progState.invaderFlags[idxInvader] = true;
+      return;
+    }
+  }
+}
+
+void runSecondPhaseErrorEffect()
+{
+  Serial.println(F("Running second phase error"));
+}
+
+void rotateFirstPhaseButton(uint8_t idxButton)
+{
+  progState.buttonColorIdxs[idxButton] =
+      (progState.buttonColorIdxs[idxButton] + 1) % NUM_COLORS_FIRST_PHASE;
+}
+
+void onPress(int idxButton, int v, int up)
+{
+  Serial.print(F("Press: "));
+  Serial.println(idxButton);
+
+  buttonBuf.push(idxButton);
 
   if (!progState.isSecondPhase)
   {
-    progState.buttonColorIdxs[idx] =
-        (progState.buttonColorIdxs[idx] + 1) % NUM_COLORS_FIRST_PHASE;
+    rotateFirstPhaseButton(idxButton);
+  }
+  else if (isButtonSignalMatch(idxButton))
+  {
+    setFlagForInvaderByColorIdx(progState.signalColorIdx);
+  }
+  else
+  {
+    runSecondPhaseErrorEffect();
   }
 }
 
