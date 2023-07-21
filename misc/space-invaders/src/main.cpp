@@ -183,7 +183,7 @@ bool isTrackPlaying()
   return progState.audioPlayMillis > 0 || digitalRead(PIN_AUDIO_ACT) == LOW;
 }
 
-void playTrack(uint8_t trackPin)
+void playTrack(uint8_t trackPin, bool async = true)
 {
   if (isTrackPlaying())
   {
@@ -194,7 +194,16 @@ void playTrack(uint8_t trackPin)
   digitalWrite(trackPin, LOW);
   pinMode(trackPin, OUTPUT);
 
-  progState.audioPlayMillis = millis();
+  if (async)
+  {
+    progState.audioPlayMillis = millis();
+  }
+  else
+  {
+    progState.audioPlayMillis = 0;
+    delay(AUDIO_PLAY_DELAY_MS);
+    pinMode(trackPin, INPUT);
+  }
 }
 
 void clearAudioPins()
@@ -444,7 +453,19 @@ void setFlagForInvaderByColorIdx(uint8_t colorIdx)
 void runSecondPhaseErrorEffect()
 {
   Serial.println(F("Running second phase error"));
-  // ToDo
+  playTrack(PIN_AUDIO_TRACK_ERROR, false);
+  const unsigned long delayMs = 300;
+  const uint32_t white = Adafruit_NeoPixel::Color(255, 255, 255);
+
+  while (isTrackPlaying())
+  {
+    ledButtons.fill(white);
+    ledButtons.show();
+    delay(delayMs);
+    ledButtons.clear();
+    ledButtons.show();
+    delay(delayMs);
+  }
 }
 
 void rotateFirstPhaseButton(uint8_t idxButton)
