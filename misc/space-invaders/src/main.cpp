@@ -87,7 +87,14 @@ Adafruit_NeoPixel ledSignal = Adafruit_NeoPixel(
 const uint8_t PIN_AUDIO_ACT = 11;
 const uint8_t PIN_AUDIO_RST = 12;
 const uint8_t PIN_AUDIO_TRACK_ERROR = 3;
+const uint8_t PIN_AUDIO_TRACK_VICTORY = 4;
 const unsigned long AUDIO_PLAY_DELAY_MS = 200;
+
+/**
+ * Relays.
+ */
+
+const int PIN_RELAY = 7;
 
 /**
  * Program state.
@@ -148,9 +155,26 @@ void cleanState()
   audioPinsQueue.clear();
 }
 
+void lockRelay()
+{
+  digitalWrite(PIN_RELAY, LOW);
+}
+
+void openRelay()
+{
+  digitalWrite(PIN_RELAY, HIGH);
+}
+
+void initRelays()
+{
+  pinMode(PIN_RELAY, OUTPUT);
+  lockRelay();
+}
+
 void initAudioPins()
 {
   pinMode(PIN_AUDIO_TRACK_ERROR, INPUT);
+  pinMode(PIN_AUDIO_TRACK_VICTORY, INPUT);
   pinMode(PIN_AUDIO_ACT, INPUT);
   pinMode(PIN_AUDIO_RST, INPUT);
 }
@@ -221,6 +245,7 @@ void clearAudioPins()
     Serial.println(F("Clearing audio pins"));
     progState.audioPlayMillis = 0;
     pinMode(PIN_AUDIO_TRACK_ERROR, INPUT);
+    pinMode(PIN_AUDIO_TRACK_VICTORY, INPUT);
   }
 }
 
@@ -388,6 +413,55 @@ void secondPhaseRandomize()
   }
 }
 
+bool isInvadersMatrixComplete()
+{
+  for (uint8_t idxInvader = 0; idxInvader < INVADERS_TOTAL; idxInvader++)
+  {
+    if (!progState.invaderFlags[idxInvader])
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void checkVictory()
+{
+  if (!progState.isSecondPhase || !isInvadersMatrixComplete())
+  {
+    return;
+  }
+
+  const unsigned long delayMs = 200;
+  const unsigned long endMillis = millis() + 12000;
+
+  playTrack(PIN_AUDIO_TRACK_VICTORY, false);
+
+  openRelay();
+
+  uint32_t color;
+  uint8_t colorIdx;
+
+  while (isTrackPlaying() || (millis() < endMillis))
+  {
+    colorIdx = random(0, NUM_COLORS_SECOND_PHASE);
+    color = COLORS_SECOND_PHASE[colorIdx];
+    ledButtons.fill(color);
+    ledInvaders.fill(color);
+    ledButtons.show();
+    ledInvaders.show();
+    delay(delayMs);
+    ledButtons.clear();
+    ledInvaders.clear();
+    ledButtons.show();
+    ledInvaders.show();
+    delay(delayMs);
+  }
+
+  cleanState();
+}
+
 bool isFirstPhaseConfigurationCorrect()
 {
   if (progState.isSecondPhase)
@@ -437,7 +511,7 @@ bool isButtonSignalMatch(uint8_t idxButton)
 
 void setFlagForInvaderByColorIdx(uint8_t colorIdx)
 {
-  Serial.print(F("Setting flag for invader with color: "));
+  Serial.print(F("Setting invader flag with color: "));
   Serial.println(colorIdx);
 
   for (uint8_t idxInvader = 0; idxInvader < INVADERS_TOTAL; idxInvader++)
@@ -453,11 +527,14 @@ void setFlagForInvaderByColorIdx(uint8_t colorIdx)
 void runSecondPhaseErrorEffect()
 {
   Serial.println(F("Running second phase error"));
-  playTrack(PIN_AUDIO_TRACK_ERROR, false);
-  const unsigned long delayMs = 300;
-  const uint32_t white = Adafruit_NeoPixel::Color(255, 255, 255);
 
-  while (isTrackPlaying())
+  const unsigned long delayMs = 200;
+  const uint32_t white = Adafruit_NeoPixel::Color(255, 255, 255);
+  const unsigned long endMillis = millis() + 3000;
+
+  playTrack(PIN_AUDIO_TRACK_ERROR, false);
+
+  while (isTrackPlaying() || (millis() < endMillis))
   {
     ledButtons.fill(white);
     ledButtons.show();
@@ -514,6 +591,7 @@ void onTimerGeneral(int idx, int v, int up)
   showSignalLeds();
   clearAudioPins();
   processAudioQueue();
+  checkVictory();
 }
 
 void onTimerSecondPhase(int idx, int v, int up)
@@ -544,6 +622,7 @@ void initTimers()
 void setup()
 {
   cleanState();
+  initRelays();
   initButtons();
   initTimers();
   initLeds();
