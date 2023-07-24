@@ -88,6 +88,7 @@ const uint8_t PIN_AUDIO_ACT = 11;
 const uint8_t PIN_AUDIO_RST = 12;
 const uint8_t PIN_AUDIO_TRACK_ERROR = 3;
 const uint8_t PIN_AUDIO_TRACK_VICTORY = 4;
+const uint8_t PIN_AUDIO_SECOND_PHASE = 5;
 const unsigned long AUDIO_PLAY_DELAY_MS = 200;
 
 /**
@@ -155,6 +156,10 @@ void cleanState()
   audioPinsQueue.clear();
 }
 
+/**
+ * Functions to manage the relay.
+ */
+
 void lockRelay()
 {
   digitalWrite(PIN_RELAY, LOW);
@@ -171,10 +176,15 @@ void initRelays()
   lockRelay();
 }
 
+/**
+ * Functions to configure and control the audio FX.
+ */
+
 void initAudioPins()
 {
   pinMode(PIN_AUDIO_TRACK_ERROR, INPUT);
   pinMode(PIN_AUDIO_TRACK_VICTORY, INPUT);
+  pinMode(PIN_AUDIO_SECOND_PHASE, INPUT);
   pinMode(PIN_AUDIO_ACT, INPUT);
   pinMode(PIN_AUDIO_RST, INPUT);
 }
@@ -246,6 +256,7 @@ void clearAudioPins()
     progState.audioPlayMillis = 0;
     pinMode(PIN_AUDIO_TRACK_ERROR, INPUT);
     pinMode(PIN_AUDIO_TRACK_VICTORY, INPUT);
+    pinMode(PIN_AUDIO_SECOND_PHASE, INPUT);
   }
 }
 
@@ -267,6 +278,10 @@ void enqueueTrack(uint8_t trackPin)
 {
   audioPinsQueue.push(trackPin);
 }
+
+/**
+ * Functions to update the state of the LEDs.
+ */
 
 void showLedStartEffect()
 {
@@ -398,6 +413,10 @@ void showButtonLeds()
   ledButtons.show();
 }
 
+/**
+ * Functions to calculate and update the internal state of the game.
+ */
+
 uint8_t randomSecondPhaseColorIdx()
 {
   return random(0, NUM_COLORS_SECOND_PHASE);
@@ -501,6 +520,7 @@ void checkTransitionToSecondPhase()
     progState.invaderColorIdxs[idxInvader] = randomSecondPhaseColorIdx();
   }
 
+  enqueueTrack(PIN_AUDIO_SECOND_PHASE);
   progState.isSecondPhase = true;
 }
 
@@ -551,6 +571,10 @@ void rotateFirstPhaseButton(uint8_t idxButton)
       (progState.buttonColorIdxs[idxButton] + 1) % NUM_COLORS_FIRST_PHASE;
 }
 
+/**
+ * Functions to handle button presses.
+ */
+
 void onPress(int idxButton, int v, int up)
 {
   Serial.print(F("Press: "));
@@ -582,6 +606,10 @@ void initButtons()
         .onPress(onPress, i);
   }
 }
+
+/**
+ * Functions to initialize and configure the timers.
+ */
 
 void onTimerGeneral(int idx, int v, int up)
 {
