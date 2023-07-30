@@ -242,6 +242,14 @@ void playTrack(uint8_t trackPin, bool async = true)
 
 void clearAudioPins()
 {
+  progState.audioPlayMillis = 0;
+  pinMode(PIN_AUDIO_TRACK_ERROR, INPUT);
+  pinMode(PIN_AUDIO_TRACK_VICTORY, INPUT);
+  pinMode(PIN_AUDIO_SECOND_PHASE, INPUT);
+}
+
+void checkClearAudioPins()
+{
   if (progState.audioPlayMillis == 0)
   {
     return;
@@ -253,10 +261,7 @@ void clearAudioPins()
   if (diffMs >= AUDIO_PLAY_DELAY_MS)
   {
     Serial.println(F("Clearing audio pins"));
-    progState.audioPlayMillis = 0;
-    pinMode(PIN_AUDIO_TRACK_ERROR, INPUT);
-    pinMode(PIN_AUDIO_TRACK_VICTORY, INPUT);
-    pinMode(PIN_AUDIO_SECOND_PHASE, INPUT);
+    clearAudioPins();
   }
 }
 
@@ -455,6 +460,7 @@ void checkVictory()
   const unsigned long delayMs = 200;
   const unsigned long endMillis = millis() + 12000;
 
+  clearAudioPins();
   playTrack(PIN_AUDIO_TRACK_VICTORY, false);
 
   openRelay();
@@ -466,15 +472,19 @@ void checkVictory()
   {
     colorIdx = random(0, NUM_COLORS_SECOND_PHASE);
     color = COLORS_SECOND_PHASE[colorIdx];
+
     ledButtons.fill(color);
     ledInvaders.fill(color);
     ledButtons.show();
     ledInvaders.show();
+
     delay(delayMs);
+
     ledButtons.clear();
     ledInvaders.clear();
     ledButtons.show();
     ledInvaders.show();
+
     delay(delayMs);
   }
 
@@ -552,15 +562,19 @@ void runSecondPhaseErrorEffect()
   const uint32_t white = Adafruit_NeoPixel::Color(255, 255, 255);
   const unsigned long endMillis = millis() + 3000;
 
+  clearAudioPins();
   playTrack(PIN_AUDIO_TRACK_ERROR, false);
 
   while (isTrackPlaying() || (millis() < endMillis))
   {
     ledButtons.fill(white);
     ledButtons.show();
+
     delay(delayMs);
+    
     ledButtons.clear();
     ledButtons.show();
+    
     delay(delayMs);
   }
 }
@@ -617,7 +631,7 @@ void onTimerGeneral(int idx, int v, int up)
   checkTransitionToSecondPhase();
   showInvaderLeds();
   showSignalLeds();
-  clearAudioPins();
+  checkClearAudioPins();
   processAudioQueue();
   checkVictory();
 }
