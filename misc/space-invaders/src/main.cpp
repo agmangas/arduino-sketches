@@ -78,7 +78,7 @@ const int16_t LED_SIGNAL_PIN = 10;
 Adafruit_NeoPixel ledSignal = Adafruit_NeoPixel(
     LED_SIGNAL_NUM,
     LED_SIGNAL_PIN,
-    NEO_GRB + NEO_KHZ800);
+    NEO_RGB + NEO_KHZ800);
 
 /**
  * Audio FX.
