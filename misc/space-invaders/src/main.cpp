@@ -552,7 +552,7 @@ void setFlagForInvaderByColorIdx(uint8_t colorIdx)
 
   for (uint8_t idxInvader = 0; idxInvader < INVADERS_TOTAL; idxInvader++)
   {
-    if (progState.invaderColorIdxs[idxInvader] == colorIdx)
+    if (progState.invaderColorIdxs[idxInvader] == colorIdx && !progState.invaderFlags[idxInvader])
     {
       progState.invaderFlags[idxInvader] = true;
       return;
