@@ -7,8 +7,8 @@
  * Controller buttons.
  */
 
-const uint8_t BUTTONS_NUM = 5;
-const uint8_t BUTTONS_PINS[BUTTONS_NUM] = {A0, A1, A2, A3, A4};
+const uint8_t BUTTONS_NUM = 4;
+const uint8_t BUTTONS_PINS[BUTTONS_NUM] = {A0, A1, A2, A3};
 Atm_button buttons[BUTTONS_NUM];
 
 const int BUTTONS_DEBOUNCE_MS = 100;
@@ -32,7 +32,7 @@ const uint32_t COLORS_FIRST_PHASE[NUM_COLORS_FIRST_PHASE] = {
     YELLOW};
 
 const uint8_t COLORS_FIRST_PHASE_KEY[BUTTONS_NUM] = {
-    0, 1, 0, 3, 2};
+    0, 1, 3, 2};
 
 const uint32_t COLORS_SECOND_PHASE[NUM_COLORS_SECOND_PHASE] = {
     RED,
@@ -57,7 +57,7 @@ Adafruit_NeoPixel ledButtons = Adafruit_NeoPixel(
  */
 
 const uint8_t INVADERS_WIDTH = 5;
-const uint8_t INVADERS_HEIGHT = 3;
+const uint8_t INVADERS_HEIGHT = 4;
 const uint8_t LEDS_PER_INVADER = 1;
 const uint8_t INVADERS_TOTAL = INVADERS_WIDTH * INVADERS_HEIGHT;
 const uint16_t NUM_LEDS_INVADERS = INVADERS_TOTAL * LEDS_PER_INVADER;
@@ -300,6 +300,8 @@ void showLedStartEffect()
     ledInvaders.show();
     ledButtons.fill(color);
     ledButtons.show();
+    ledSignal.fill(color);
+    ledSignal.show();
 
     delay(delayMs);
 
@@ -307,6 +309,8 @@ void showLedStartEffect()
     ledInvaders.show();
     ledButtons.clear();
     ledButtons.show();
+    ledSignal.clear();
+    ledSignal.show();
 
     delay(delayMs);
   }
@@ -315,6 +319,8 @@ void showLedStartEffect()
   ledInvaders.show();
   ledButtons.clear();
   ledButtons.show();
+  ledSignal.clear();
+  ledSignal.show();
 }
 
 void initLeds()
@@ -571,10 +577,10 @@ void runSecondPhaseErrorEffect()
     ledButtons.show();
 
     delay(delayMs);
-    
+
     ledButtons.clear();
     ledButtons.show();
-    
+
     delay(delayMs);
   }
 }
@@ -663,6 +669,7 @@ void initTimers()
 
 void setup()
 {
+  Serial.begin(9600);
   cleanState();
   initRelays();
   initButtons();
