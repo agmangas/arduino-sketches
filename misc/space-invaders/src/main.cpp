@@ -566,7 +566,7 @@ void runSecondPhaseErrorEffect()
 
   const unsigned long delayMs = 200;
   const uint32_t white = Adafruit_NeoPixel::Color(255, 255, 255);
-  const unsigned long endMillis = millis() + 3000;
+  const unsigned long endMillis = millis() + 1500;
 
   clearAudioPins();
   playTrack(PIN_AUDIO_TRACK_ERROR, false);
