@@ -441,6 +441,9 @@ void secondPhaseRandomize()
   {
     progState.buttonColorIdxs[idxButton] = randomSecondPhaseColorIdx();
   }
+
+  uint8_t randomButtonIdx = random(0, BUTTONS_NUM);
+  progState.buttonColorIdxs[randomButtonIdx] = progState.signalColorIdx;
 }
 
 bool isInvadersMatrixComplete()
