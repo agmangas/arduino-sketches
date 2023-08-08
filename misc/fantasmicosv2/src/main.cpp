@@ -240,10 +240,25 @@ void blinkBats()
   stripBat.show();
 }
 
+void activationDebugBlink()
+{
+  const unsigned long delayMs = 15;
+  const unsigned long iters = 40;
+
+  for (uint8_t i = 0; i < iters; i++)
+  {
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(delayMs);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(delayMs);
+  }
+}
+
 void onActivation(int idx, int v, int up)
 {
   Serial.println(F("Detected activation pulse"));
   isActive = true;
+  activationDebugBlink();
 }
 
 void setup()
@@ -261,7 +276,35 @@ void setup()
 
   initLeds();
 
+  pinMode(LED_BUILTIN, OUTPUT);
+
   Serial.println(F("Murcielagos"));
+}
+
+void activeLoopDebugBlink()
+{
+  const unsigned long delayMs = 60;
+  const unsigned long iters = 1;
+
+  for (uint8_t i = 0; i < iters; i++)
+  {
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(delayMs);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(delayMs);
+  }
+}
+
+void inactiveLoopDebugBlink()
+{
+  const unsigned long longMs = 600;
+  const unsigned long shortMs = 50;
+
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(longMs);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(shortMs);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void loop()
@@ -276,7 +319,7 @@ void loop()
 
   if (isActive)
   {
-    const int delayLoopMs = 50;
+    const unsigned long delayLoopMs = 50;
 
     if (isRelayOpen)
     {
@@ -289,8 +332,13 @@ void loop()
       murcielagos();
       releOpen();
       lockRelay(PIN_OUTPUT_RELAY_COMPLETION);
+      activeLoopDebugBlink();
     }
 
     delay(delayLoopMs);
+  }
+  else
+  {
+    inactiveLoopDebugBlink();
   }
 }
