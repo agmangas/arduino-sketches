@@ -110,7 +110,7 @@ CircularBuffer<uint8_t, AUDIO_BUF_SIZE> audioPinsQueue;
 const uint32_t TIMER_GENERAL_MS = 200;
 Atm_timer timerGeneral;
 
-const uint32_t TIMER_SECOND_PHASE_MS = 3000;
+const uint32_t TIMER_SECOND_PHASE_MS = 2500;
 Atm_timer timerSecondPhase;
 
 uint8_t buttonColorIdxs[BUTTONS_NUM];
