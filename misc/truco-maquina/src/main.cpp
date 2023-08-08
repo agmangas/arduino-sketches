@@ -6,14 +6,16 @@
  * Buttons.
  */
 
-const uint8_t BUTTONS_NUM = 4;
-const uint8_t BUTTONS_PINS[BUTTONS_NUM] = {A0, A1, A2, A3};
+const uint8_t BUTTONS_NUM = 6;
+const uint8_t BUTTONS_PINS[BUTTONS_NUM] = {A0, A1, A2, A3, A4, A5};
 Atm_button buttons[BUTTONS_NUM];
 
-const uint8_t BUTTON_COMBINATION_VICTORY_SIZE = 9;
+const uint8_t BUTTON_COMBINATION_VICTORY_SIZE = 6;
+
+// 0, 2, 2, 1, 4, 5
 
 const uint8_t BUTTON_COMBINATION_VICTORY_KEY[BUTTON_COMBINATION_VICTORY_SIZE] = {
-    0, 1, 2, 3, 0, 1, 2, 3, 0};
+    0, 2, 2, 1, 4, 5};
 
 const int BUTTONS_DEBOUNCE_MS = 50;
 
@@ -248,6 +250,7 @@ void onPress(int idxButton, int v, int up)
 {
   Serial.print(F("Press: "));
   Serial.println(idxButton);
+  buttonBuf.push(idxButton);
 }
 
 void initButtons()
@@ -288,11 +291,13 @@ void initTimer()
 
 void setup()
 {
+  Serial.begin(9600);
   cleanState();
   initRelays();
   initAudio();
   initButtons();
   initTimer();
+  Serial.println(F("Ready"));
 }
 
 void loop()
