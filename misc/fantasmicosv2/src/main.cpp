@@ -283,7 +283,7 @@ void setup()
 
 void activeLoopDebugBlink()
 {
-  const unsigned long delayMs = 60;
+  const unsigned long delayMs = 50;
   const unsigned long iters = 1;
 
   for (uint8_t i = 0; i < iters; i++)
