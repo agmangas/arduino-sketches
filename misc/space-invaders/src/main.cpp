@@ -609,6 +609,7 @@ void onPress(int idxButton, int v, int up)
   else if (isButtonSignalMatch(idxButton))
   {
     setFlagForInvaderByColorIdx(progState.signalColorIdx);
+    secondPhaseRandomize();
   }
   else
   {
