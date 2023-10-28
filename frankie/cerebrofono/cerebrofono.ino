@@ -22,7 +22,7 @@ const int ID_PRINTABLE_LEN = 12;
 // IDs of valid tags
 char tagTrack0[ID_LEN] = "5C00CADBA1EC";
 char tagTrack1[ID_LEN] = "5C00CADBC28F";
-char tagTrack2[ID_LEN] = "5C00CB0D20BA";
+char tagTrack2[ID_LEN] = "3C00D54207AC";
 char tagTrack3[ID_LEN] = "570046666116";
 char tagTrack4[ID_LEN] = "5C00CADB5A17";
 
