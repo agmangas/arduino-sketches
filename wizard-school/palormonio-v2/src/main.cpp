@@ -71,11 +71,8 @@ float meanKnockPatternDiff;
  * Proximity sensors.
  */
 
-const int PROX_SENSORS_NUM = 5;
-
-const int PROX_SENSORS_PINS[PROX_SENSORS_NUM] = {
-    A0, A1, A2, A3, A4};
-
+const int PROX_SENSORS_NUM = 4;
+const int PROX_SENSORS_PINS[PROX_SENSORS_NUM] = {A0, A1, A2, A3};
 Atm_button proxSensorsBtn[PROX_SENSORS_NUM];
 
 /**
@@ -87,7 +84,7 @@ const int SOLUTION_SIZE = 5;
 CircularBuffer<byte, SOLUTION_SIZE> triggerHistory;
 
 const byte SOLUTION_KEY[SOLUTION_SIZE] = {
-    0, 2, 4, 3, 2};
+    0, 1, 3, 2, 1};
 
 /**
    Audio FX.
@@ -95,10 +92,7 @@ const byte SOLUTION_KEY[SOLUTION_SIZE] = {
 
 const byte PIN_AUDIO_RST = 9;
 const byte PIN_AUDIO_ACT = 3;
-
-const byte AUDIO_PINS[PROX_SENSORS_NUM] = {
-    8, 7, 6, 5, 4};
-
+const byte AUDIO_PINS[PROX_SENSORS_NUM] = {8, 7, 6, 5};
 const byte PIN_AUDIO_FINAL = 10;
 
 /**
